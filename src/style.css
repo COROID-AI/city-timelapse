@@ -61,6 +61,12 @@ canvas {
   cursor: pointer;
 }
 
+.timeline-slider:focus-visible {
+  outline: 2px solid #5fa8ff;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
 .timeline-labels {
   display: flex;
   justify-content: space-between;
@@ -76,9 +82,24 @@ canvas {
   padding: 4px 10px;
   font-size: 13px;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .timeline-label:hover {
   background: rgba(95, 168, 255, 0.35);
+}
+
+.timeline-label:focus-visible {
+  outline: none;
+  border-color: #5fa8ff;
+  box-shadow: 0 0 0 2px rgba(95, 168, 255, 0.6);
+}
+
+.timeline-label.is-active {
+  background: rgba(95, 168, 255, 0.55);
+  border-color: rgba(95, 168, 255, 0.9);
+  font-weight: 600;
 }

@@ -45,9 +45,19 @@ export function createTimeline(
   const labels = document.createElement('div');
   labels.className = 'timeline-labels';
 
+  // Track the label buttons so the active stop can be highlighted.
+  const labelButtons: HTMLButtonElement[] = [];
+
+  const setActive = (index: number) => {
+    labelButtons.forEach((btn, i) =>
+      btn.classList.toggle('is-active', i === index),
+    );
+  };
+
   const emit = (index: number) => {
     const year = PERIOD_YEARS[index];
     current.textContent = String(year);
+    setActive(index);
     onChange(year, index);
   };
 
@@ -56,15 +66,20 @@ export function createTimeline(
     label.type = 'button';
     label.className = 'timeline-label';
     label.textContent = String(year);
+    label.setAttribute('aria-label', `Select year ${year}`);
     label.addEventListener('click', () => {
       slider.value = String(index);
       emit(index);
     });
     labels.appendChild(label);
+    labelButtons.push(label);
   });
 
   const onInput = () => emit(Number(slider.value));
   slider.addEventListener('input', onInput);
+
+  // Highlight the initial selection.
+  setActive(PERIOD_YEARS.indexOf(initial));
 
   overlay.append(title, current, slider, labels);
   container.appendChild(overlay);
@@ -74,6 +89,7 @@ export function createTimeline(
     if (index < 0) return;
     slider.value = String(index);
     current.textContent = String(year);
+    setActive(index);
   };
 
   const dispose = () => {
