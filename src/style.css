@@ -1,0 +1,84 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: #000;
+}
+
+canvas {
+  display: block;
+}
+
+/* ---- Timeline overlay ---- */
+.timeline-overlay {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 24px;
+  background: rgba(15, 18, 28, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  user-select: none;
+}
+
+.timeline-title {
+  font-size: 11px;
+  letter-spacing: 3px;
+  opacity: 0.7;
+}
+
+.timeline-current {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.timeline-slider {
+  width: 380px;
+  accent-color: #5fa8ff;
+  cursor: pointer;
+}
+
+.timeline-labels {
+  display: flex;
+  justify-content: space-between;
+  width: 380px;
+  gap: 6px;
+}
+
+.timeline-label {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.timeline-label:hover {
+  background: rgba(95, 168, 255, 0.35);
+}
