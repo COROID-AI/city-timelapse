@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%232a2a3a'/%3E%3Crect x='3' y='6' width='3' height='7' fill='%23ffd070'/%3E%3Crect x='7' y='3' width='3' height='10' fill='%2380f0e0'/%3E%3Crect x='11' y='8' width='2' height='5' fill='%23ff40a0'/%3E%3C/svg%3E" />
+    <title>City Timelapse — 1945 → 2025</title>
+    <meta name="description" content="A procedural 3D city block that transforms across five eras." />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="scene"></canvas>
+      <div id="ui">
+        <div id="timeline-wrap">
+          <div id="timeline-track">
+            <button class="tick" data-year="1945">1945</button>
+            <button class="tick" data-year="1965">1965</button>
+            <button class="tick" data-year="1985">1985</button>
+            <button class="tick" data-year="2005">2005</button>
+            <button class="tick" data-year="2025">2025</button>
+            <div id="timeline-fill"></div>
+            <div id="timeline-knob"><span id="knob-year">1945</span></div>
+          </div>
+        </div>
+        <div id="controls">
+          <button id="mute-btn" title="Toggle sound">🔊</button>
+          <button id="help-btn" title="Controls help">?</button>
+        </div>
+        <div id="hint">Drag to orbit · Scroll to zoom · Right-drag to pan · WASD to move · Arrow keys change era</div>
+        <div id="help-panel" hidden>
+          <h3>Controls</h3>
+          <ul>
+            <li><b>Left-drag</b> — orbit camera</li>
+            <li><b>Scroll</b> — zoom in/out</li>
+            <li><b>Right-drag</b> — pan</li>
+            <li><b>W A S D</b> — move through the scene</li>
+            <li><b>← →</b> — previous / next era</li>
+            <li><b>M</b> — mute / unmute</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

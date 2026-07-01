@@ -1,0 +1,19 @@
+{
+  "name": "city-timelapse",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "type-check": "tsc --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "0.160.1"
+  },
+  "devDependencies": {
+    "typescript": "5.3.3",
+    "vite": "5.0.12"
+  }
+}
