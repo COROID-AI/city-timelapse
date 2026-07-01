@@ -108,9 +108,9 @@ export function applyRenderPolicy<T extends THREE.Object3D>(
 // ---------------------------------------------------------------------------
 //
 // The block does not own per-frame vehicle motion; instead it hands each
- * driving-car rig to a traffic system for the timeline runtime to animate.
- * Downstream modules implement this interface; a default no-op registry keeps
- * the module usable in isolation (e.g. tests / partial scenes).
+// driving-car rig to a traffic system for the timeline runtime to animate.
+// Downstream modules implement this interface; a default no-op registry keeps
+// the module usable in isolation (e.g. tests / partial scenes).
 
 /** A driving car registered with the traffic system for animation. */
 export interface TrafficCar {
