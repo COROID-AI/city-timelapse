@@ -1,9 +1,12 @@
 import { defineConfig } from 'vite';
 
 // No external assets; everything is generated procedurally at runtime.
+// Honor the runner-provided PORT env var so smoke checks can probe the server.
+const port = process.env.PORT ? Number(process.env.PORT) : 5173;
+
 export default defineConfig({
   server: {
-    port: 5173,
+    port,
     host: true,
   },
   build: {
@@ -11,9 +14,8 @@ export default defineConfig({
     sourcemap: false,
     chunkSizeWarningLimit: 2000,
   },
-  // Ensure the dev server uses the runner-provided port when present.
   preview: {
-    port: 5173,
+    port,
     host: true,
   },
 });

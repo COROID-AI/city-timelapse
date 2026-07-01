@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Era } from './eras/types';
+import { Era, YEARS } from './eras/types';
 import { getEra } from './eras/data';
 import { buildEraScene, BuiltEra } from './assetBuilder';
 import { makeGroundTexture } from './assetBuilder/textures';
@@ -38,7 +38,7 @@ export class CityBlock {
     this.root.add(this.ground);
 
     // Pre-build all 5 era scenes once at startup.
-    (['1945', '1965', '1985', '2005', '2025'] as unknown as Era[]).forEach((year) => {
+    YEARS.forEach((year) => {
       const built = buildEraScene(year);
       // start hidden except the initial era (1945)
       built.group.visible = year === 1945;
