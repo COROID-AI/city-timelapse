@@ -1,0 +1,21 @@
+{
+  "name": "city-timelapse",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "3D city block timelapse across five eras (1945-2025) built with Vite + TypeScript + Three.js.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "0.160.0"
+  },
+  "devDependencies": {
+    "@types/three": "0.160.0",
+    "typescript": "5.3.3",
+    "vite": "5.0.10"
+  }
+}
