@@ -47,7 +47,7 @@ export interface WalkPose {
 export interface WalkCycleRig {
   /** Loop duration in seconds at a 1 m/s cadence. */
   duration: number;
- /** Ordered keyframes; the cycle wraps from the last pose back to the first. */
+  /** Ordered keyframes; the cycle wraps from the last pose back to the first. */
   poses: WalkPose[];
 }
 
@@ -209,7 +209,7 @@ export interface EraAssetSpec {
 /**
  * A notable moment on the timeline, surfaced to the UI for context as the user
  * scrubs between eras.
-   */
+ */
 export interface TimelineEvent {
   /** Era the event is anchored to. */
   era: Era;
