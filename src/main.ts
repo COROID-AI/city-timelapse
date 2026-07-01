@@ -11,6 +11,22 @@ if (!container) {
 // Three.js stage: camera, renderer, lighting and render loop.
 const sceneContext = createScene(container);
 
+// Camera mode toggle — switches between orbit and first-person fly (WASD).
+const viewToggle = document.createElement('button');
+viewToggle.className = 'view-toggle';
+viewToggle.type = 'button';
+viewToggle.textContent = 'View: Orbit';
+viewToggle.addEventListener('click', () => {
+  sceneContext.cameraController.toggleMode();
+});
+sceneContext.cameraController.onModeChange((mode) => {
+  viewToggle.textContent =
+    mode === 'orbit'
+      ? 'View: Orbit'
+      : 'View: Fly (WASD · Esc to exit)';
+});
+container.appendChild(viewToggle);
+
 // Static city block: ground, streets, sidewalks and building plots.
 createCityBlock(sceneContext.scene);
 
