@@ -53,75 +53,161 @@ canvas {
   outline-offset: 4px;
 }
 
-/* ---- Timeline overlay ---- */
+/* ---- Timeline overlay (glassmorphic) ---- */
 .timeline-overlay {
   position: fixed;
-  top: 24px;
+  top: 22px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 16px 24px;
-  background: rgba(15, 18, 28, 0.72);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  align-items: stretch;
+  gap: 10px;
+  padding: 16px 28px 18px;
+  min-width: 420px;
+  background: linear-gradient(
+    135deg,
+    rgba(20, 26, 40, 0.66),
+    rgba(12, 16, 26, 0.78)
+  );
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
   color: #fff;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
   user-select: none;
+}
+
+.timeline-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .timeline-title {
   font-size: 11px;
-  letter-spacing: 3px;
-  opacity: 0.7;
+  letter-spacing: 4px;
+  opacity: 0.62;
+  text-transform: uppercase;
 }
 
-.timeline-current {
-  font-size: 30px;
+/* Prominent active-year badge */
+.timeline-badge {
+  font-size: 32px;
   font-weight: 700;
   line-height: 1;
+  letter-spacing: 1px;
+  background: linear-gradient(180deg, #ffffff, #bfe0ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 2px 18px rgba(95, 168, 255, 0.35);
 }
 
-.timeline-slider {
-  width: 380px;
-  accent-color: #5fa8ff;
+.timeline-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 0;
+}
+
+/* The clickable track that hosts the fill + thumb */
+.timeline-track {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
   cursor: pointer;
+  touch-action: none;
 }
 
-.timeline-slider:focus-visible {
-  outline: 2px solid #5fa8ff;
-  outline-offset: 4px;
-  border-radius: 4px;
+.timeline-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #3d7fd6, #5fa8ff);
+  box-shadow: 0 0 12px rgba(95, 168, 255, 0.55);
 }
 
+.timeline-thumb {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffffff, #cfe6ff 60%, #8ec5ff);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    0 0 0 4px rgba(95, 168, 255, 0.18);
+  cursor: grab;
+}
+
+.timeline-thumb:active {
+  cursor: grabbing;
+}
+
+.timeline-thumb:focus-visible {
+  outline: none;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    0 0 0 5px rgba(95, 168, 255, 0.6);
+}
+
+/* 5 evenly-spaced tick marks sitting under the track */
+.timeline-ticks {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 2px;
+  height: 8px;
+  align-items: center;
+}
+
+.timeline-tick {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.32);
+  box-shadow: 0 0 0 2px rgba(15, 18, 28, 0.4);
+}
+
+/* Labelled year stops */
 .timeline-labels {
   display: flex;
   justify-content: space-between;
-  width: 380px;
+  padding: 0;
   gap: 6px;
 }
 
 .timeline-label {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   color: #fff;
-  border-radius: 8px;
-  padding: 4px 10px;
+  border-radius: 9px;
+  padding: 5px 11px;
+  font-family: inherit;
   font-size: 13px;
   cursor: pointer;
   transition:
     background 0.15s ease,
     border-color 0.15s ease,
-    box-shadow 0.15s ease;
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
 }
 
 .timeline-label:hover {
-  background: rgba(95, 168, 255, 0.35);
+  background: rgba(95, 168, 255, 0.3);
+  transform: translateY(-1px);
 }
 
 .timeline-label:focus-visible {
@@ -131,7 +217,8 @@ canvas {
 }
 
 .timeline-label.is-active {
-  background: rgba(95, 168, 255, 0.55);
-  border-color: rgba(95, 168, 255, 0.9);
+  background: linear-gradient(135deg, rgba(95, 168, 255, 0.55), rgba(61, 127, 214, 0.55));
+  border-color: rgba(143, 197, 255, 0.9);
   font-weight: 600;
+  box-shadow: 0 4px 14px rgba(95, 168, 255, 0.35);
 }
