@@ -78,43 +78,54 @@ function buildPedestrianBody(
   hair.position.y = head.position.y + headR * 0.1;
   group.add(hair);
 
-  // Arms (two boxes)
+  // Arms (two boxes wrapped in shoulder pivots for walking animation)
   const armMat = mat(outfitColor, 0.85);
   const handMat = mat(skinColor, 0.6);
+  const shoulderY = legLen + torsoH * 0.7;
   for (const sx of [-1, 1]) {
+    const armPivot = new THREE.Group();
+    armPivot.name = sx < 0 ? 'armL' : 'armR';
+    armPivot.position.set(sx * (shoulderW / 2 + armW / 2), shoulderY, 0);
+    group.add(armPivot);
+
     const arm = new THREE.Mesh(
       new THREE.BoxGeometry(armW, armLen, armW),
       armMat,
     );
-    arm.position.set(sx * (shoulderW / 2 + armW / 2), legLen + torsoH * 0.7, 0);
+    arm.position.y = -armLen / 2;
     arm.rotation.z = sx * 0.08;
-    group.add(arm);
+    armPivot.add(arm);
     // Hand
     const hand = new THREE.Mesh(
       new THREE.BoxGeometry(armW, 0.08 * scale, armW),
       handMat,
     );
-    hand.position.set(sx * (shoulderW / 2 + armW / 2), legLen + torsoH * 0.7 - armLen / 2 - 0.05, 0);
-    group.add(hand);
+    hand.position.y = -armLen - 0.05;
+    armPivot.add(hand);
   }
 
-  // Legs (two boxes)
+  // Legs (two boxes wrapped in hip pivots for walking animation)
   const legMat = mat(shadeHex(outfitColor, -15), 0.85);
   const shoeMat = mat('#1a1a1a', 0.6);
   for (const sx of [-1, 1]) {
+    const legPivot = new THREE.Group();
+    legPivot.name = sx < 0 ? 'legL' : 'legR';
+    legPivot.position.set(sx * shoulderW * 0.22, legLen, 0);
+    group.add(legPivot);
+
     const leg = new THREE.Mesh(
       new THREE.BoxGeometry(legW, legLen, legW),
       legMat,
     );
-    leg.position.set(sx * shoulderW * 0.22, legLen / 2, 0);
-    group.add(leg);
+    leg.position.y = -legLen / 2;
+    legPivot.add(leg);
     // Shoe
     const shoe = new THREE.Mesh(
       new THREE.BoxGeometry(legW * 1.2, 0.06 * scale, legW * 1.6),
       shoeMat,
     );
-    shoe.position.set(sx * shoulderW * 0.22, 0.03 * scale, legW * 0.3);
-    group.add(shoe);
+    shoe.position.set(0, -legLen + 0.03 * scale, legW * 0.3);
+    legPivot.add(shoe);
   }
 
   // Hat (era-dependent likelihood)
