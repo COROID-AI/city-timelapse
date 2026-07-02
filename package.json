@@ -1,0 +1,17 @@
+{
+  "name": "city-timelapse",
+  "version": "0.1.0",
+  "description": "3D city block timelapse across five eras (1945–2025)",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "^0.162.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.162.0",
+    "typescript": "^5.3.0"
+  }
+}
