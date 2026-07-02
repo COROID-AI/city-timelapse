@@ -1,0 +1,15 @@
+{
+  "name": "city-timelapse",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "City Time Period Timelapse — a 3D city block that transforms across five decades.",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}
