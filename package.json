@@ -1,17 +1,21 @@
 {
   "name": "city-timelapse",
-  "version": "0.1.0",
-  "description": "3D city block timelapse across five eras (1945–2025)",
+  "version": "1.0.0",
+  "description": "3D city block timelapse across 5 eras (1945-2025)",
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit",
-    "typecheck": "tsc --noEmit"
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "type-check": "tsc --noEmit",
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "three": "^0.162.0"
+    "three": "^0.169.0"
   },
   "devDependencies": {
-    "@types/three": "^0.162.0",
-    "typescript": "^5.3.0"
+    "@types/three": "^0.169.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
   }
 }
