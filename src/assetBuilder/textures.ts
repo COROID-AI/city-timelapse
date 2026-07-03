@@ -540,7 +540,7 @@ export function getSignageTexture(
 function drawSignageByStyle(
   ctx: CanvasRenderingContext2D,
   sf: StorefrontEraData,
-  ad: AdvertisementEraData,
+  _ad: AdvertisementEraData,
   label: string,
   fg: string,
   rng: () => number,
