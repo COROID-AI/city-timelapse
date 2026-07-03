@@ -48,6 +48,52 @@ export interface PedestrianVariant {
 }
 
 // ---------------------------------------------------------------------------
+// Limb pivot naming — used by the pedestrian system for walk animation
+// ---------------------------------------------------------------------------
+
+/**
+ * Names of the limb pivot groups embedded inside a pedestrian mesh.
+ *
+ * The builder wraps each leg and arm in a `THREE.Group` positioned at the
+ * hip or shoulder joint. The pedestrian system looks up these pivots by name
+ * (via `getObjectByName`) and rotates them to produce the walk cycle.
+ */
+export const LIMB_NAMES = {
+  legL: 'ped-leg-l',
+  legR: 'ped-leg-r',
+  armL: 'ped-arm-l',
+  armR: 'ped-arm-r',
+} as const;
+
+/**
+ * Resolved references to the four limb pivots within a pedestrian mesh.
+ * Each entry is the `THREE.Object3D` whose `rotation.x` drives the swing.
+ */
+export interface PedestrianLimbs {
+  legL: THREE.Object3D;
+  legR: THREE.Object3D;
+  armL: THREE.Object3D;
+  armR: THREE.Object3D;
+}
+
+/**
+ * Find the limb pivot groups within a pedestrian mesh (or its clone).
+ *
+ * Returns `null` if any limb pivot is missing — callers should gracefully
+ * skip animation for such variants.
+ *
+ * @param mesh  A pedestrian group (original or cloned).
+ */
+export function getPedestrianLimbs(mesh: THREE.Object3D): PedestrianLimbs | null {
+  const legL = mesh.getObjectByName(LIMB_NAMES.legL);
+  const legR = mesh.getObjectByName(LIMB_NAMES.legR);
+  const armL = mesh.getObjectByName(LIMB_NAMES.armL);
+  const armR = mesh.getObjectByName(LIMB_NAMES.armR);
+  if (!legL || !legR || !armL || !armR) return null;
+  return { legL, legR, armL, armR };
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -191,7 +237,13 @@ function buildHead(skinColor: string): THREE.Group {
   return group;
 }
 
-/** Build the legs segment, styled by silhouette. */
+/**
+ * Build the legs segment, styled by silhouette.
+ *
+ * Each leg is wrapped in a named pivot `THREE.Group` positioned at the hip
+ * joint (top of the leg). The pedestrian system rotates these pivots around
+ * the X axis to produce the forward/backward leg swing of a walk cycle.
+ */
 function buildLegs(
   silhouette: string,
   color: string,
@@ -199,20 +251,33 @@ function buildLegs(
   _rng: () => number,
 ): THREE.Group {
   const group = new THREE.Group();
+  group.name = 'legs';
   const legH = PEDESTRIAN_HEIGHT * LEG_H;
-  const legY = legH / 2;
+  const hipY = legH; // hip joint at the top of the leg segment
 
   // Skip visible legs for dress silhouettes (dress covers them)
   if (silhouette === 'sheath-dress') {
     // Bare lower legs below the dress
     const skinMat = stdMaterial('#d4a373', { roughness: 0.7 });
     const lowerLegH = 0.3;
+    const lowerHipY = lowerLegH;
+
+    const leftPivot = new THREE.Group();
+    leftPivot.name = LIMB_NAMES.legL;
+    leftPivot.position.set(-0.06, lowerHipY, 0);
     const leftLeg = boxMesh(0.08, lowerLegH, 0.08, skinMat);
-    leftLeg.position.set(-0.06, lowerLegH / 2, 0);
-    group.add(leftLeg);
+    leftLeg.position.set(0, -lowerLegH / 2, 0);
+    leftPivot.add(leftLeg);
+    group.add(leftPivot);
+
+    const rightPivot = new THREE.Group();
+    rightPivot.name = LIMB_NAMES.legR;
+    rightPivot.position.set(0.06, lowerHipY, 0);
     const rightLeg = boxMesh(0.08, lowerLegH, 0.08, skinMat);
-    rightLeg.position.set(0.06, lowerLegH / 2, 0);
-    group.add(rightLeg);
+    rightLeg.position.set(0, -lowerLegH / 2, 0);
+    rightPivot.add(rightLeg);
+    group.add(rightPivot);
+
     return group;
   }
 
@@ -227,47 +292,72 @@ function buildLegs(
   }
 
   const legMat = stdMaterial(legColor, { roughness: 0.85, metalness: 0.05 });
-
-  const leftLeg = boxMesh(0.1, legH, 0.12, legMat);
-  leftLeg.position.set(-0.08, legY, 0);
-  group.add(leftLeg);
-
-  const rightLeg = boxMesh(0.1, legH, 0.12, legMat);
-  rightLeg.position.set(0.08, legY, 0);
-  group.add(rightLeg);
-
-  // Shoes
   const shoeMat = stdMaterial('#1a1a1a', { roughness: 0.6, metalness: 0.1 });
+
+  // Left leg — pivot at hip for walk animation
+  const leftPivot = new THREE.Group();
+  leftPivot.name = LIMB_NAMES.legL;
+  leftPivot.position.set(-0.08, hipY, 0);
+  const leftLeg = boxMesh(0.1, legH, 0.12, legMat);
+  leftLeg.position.set(0, -legH / 2, 0);
+  leftPivot.add(leftLeg);
   const leftShoe = boxMesh(0.12, 0.06, 0.2, shoeMat);
-  leftShoe.position.set(-0.08, 0.03, 0.04);
-  group.add(leftShoe);
+  leftShoe.position.set(0, -legH + 0.03, 0.04);
+  leftPivot.add(leftShoe);
+  group.add(leftPivot);
+
+  // Right leg — pivot at hip
+  const rightPivot = new THREE.Group();
+  rightPivot.name = LIMB_NAMES.legR;
+  rightPivot.position.set(0.08, hipY, 0);
+  const rightLeg = boxMesh(0.1, legH, 0.12, legMat);
+  rightLeg.position.set(0, -legH / 2, 0);
+  rightPivot.add(rightLeg);
   const rightShoe = boxMesh(0.12, 0.06, 0.2, shoeMat);
-  rightShoe.position.set(0.08, 0.03, 0.04);
-  group.add(rightShoe);
+  rightShoe.position.set(0, -legH + 0.03, 0.04);
+  rightPivot.add(rightShoe);
+  group.add(rightPivot);
 
   return group;
 }
 
-/** Build the arms segment. */
+/**
+ * Build the arms segment.
+ *
+ * Each arm is wrapped in a named pivot `THREE.Group` positioned at the
+ * shoulder joint. The pedestrian system rotates these pivots to produce the
+ * arm swing that accompanies the walk cycle (opposite phase to the legs).
+ */
 function buildArms(
   silhouette: string,
   color: string,
   _rng: () => number,
 ): THREE.Group {
   const group = new THREE.Group();
+  group.name = 'arms';
   const armH = PEDESTRIAN_HEIGHT * ARM_H;
   const armMat = stdMaterial(color, { roughness: 0.8, metalness: 0.05 });
-  const armY = PEDESTRIAN_HEIGHT * (LEG_H + TORSO_H - ARM_H / 2 + 0.02);
+  const shoulderY = PEDESTRIAN_HEIGHT * (LEG_H + TORSO_H + 0.02);
 
   const armOffset = silhouette === 'zoot' || silhouette === 'power-suit' ? 0.28 : 0.24;
 
+  // Left arm — pivot at shoulder
+  const leftPivot = new THREE.Group();
+  leftPivot.name = LIMB_NAMES.armL;
+  leftPivot.position.set(-armOffset, shoulderY, 0);
   const leftArm = boxMesh(0.08, armH, 0.08, armMat);
-  leftArm.position.set(-armOffset, armY, 0);
-  group.add(leftArm);
+  leftArm.position.set(0, -armH / 2, 0);
+  leftPivot.add(leftArm);
+  group.add(leftPivot);
 
+  // Right arm — pivot at shoulder
+  const rightPivot = new THREE.Group();
+  rightPivot.name = LIMB_NAMES.armR;
+  rightPivot.position.set(armOffset, shoulderY, 0);
   const rightArm = boxMesh(0.08, armH, 0.08, armMat);
-  rightArm.position.set(armOffset, armY, 0);
-  group.add(rightArm);
+  rightArm.position.set(0, -armH / 2, 0);
+  rightPivot.add(rightArm);
+  group.add(rightPivot);
 
   return group;
 }
