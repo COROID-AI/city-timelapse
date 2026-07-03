@@ -48,10 +48,13 @@ Then open **http://localhost:5173** in your browser.
 | Input | Action |
 |-------|--------|
 | **Drag** (mouse / touch) | Orbit the camera around the block |
+| **Right-drag** | Pan the orbit target horizontally |
 | **Scroll** / pinch | Zoom in and out |
 | **Timeline slider** (top bar) | Switch eras — the scene crossfades smoothly |
-| **C** key | Toggle first-person walk mode |
+| **C** key | Toggle between orbit and first-person walk mode |
 | **WASD** / arrow keys | Move in walk mode |
+| **Click** (in walk mode) | Engage pointer-lock mouse-look |
+| **Esc** | Release pointer lock (return to drag-look) |
 | **Click / keypress** | Resume audio (first interaction only) |
 
 ---
@@ -71,11 +74,14 @@ src/
 │   ├── vehicles.ts         #   Era-correct cars, trucks, EVs
 │   ├── pedestrian.ts       #   Era-styled pedestrian models
 │   ├── streets.ts          #   Roads, sidewalks, lamp posts, street furniture
-│   └── textures.ts         #   Procedural canvas textures (facades, ground)
+│   ├── textures.ts         #   Procedural canvas textures (facades, ground)
+│   └── util.ts             #   Shared cache, seeded RNG, colour & disposal helpers
 ├── blockLayout.ts          # City block lot layout generator
 ├── cityBlock.ts            # Block composition + collision boxes
-├── traffic.ts              # Era-aware traffic system (spawn, drive, crossfade)
-├── pedestrians.ts          # Era-aware pedestrian system on sidewalks
+├── traffic.ts              # Era-aware traffic system facade (spawn, drive, crossfade)
+├── trafficSystem.ts        # TrafficSystem class — lane driving & era crossfade
+├── pedestrians.ts          # Era-aware pedestrian system facade
+├── pedestrianSystem.ts     # PedestrianSystem class — sidewalk spawning & walk animation
 ├── transitionController.ts # Smooth 1.4s crossfade across all layers
 ├── cameraController.ts     # Orbit + first-person walk camera
 ├── audio/
@@ -147,7 +153,7 @@ cache hit with no frame hitch.
 
 | Aspect | Details |
 |--------|---------|
-| **Buildings** | Brutalist style, mansard rooflines, punched windows, 5–25 storeys, concrete palette with neon accents |
+| **Buildings** | Brutalist style, flat-parapet rooflines, punched windows, 6–30 storeys, concrete palette with neon accents |
 | **Vehicles** | Sedans, coupes, wagons, hatchbacks, pickups; boxy shapes with neon accent colours; heavy traffic |
 | **Storefronts** | Arcades, video rentals, sneaker stores, electronics; backlit-box signs |
 | **Advertisements** | High-coverage animated ads; slogans like "Just Do It", "Where's the Beef?" |
