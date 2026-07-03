@@ -15,10 +15,7 @@
 import * as THREE from 'three';
 import type { EraSpec, EraId } from './eras/types.js';
 import { getEra, getAllEras } from './eras/types.js';
-import {
-  getEraAssets,
-  populateBuildings,
-} from './assetBuilder/eras.js';
+import { getEraAssets, populateBuildings } from './assetBuilder/eras.js';
 import { computeBlockLayout, lotCollisionBoxes } from './blockLayout.js';
 import type { BuildingLot } from './assetBuilder/buildings.js';
 import { CameraController, type CollisionBox } from './cameraController.js';
@@ -26,6 +23,7 @@ import { TrafficSystem } from './traffic.js';
 import { PedestrianSystem } from './pedestrians.js';
 import { SfxMixer } from './audio/mixer.js';
 import { TimelineHud } from './hud/timeline.js';
+import { TransitionController } from './transitionController.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -72,6 +70,7 @@ export class SceneComposer {
   private readonly pedestrians: PedestrianSystem;
   private readonly mixer: SfxMixer | null;
   private readonly hud: TimelineHud;
+  private readonly transition: TransitionController;
 
   // --- block layout ---
   private readonly lots: BuildingLot[];
@@ -79,10 +78,8 @@ export class SceneComposer {
   // --- era state ---
   private currentEra: EraSpec;
 
-  // --- scene groups (swapped on era change) ---
+  // --- scene groups (era content is managed by the TransitionController) ---
   private readonly blockGroup: THREE.Group;
-  private streetsGroup: THREE.Group | null = null;
-  private buildingsGroup: THREE.Group | null = null;
 
   // --- lighting ---
   private readonly ambientLight: THREE.AmbientLight;
@@ -155,16 +152,33 @@ export class SceneComposer {
       this.mixer = null;
     }
 
+    // --- Transition controller ---
+    // Wired to the HUD's era-change callback so every slider move triggers a
+    // smooth crossfade instead of a hard snap.
+    this.transition = new TransitionController({
+      blockGroup: this.blockGroup,
+      lots: this.lots,
+      ambientLight: this.ambientLight,
+      sunLight: this.sunLight,
+      skyColor: this.scene.background as THREE.Color,
+      fogColor: this.scene.fog ? (this.scene.fog as THREE.Fog).color : null,
+      traffic: this.traffic,
+      pedestrians: this.pedestrians,
+      mixer: this.mixer,
+    });
+
     // --- HUD ---
     this.hud = new TimelineHud({
       container: options.hudContainer,
       initialEra: initialId,
     });
 
-    // Wire HUD era changes to all subsystems
+    // Wire HUD era changes through the transition controller for smooth
+    // crossfades instead of hard snaps.
     this.hud.onEraChange((_eraId, era, _prev) => {
       void _prev;
-      this.applyEra(era);
+      this.currentEra = era;
+      this.transition.beginTransition(era);
     });
 
     // --- Clock ---
@@ -173,8 +187,8 @@ export class SceneComposer {
     // --- Resize ---
     window.addEventListener('resize', this._onResize);
 
-    // Apply the initial era
-    this.applyEra(this.currentEra);
+    // Apply the initial era instantly (no transition on startup).
+    this.transition.setEra(this.currentEra);
 
     // Pre-generate all era assets to avoid hitches on first switch
     this.pregenerateAssets();
@@ -219,6 +233,10 @@ export class SceneComposer {
     this.pedestrians.update(dt);
     if (this.mixer) this.mixer.update(dt);
 
+    // Advance any in-progress era transition (building/street crossfade,
+    // lighting interpolation).
+    this.transition.update(dt);
+
     return dt;
   }
 
@@ -248,6 +266,7 @@ export class SceneComposer {
 
     window.removeEventListener('resize', this._onResize);
 
+    this.transition.dispose();
     this.traffic.dispose();
     this.pedestrians.dispose();
     this.cameraController.dispose();
@@ -270,49 +289,8 @@ export class SceneComposer {
   }
 
   // -------------------------------------------------------------------------
-  // Private: era application
+  // Private: asset pre-generation
   // -------------------------------------------------------------------------
-
-  /**
-   * Apply a new era across all visual and audio subsystems.
-   *
-   * This clears the old era's block contents, generates (or fetches from
-   * cache) the new era's assets, populates buildings on the lots, updates
-   * traffic and pedestrians, and crossfades the audio.
-   */
-  private applyEra(era: EraSpec): void {
-    this.currentEra = era;
-
-    // Clear old block contents
-    this.clearBlockGroup();
-
-    // Get (or generate) the era's asset set
-    const assetSet = getEraAssets(era);
-
-    // Populate buildings on the pre-computed lots
-    const buildings = populateBuildings(era, this.lots);
-    this.buildingsGroup = new THREE.Group();
-    this.buildingsGroup.name = `buildings-${era.id}`;
-    for (const building of buildings) {
-      this.buildingsGroup.add(building);
-    }
-    this.blockGroup.add(this.buildingsGroup);
-
-    // Add streets (road, sidewalks, lamp posts)
-    this.streetsGroup = assetSet.streets.clone();
-    this.streetsGroup.name = `streets-${era.id}`;
-    this.blockGroup.add(this.streetsGroup);
-
-    // Update traffic and pedestrians
-    this.traffic.setEra(era);
-    this.pedestrians.setEra(era);
-
-    // Update audio
-    if (this.mixer) this.mixer.setEra(era.id);
-
-    // Update lighting/sky to match era mood
-    this.updateLighting(era);
-  }
 
   /**
    * Pre-generate assets for all eras to avoid frame hitches when the user
@@ -333,62 +311,9 @@ export class SceneComposer {
     }
   }
 
-  /**
-   * Adjust lighting and sky colour to match the era's mood.
-   */
-  private updateLighting(era: EraSpec): void {
-    // Sky colour shifts from warm/sepia (1945) to cool/clean (2025)
-    const skyColours: Record<EraId, number> = {
-      '1945': 0xb0a48f, // warm sepia
-      '1965': 0xa0b4c8, // light blue
-      '1985': 0x9a8ac8, // purple tint
-      '2005': 0x87a8c8, // standard blue
-      '2025': 0xc8e0e8, // pale clean blue
-    };
-    const sky = skyColours[era.id];
-    (this.scene.background as THREE.Color).setHex(sky);
-    if (this.scene.fog) {
-      (this.scene.fog as THREE.Fog).color.setHex(sky);
-    }
-
-    // Sun intensity varies by era
-    const sunIntensities: Record<EraId, number> = {
-      '1945': 0.7,
-      '1965': 0.85,
-      '1985': 0.8,
-      '2005': 0.95,
-      '2025': 1.0,
-    };
-    this.sunLight.intensity = sunIntensities[era.id];
-
-    // Ambient adjusts with era
-    const ambientIntensities: Record<EraId, number> = {
-      '1945': 0.35,
-      '1965': 0.4,
-      '1985': 0.38,
-      '2005': 0.45,
-      '2025': 0.5,
-    };
-    this.ambientLight.intensity = ambientIntensities[era.id];
-  }
-
   // -------------------------------------------------------------------------
   // Private: helpers
   // -------------------------------------------------------------------------
-
-  /** Remove all children from the block group and dispose them. */
-  private clearBlockGroup(): void {
-    while (this.blockGroup.children.length > 0) {
-      const child = this.blockGroup.children[0]!;
-      this.blockGroup.remove(child);
-      // Note: asset builders cache their outputs, so we do NOT dispose
-      // geometries/materials here — they will be reused when the era is
-      // revisited. Only traffic/pedestrian clones are disposed by their
-      // respective systems.
-    }
-    this.streetsGroup = null;
-    this.buildingsGroup = null;
-  }
 
   /** Handle window resize: update camera aspect and renderer size. */
   private handleResize(): void {
