@@ -539,6 +539,23 @@ const ERA_BY_ID: Readonly<Record<EraId, EraSpec>> = Object.freeze(
 );
 
 /**
+ * Pre-built id → SFX data map for O(1) lookups.
+ *
+ * This is a convenience accessor that extracts the `sfx` field from each
+ * {@link EraSpec} in the registry. The procedural audio generator can use it
+ * directly without needing to resolve the full {@link EraSpec} first.
+ */
+export const SFX_ERA_DATA: Readonly<Record<EraId, SfxEraData>> = Object.freeze(
+  ERA_REGISTRY.reduce(
+    (acc, spec) => {
+      acc[spec.id] = spec.sfx;
+      return acc;
+    },
+    {} as Record<EraId, SfxEraData>,
+  ),
+);
+
+/**
  * Resolve a single {@link EraSpec} by id.
  * @throws {Error} when `id` is not one of the registered eras.
  */
