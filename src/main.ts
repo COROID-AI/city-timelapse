@@ -12,6 +12,7 @@
 
 import * as THREE from 'three';
 import { SceneComposer } from './scene.js';
+import { RenderPolicy } from './renderPolicy.js';
 
 // ---------------------------------------------------------------------------
 // Application bootstrap
@@ -70,11 +71,27 @@ function main(): () => void {
   window.addEventListener('keydown', resumeAudio, { once: true });
 
   // --- Render loop ---
+  // The render policy caps cost during continuous animation: simulation
+  // updates always run every frame, but the expensive GPU draw call is gated
+  // so the experience stays smooth even on slower hardware.
+  const renderPolicy = new RenderPolicy({ targetFps: 60, minFps: 24 });
   let rafId = 0;
+  let lastFrameTime = performance.now();
   const loop = (): void => {
     rafId = requestAnimationFrame(loop);
+    const now = performance.now();
+    const deltaMs = now - lastFrameTime;
+    lastFrameTime = now;
+
+    // Always advance the simulation (traffic, pedestrians, camera, audio).
     composer.update();
-    composer.render();
+
+    // Only render when the policy allows it.
+    if (renderPolicy.shouldRender(deltaMs)) {
+      const renderStart = performance.now();
+      composer.render();
+      renderPolicy.recordFrameTime(performance.now() - renderStart);
+    }
   };
   rafId = requestAnimationFrame(loop);
 

@@ -317,11 +317,19 @@ export class SceneComposer {
   /**
    * Pre-generate assets for all eras to avoid frame hitches when the user
    * first switches to each era.
+   *
+   * This preloads the full asset set (textures, streets, vehicles,
+   * pedestrians) **and** the era-specific buildings (which require the lot
+   * layout). After this runs, every era switch is a cache hit and the slider
+   * responds instantly.
    */
   private pregenerateAssets(): void {
     const allEras = getAllEras();
     for (const era of allEras) {
+      // Preload textures, streets, vehicles, and pedestrians.
       getEraAssets(era);
+      // Preload buildings for this era's lots (cached as templates).
+      populateBuildings(era, this.lots);
     }
   }
 
