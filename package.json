@@ -13,5 +13,8 @@
     "@typescript-eslint/parser": "^8.62.1",
     "eslint": "^8.57.1",
     "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
   }
 }
