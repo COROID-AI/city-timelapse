@@ -5,6 +5,7 @@ import { getVehicleAssetsForEra } from './assetBuilder/vehicles';
 import { getPedestrianAssetsForEra } from './assetBuilder/pedestrians';
 import { getStreetAssetsForEra, StreetLayout } from './assetBuilder/streets';
 import { getTextureAssetsForEra } from './assetBuilder/textures';
+import { CameraController } from './cameraController';
 
 /**
  * Scene manager that handles era transitions and asset loading
@@ -318,23 +319,26 @@ class SceneManager {
     this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
   }
 
-  private animate = (time: number) => {
+  private animate = (_time: number) => {
     this.animationFrameId = requestAnimationFrame(this.animate);
-    
+
+    // Update camera controller
+    this.cameraController.update();
+
     // Simple animation for demonstration
     if (this.currentAssets) {
       // Slowly rotate buildings for visual interest
       this.currentAssets.buildings.forEach(building => {
         building.rotation.y += 0.001;
       });
-      
+
       // Simulate vehicle movement
       this.currentAssets.vehicles.forEach(vehicle => {
         vehicle.position.x += Math.sin(Date.now() * 0.001 + vehicle.position.z) * 0.01;
         vehicle.position.z += Math.cos(Date.now() * 0.001 + vehicle.position.x) * 0.01;
       });
     }
-    
+
     this.renderer.render(this.scene, this.camera);
   };
 
