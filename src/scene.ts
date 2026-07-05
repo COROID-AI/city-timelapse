@@ -318,8 +318,9 @@ class SceneManager {
     this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
   }
 
-  private animate = (time: number) => {
-    this.animationFrameId = requestAnimationFrame(this.animate);
+  private animate = (_time: number) => {
+     void _time;
+     this.animationFrameId = requestAnimationFrame(this.animate);
     
     // Simple animation for demonstration
     if (this.currentAssets) {
