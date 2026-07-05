@@ -1,12 +1,13 @@
 {
   "name": "city-timelapse",
   "version": "1.0.0",
+  "type": "module",
   "description": "City Time Period Timelapse",
   "main": "index.js",
   "scripts": {
     "build": "tsc",
     "lint": "eslint src --ext .ts",
-    "dev": "node ./dist/server.js",
+    "dev": "node ./server.js",
     "start": "npm run dev"
   },
   "devDependencies": {
