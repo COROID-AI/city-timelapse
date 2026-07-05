@@ -3,6 +3,7 @@
 
 import { EraId } from '../eras';
 import { EraAudioBuffers, generateAllEraBuffers } from './sfx';
+import { transitionPlayer } from './transitionPlayer';
 
 /**
  * Options for the SFX mixer
@@ -13,32 +14,31 @@ export interface SfxMixerOptions {
 }
 
 /**
- * Manages era-specific audio with crossfading between eras
+ * Manages era-specific audio with crossfading between eras.
  */
 export class SfxMixer {
   private audioContext: AudioContext | null = null;
   private currentEra: EraId | null = null;
   private fadeTime: number;
+
   private buffers: Record<EraId, EraAudioBuffers> = {} as Record<EraId, EraAudioBuffers>;
 
-  // Nodes for ambient layer
+  // Ambient nodes
   private ambientSource: AudioBufferSourceNode | null = null;
   private ambientGain: GainNode | null = null;
-  private ambientGainNode: GainNode | null = null; // for fade
 
-  // Nodes for traffic layer
+  // Traffic nodes
   private trafficSource: AudioBufferSourceNode | null = null;
   private trafficGain: GainNode | null = null;
-  private trafficGainNode: GainNode | null = null;
 
-  // Master gain
-  private masterGain: GainNode | null = null;
-
-  // For crossfading: we keep the old nodes and fade them out while fading in the new
+  // For crossfading old nodes
   private ambientSourceOld: AudioBufferSourceNode | null = null;
   private ambientGainOld: GainNode | null = null;
   private trafficSourceOld: AudioBufferSourceNode | null = null;
   private trafficGainOld: GainNode | null = null;
+
+  // Master gain
+  private masterGain: GainNode | null = null;
 
   // Flag to indicate if we are initialized (AudioContext resumed)
   private initialized = false;
@@ -49,14 +49,13 @@ export class SfxMixer {
 
   /**
    * Initialize the mixer. Must be called after a user gesture to unlock audio context.
-   * @returns Promise that resolves when the AudioContext is ready
    */
   async initialize(): Promise<void> {
     if (this.audioContext) {
-      return; // already initialized
+      return;
     }
 
-    // @ts-expect-error: ignore TS2351 - newable union type
+    // @ts-expect-error - webkit fallback
     this.audioContext = new (window.AudioContext || window.webkitAudioContext)() as AudioContext;
 
     // Create master gain
@@ -71,15 +70,24 @@ export class SfxMixer {
   }
 
   /**
+   * Ensure AudioContext is resumed (browser autoplay policies).
+   */
+  async ensureAudioContextResumed(): Promise<void> {
+    if (!this.audioContext) return;
+    if (this.audioContext.state === 'suspended') {
+      await this.audioContext.resume();
+    }
+  }
+
+  /**
    * Set the current era, crossfading from the previous era's ambient and traffic loops.
-   * @param eraId The era to switch to
    */
   async setEra(eraId: EraId): Promise<void> {
     if (!this.initialized) {
       await this.initialize();
     }
 
-    if (!this.audioContext) {
+    if (!this.audioContext || !this.masterGain) {
       throw new Error('AudioContext not initialized');
     }
 
@@ -88,41 +96,46 @@ export class SfxMixer {
       return;
     }
 
+    await this.ensureAudioContextResumed();
+
     const now = this.audioContext.currentTime;
 
-    // Stop and disconnect old ambient and traffic nodes after fade out
+    // Stop and disconnect old ambient nodes after fade out
     if (this.ambientSource) {
-      // Create a gain node for fading out if not already created for crossfade
       if (!this.ambientGainOld) {
         this.ambientGainOld = this.audioContext.createGain();
         this.ambientSource.connect(this.ambientGainOld);
-        this.ambientGainOld.connect(this.masterGain!);
+        this.ambientGainOld.connect(this.masterGain);
       }
-      // Fade out the old ambient
-      this.ambientGainOld.gain.cancelScheduledValues(now);
-      this.ambientGainOld.gain.setValueAtTime(this.ambientGainOld.gain.value, now);
-      this.ambientGainOld.gain.exponentialRampToValueAtTime(0.001, now + this.fadeTime);
 
-      // Schedule stop after fade out
+      const gain = this.ambientGainOld.gain;
+      gain.cancelScheduledValues(now);
+      gain.setValueAtTime(gain.value, now);
+      gain.exponentialRampToValueAtTime(0.001, now + this.fadeTime);
+
       this.ambientSource.stop(now + this.fadeTime);
       this.ambientSourceOld = this.ambientSource;
-      // this.ambientGainOld = this.ambientGainOld; // keep reference - removed self-assignment
+
       this.ambientSource = null;
       this.ambientGain = null;
     }
 
+    // Stop and disconnect old traffic nodes after fade out
     if (this.trafficSource) {
       if (!this.trafficGainOld) {
         this.trafficGainOld = this.audioContext.createGain();
         this.trafficSource.connect(this.trafficGainOld);
-        this.trafficGainOld.connect(this.masterGain!);
+        this.trafficGainOld.connect(this.masterGain);
       }
-      this.trafficGainOld.gain.cancelScheduledValues(now);
-      this.trafficGainOld.gain.setValueAtTime(this.trafficGainOld.gain.value, now);
-      this.trafficGainOld.gain.exponentialRampToValueAtTime(0.001, now + this.fadeTime);
+
+      const gain = this.trafficGainOld.gain;
+      gain.cancelScheduledValues(now);
+      gain.setValueAtTime(gain.value, now);
+      gain.exponentialRampToValueAtTime(0.001, now + this.fadeTime);
+
       this.trafficSource.stop(now + this.fadeTime);
       this.trafficSourceOld = this.trafficSource;
-      // this.trafficGainOld = this.trafficGainOld; // keep reference - removed self-assignment
+
       this.trafficSource = null;
       this.trafficGain = null;
     }
@@ -135,29 +148,30 @@ export class SfxMixer {
     this.ambientSource = this.audioContext.createBufferSource();
     this.ambientSource.buffer = ambientBuffer;
     this.ambientSource.loop = true;
+
     this.ambientGain = this.audioContext.createGain();
-    // Start at silence and fade in
     this.ambientGain.gain.setValueAtTime(0.001, now);
+
     this.ambientSource.connect(this.ambientGain);
-    this.ambientGain.connect(this.masterGain!);
+    this.ambientGain.connect(this.masterGain);
     this.ambientSource.start(now);
-    // Fade in
-    this.ambientGain.gain.exponentialRampToValueAtTime(0.3, now + this.fadeTime); // ambient volume level
+    this.ambientGain.gain.exponentialRampToValueAtTime(0.3, now + this.fadeTime);
 
     // Traffic
     this.trafficSource = this.audioContext.createBufferSource();
     this.trafficSource.buffer = trafficBuffer;
     this.trafficSource.loop = true;
+
     this.trafficGain = this.audioContext.createGain();
     this.trafficGain.gain.setValueAtTime(0.001, now);
-    this.trafficSource.connect(this.trafficGain);
-    this.trafficGain.connect(this.masterGain!);
-    this.trafficSource.start(now);
-    this.trafficGain.gain.exponentialRampToValueAtTime(0.2, now + this.fadeTime); // traffic volume level
 
-    // Clean up old nodes after fade out (they will be disconnected and garbage collected)
-    // We already scheduled stop, so we can null the old references after the fade time
-    setTimeout(() => {
+    this.trafficSource.connect(this.trafficGain);
+    this.trafficGain.connect(this.masterGain);
+    this.trafficSource.start(now);
+    this.trafficGain.gain.exponentialRampToValueAtTime(0.2, now + this.fadeTime);
+
+    // Cleanup old nodes after fade out
+    window.setTimeout(() => {
       if (this.ambientSourceOld) {
         this.ambientSourceOld.disconnect();
         this.ambientSourceOld = null;
@@ -180,16 +194,16 @@ export class SfxMixer {
   }
 
   /**
-   * Play a one-shot event sound for the current era
-   * @param eventType The type of event (e.g., 'horn', 'siren')
+   * Play a one-shot event sound for the current era.
    */
   playEvent(eventType: string): void {
-    if (!this.initialized || !this.audioContext || !this.currentEra) {
+    if (!this.initialized || !this.audioContext || !this.currentEra || !this.masterGain) {
       return;
     }
 
     const eventBuffer = this.buffers[this.currentEra].events[eventType];
     if (!eventBuffer) {
+      // eslint-disable-next-line no-console
       console.warn(`Event sound ${eventType} not found for era ${this.currentEra}`);
       return;
     }
@@ -197,26 +211,45 @@ export class SfxMixer {
     const now = this.audioContext.currentTime;
     const source = this.audioContext.createBufferSource();
     source.buffer = eventBuffer;
+
     const gain = this.audioContext.createGain();
-    gain.gain.setValueAtTime(0.2, now); // event volume
+    gain.gain.setValueAtTime(0.2, now);
+
     source.connect(gain);
-    gain.connect(this.masterGain!);
+    gain.connect(this.masterGain);
+
     source.start(now);
-    // Automatically disconnect when done
     source.stop(now + eventBuffer.duration);
   }
 
   /**
+   * Play an era-to-era transition sound effect.
+   * Uses a dedicated TransitionPlayer to spatialize the one-shot.
+   */
+  playTransition(from: EraId, to: EraId, cameraPos?: { x: number; y: number; z: number }): void {
+    if (!this.initialized) {
+      void this.initialize();
+    }
+    transitionPlayer.playTransition(from, to, cameraPos);
+  }
+
+  /**
    * Set the master volume (0 to 1)
-   * @param volume Volume level
    */
   setVolume(volume: number): void {
     if (!this.masterGain) {
       return;
     }
+
+    if (!Number.isFinite(volume)) {
+      return;
+    }
+
+    const clamped = Math.max(0, Math.min(1, volume));
     const now = this.audioContext?.currentTime ?? 0;
+
     this.masterGain.gain.cancelScheduledValues(now);
-    this.masterGain.gain.setValueAtTime(Math.max(0, Math.min(1, volume)), now);
+    this.masterGain.gain.setValueAtTime(clamped, now);
   }
 
   /**
@@ -227,10 +260,13 @@ export class SfxMixer {
       return;
     }
 
-    // Stop and disconnect all nodes
     const stopAndDisconnect = (source: AudioBufferSourceNode | null, gain: GainNode | null) => {
       if (source) {
-        source.stop();
+        try {
+          source.stop();
+        } catch {
+          // ignore
+        }
         source.disconnect();
       }
       if (gain) {
@@ -247,12 +283,11 @@ export class SfxMixer {
       this.masterGain.disconnect();
     }
 
-    this.audioContext.close();
+    void this.audioContext.close();
     this.audioContext = null;
     this.initialized = false;
     this.currentEra = null;
 
-    // Clear buffers (they are AudioBuffers, which will be GC'd when references are dropped)
     this.buffers = {} as Record<EraId, EraAudioBuffers>;
   }
 }
