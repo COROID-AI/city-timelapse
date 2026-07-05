@@ -489,6 +489,7 @@ export class CameraController {
   }
 
   private onTouchEnd(event: TouchEvent) {
+    void event;
     if (!this.enabled) return;
 
     this.handleTouchEnd();
