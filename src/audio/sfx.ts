@@ -20,7 +20,12 @@ export interface EraAudioBuffers {
  */
 function createBuffer(audioContext: AudioContext, samples: Float32Array): AudioBuffer {
   const buffer = audioContext.createBuffer(1, samples.length, audioContext.sampleRate);
-  buffer.copyToChannel(samples, 0);
+
+  // copyToChannel expects Float32Array<ArrayBuffer>; some lib.dom typings widen to ArrayBufferLike.
+  // Re-wrap to satisfy TS while keeping the same sample values.
+  const channelSamples = new Float32Array(samples);
+  buffer.copyToChannel(channelSamples, 0);
+
   return buffer;
 }
 
