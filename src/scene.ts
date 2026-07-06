@@ -39,8 +39,22 @@ class SceneManager {
 
     // Initialize three.js objects to satisfy definite assignment
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    
+    // Set up renderer with proper size and ensure it's visible
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.container.appendChild(this.renderer.domElement);
+    
+    // Make sure the canvas is visible
+    this.renderer.domElement.style.display = 'block';
+    this.renderer.domElement.style.width = '100%';
+    this.renderer.domElement.style.height = '100%';
+    this.renderer.domElement.style.position = 'absolute';
+    this.renderer.domElement.style.top = '0';
+    this.renderer.domElement.style.left = '0';
+    this.renderer.domElement.style.pointerEvents = 'none';
 
     this.cameraController = new CameraController(this.container, this.camera);
 
@@ -55,13 +69,10 @@ class SceneManager {
     this.scene.background = new THREE.Color(0x87ceeb); // Sky blue
 
     // Set up camera
-    this.camera.position.set(0, 10, 20);
-this.camera.zoom = 10; // Initial zoom to fit city block
+    this.camera.aspect = window.innerWidth / window.innerHeight;
+    this.camera.updateProjectionMatrix();
+    this.camera.position.set(0, 5, 10);
     this.camera.lookAt(0, 0, 0);
-
-    // Set up renderer
-    this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
-    this.container.appendChild(this.renderer.domElement);
 
     // Add lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -70,6 +81,11 @@ this.camera.zoom = 10; // Initial zoom to fit city block
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
     directionalLight.position.set(10, 20, 10);
     this.scene.add(directionalLight);
+
+    // Add a basic grid helper for visualization
+    const gridHelper = new THREE.GridHelper(20, 20);
+    gridHelper.position.y = 0;
+    this.scene.add(gridHelper);
 
     // Start animation loop
     this.animationFrameId = requestAnimationFrame(this.animate);
@@ -162,26 +178,24 @@ this.camera.zoom = 10; // Initial zoom to fit city block
     // Simulate async loading
     return new Promise((resolve) => {
       setTimeout(() => {
-        // Create a simple placeholder object
-        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        // Create a simple placeholder object - a sphere instead of a box for better visibility
+        const geometry = new THREE.SphereGeometry(1, 8, 8);
         const material = new THREE.MeshStandardMaterial({
-          color: Math.random() * 0xffffff,
-          metalness: Math.random(),
-          roughness: Math.random() * 0.5 + 0.5,
+          color: 0xffffff,
+          metalness: 0.3,
+          roughness: 0.4,
         });
         const mesh = new THREE.Mesh(geometry, material);
         mesh.name = name;
+        mesh.position.set(0, 0, 0);
 
-        // Position randomly in the scene
-        mesh.position.set(
-          (Math.random() - 0.5) * 20,
-          0.5, // Keep things above ground
-          (Math.random() - 0.5) * 20,
-        );
-
-        // Random scale
-        const scale = 0.5 + Math.random() * 1.5;
-        mesh.scale.set(scale, scale, scale);
+        // Add some animation to make it visible
+        mesh.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
 
         resolve(mesh);
       }, 50 + Math.random() * 150); // Random delay to simulate loading
@@ -197,7 +211,7 @@ this.camera.zoom = 10; // Initial zoom to fit city block
         // In a real implementation, we'd load an actual image
         texture.needsUpdate = true;
         resolve(texture);
-      }, 30 + Math.random() * 100);
+      }, 30 + Math.random() * 100); // Random delay to simulate loading
     });
   }
 
@@ -221,11 +235,8 @@ this.camera.zoom = 10; // Initial zoom to fit city block
 
   private applyStreetLayout(layout: StreetLayout): void {
     // In a full implementation, this would create the actual street geometry
-    // based on the layout parameters (road width, lanes, sidewalks, etc.)
-    // For now, we'll just log it
-    console.log('Applying street layout:', layout);
-
-    // Create a simple ground plane to represent the street
+    // based on the layout parameters (road width, lanes, sidewalks, etc.)    
+    // For now, we'll create a simple road
     const removeExistingGround = this.scene.getObjectByName('ground');
     if (removeExistingGround) {
       this.scene.remove(removeExistingGround);
@@ -244,138 +255,62 @@ this.camera.zoom = 10; // Initial zoom to fit city block
       }
     }
 
+    // Create a simple ground plane to represent the street
     const groundGeometry = new THREE.PlaneGeometry(50, 50);
     const groundMaterial = new THREE.MeshStandardMaterial({
       color: 0x808080,
       roughness: 0.8,
-      metalness: 0.2,
     });
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.name = 'ground';
-    ground.rotation.x = -Math.PI / 2; // Rotate to be horizontal
-    ground.position.y = 0.01; // Slightly above zero to avoid z-fighting
-    this.scene.add(ground);
+    const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+    groundMesh.name = 'ground';
+    groundMesh.rotation.x = -Math.PI / 2;
+    groundMesh.position.y = 0;
+    this.scene.add(groundMesh);
+  }
+
+  private animate = (): void => {
+    if (this.animationFrameId) {
+      this.animationFrameId = requestAnimationFrame(this.animate);
+    }
+    // Render the scene with proper field of view
+    this.camera.aspect = window.innerWidth / window.innerHeight;
+    this.camera.updateProjectionMatrix();
+    
+    // Only render if we have assets
+    if (this.scene && this.renderer) {
+      this.renderer.render(this.scene, this.camera);
+    }
   }
 
   private disposeCurrentAssets(): void {
-    if (!this.currentAssets) return;
-
-    const disposeObject = (obj: THREE.Object3D | THREE.Texture): void => {
-      if (obj instanceof THREE.Mesh) {
-        if (obj.geometry) obj.geometry.dispose();
-        if (obj.material) {
-          if (Array.isArray(obj.material)) {
-            obj.material.forEach((m) => m.dispose());
-          } else {
-            obj.material.dispose();
-          }
-        }
-      }
-      // Dispose of textures
-      if (obj instanceof THREE.Texture) {
-        obj.dispose();
-      }
-
-      // Recursively dispose children (only for Object3D)
-      if (obj instanceof THREE.Object3D) {
-        obj.traverse((child) => {
-          disposeObject(child);
-        });
-      }
-    };
-
-    // Dispose all assets
-    if (this.currentAssets.buildings) {
+    // Dispose of previous era assets
+    if (this.currentAssets) {
       this.currentAssets.buildings.forEach((obj) => {
-        this.scene.remove(obj);
-        disposeObject(obj);
+        obj.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.geometry.dispose();
+            child.material.dispose();
+          }
+        });
       });
+      this.currentAssets = null;
     }
-
-    if (this.currentAssets.vehicles) {
-      this.currentAssets.vehicles.forEach((obj) => {
-        this.scene.remove(obj);
-        disposeObject(obj);
-      });
-    }
-
-    if (this.currentAssets.pedestrians) {
-      this.currentAssets.pedestrians.forEach((obj) => {
-        this.scene.remove(obj);
-        disposeObject(obj);
-      });
-    }
-
-    if (this.currentAssets.streets) {
-      this.currentAssets.streets.forEach((obj) => {
-        this.scene.remove(obj);
-        disposeObject(obj);
-      });
-    }
-
-    if (this.currentAssets.textures) {
-      this.currentAssets.textures.forEach((texture) => {
-        disposeObject(texture);
-      });
-    }
-
-    this.currentAssets = null;
   }
 
   private onWindowResize(): void {
-    this.camera.aspect = this.container.clientWidth / this.container.clientHeight;
+    // Update camera aspect ratio and renderer size on window resize
+    const width = this.container.clientWidth;
+    const height = this.container.clientHeight;
+    
+    this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
-  }
-
-  private animate = (_time: number): void => {
-    this.animationFrameId = requestAnimationFrame(this.animate);
-
-    // Update camera controller
-    // CameraController exposes only internal update(); avoid accessing private API.
-    // If a future public tick method is added, switch to that.
-    void _time;
-
-    // Simple animation for demonstration
-    if (this.currentAssets) {
-      // Slowly rotate buildings for visual interest
-      this.currentAssets.buildings.forEach((building) => {
-        building.rotation.y += 0.001;
-      });
-
-      // Simulate vehicle movement
-      this.currentAssets.vehicles.forEach((vehicle) => {
-        vehicle.position.x += Math.sin(Date.now() * 0.001 + vehicle.position.z) * 0.01;
-        vehicle.position.z += Math.cos(Date.now() * 0.001 + vehicle.position.x) * 0.01;
-      });
-    }
-
-    this.renderer.render(this.scene, this.camera);
-  };
-
-  public dispose(): void {
-    window.removeEventListener('era-changed', this.boundHandleEraChange);
-    window.removeEventListener('resize', this.boundOnWindowResize);
-
-    this.disposeCurrentAssets();
-
-    if (this.renderer.domElement.parentNode) {
-      this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
-    }
-
-    this.renderer.dispose();
-    cancelAnimationFrame(this.animationFrameId);
+    
+    this.renderer.setSize(width, height);
   }
 }
 
-/**
- * Initialize the 3D scene and return the scene manager
- * @param container The DOM element to contain the Three.js canvas
- * @returns The scene manager instance
- */
-export function initScene(container: HTMLElement): SceneManager {
-  return new SceneManager(container);
+// Export the initScene function for use in main.ts
+export function initScene(container: HTMLElement): void {
+  // Initialize the scene manager (which starts rendering automatically)
+  new SceneManager(container);
 }
-
-// Export types for external use
-export type { SceneManager };
