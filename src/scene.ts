@@ -120,7 +120,7 @@ class SceneManager {
       const buildingAssets = getBuildingAssetsForEra(era);
       const vehicleAssets = getVehicleAssetsForEra(era);
       const pedestrianAssets = getPedestrianAssetsForEra(era);
-      const streetAssets = getStreetAssetsForEra(era);
+      const { layout, props } = getStreetAssetsForEra(era);
       const textureAssets = getTextureAssetsForEra(era);
 
       // Load all assets in parallel to prevent frame drops
