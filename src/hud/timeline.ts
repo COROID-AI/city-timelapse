@@ -1,13 +1,15 @@
-import * as THREE from 'three';
 import { EraId } from '../eras.js';
-import { emitEraChanged } from './timeline-events';
 
 class TimelineSlider {
   private container!: HTMLElement;
   private input!: HTMLInputElement;
   private loadingIndicator!: HTMLElement;
 
-  constructor(container: HTMLElement) {
+  constructor(containerId: string) {
+    const container = document.getElementById(containerId);
+    if (!container) {
+      throw new Error(`Container element with id "${containerId}" not found`);
+    }
     this.container = container;
     this.initUI();
   }
@@ -40,56 +42,76 @@ class TimelineSlider {
     this.input.max = '4';
     this.input.value = '0';
     this.input.step = '1';
+    this.input.className = 'timeline-slider';
     this.input.addEventListener('input', this.handleInputChange);
     sliderContainer.appendChild(this.input);
 
     // Add era labels
-    const labels = sliderContainer.querySelectorAll('.timeline-tick');n const eraLabels = {
-      '1945': { label: '1945', desc: 'World War II Era' },
-      '1965': { label: '1965', desc: 'Cold War Era' },
-      '1985': { label: '1985', desc: 'Digital Revolution' },
-      '2005': { label: '2005', desc: 'Information Age' },
-      '2025': { label: '2025', desc: 'Future Projections' }
+    const labels = sliderContainer.querySelectorAll('.timeline-tick');
+    const eraLabels: Record<string, { label: string; desc: string }> = {
+      '1945': { label: '1945', desc: 'Post-War Era' },
+      '1965': { label: '1965', desc: 'Swinging Sixties' },
+      '1985': { label: '1985', desc: 'Neon Eighties' },
+      '2005': { label: '2005', desc: 'Digital Dawn' },
+      '2025': { label: '2025', desc: 'Near Future' }
     };
 
     labels.forEach(label => {
-      const year = label.dataset.year;
-      const labelDiv = document.createElement('div');
-      labelDiv.className = 'timeline-era-label';
-      labelDiv.textContent = eraLabels[year].label;
-      label.insertAdjacentElement('afterend', labelDiv);
+      const year = label.getAttribute('data-year');
+      if (year && eraLabels[year]) {
+        const labelDiv = document.createElement('div');
+        labelDiv.className = 'timeline-era-label';
+        labelDiv.textContent = eraLabels[year].label;
+        label.insertAdjacentElement('afterend', labelDiv);
 
-      const descDiv = document.createElement('div');
-      descDiv.className = 'timeline-era-description';
-      descDiv.textContent = eraLabels[year].desc;
-      label.insertAdjacentElement('afterend', descDiv);
+        const descDiv = document.createElement('div');
+        descDiv.className = 'timeline-era-description';
+        descDiv.textContent = eraLabels[year].desc;
+        label.insertAdjacentElement('afterend', descDiv);
+      }
     });
+
+    // Add tick labels
+    const tickMarks = sliderContainer.querySelector('.timeline-tick-marks');
+    if (tickMarks) {
+      const tickLabelPositions = [0, 25, 50, 75, 100];
+      const years = ['1945', '1965', '1985', '2005', '2025'];
+      
+      years.forEach((year, index) => {
+        const tickLabel = document.createElement('div');
+        tickLabel.className = 'timeline-tick-label';
+        tickLabel.style.left = `${tickLabelPositions[index]}%`;
+        tickLabel.textContent = year;
+        tickMarks.appendChild(tickLabel);
+      });
+    }
   }
 
   private handleInputChange = (event: Event): void => {
     const value = (event.target as HTMLInputElement).value;
-    const year = ['1945', '1965', '1985', '2005', '2025'][Number(value)];n
-    emitEraChanged({ era: year as EraId });
-    this.updateLoadingIndicator();
-  }
+    const years: EraId[] = ['1945', '1965', '1985', '2005', '2025'];
+    const year = years[Number(value)];
+    if (year) {
+      emitEraChanged({ era: year });
+      this.updateLoadingIndicator();
+    }
+  };
 
   private updateLoadingIndicator(): void {
     this.loadingIndicator.style.display = 'block';
     setTimeout(() => {
       this.loadingIndicator.style.display = 'none';
-    }, 1500); // Simulate loading delay
+    }, 1500);
   }
 }
 
-export function initTimelineSlider(container: HTMLElement): void {
-  new TimelineSlider(container);
-}
-
 export function emitEraChanged(event: { era: EraId }): void {
-  const event = new CustomEvent('era-changed', {
+  const customEvent = new CustomEvent('era-changed', {
     detail: { era: event.era },
     bubbles: true,
     composed: true
   });
-  window.dispatchEvent(event);
-}</script>
+  window.dispatchEvent(customEvent);
+}
+
+export { TimelineSlider };

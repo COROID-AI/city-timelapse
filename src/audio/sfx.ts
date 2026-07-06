@@ -1,7 +1,7 @@
 // src/audio/sfx.ts
 // Procedural Audio Buffer Generator for era-specific ambient audio
 
-import { EraId, SfxEraData } from '../eras';
+import { EraId, SfxEraData, SFX_ERA_DATA } from '../eras.js';
 
 /**
  * Interface for era-specific audio buffers
@@ -228,6 +228,3 @@ export function generateAllEraBuffers(
   }
   return result;
 }
-
-// Import SFX_ERA_DATA from eras.ts
-import { SFX_ERA_DATA } from '../eras';

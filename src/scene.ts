@@ -37,10 +37,17 @@ class SceneManager {
     this.boundHandleEraChange = this.handleEraChange.bind(this);
     this.boundOnWindowResize = this.onWindowResize.bind(this);
 
+    // Remove any existing canvas to avoid conflicts
+    const existingCanvas = this.container.querySelector('canvas');
+    if (existingCanvas) {
+      this.container.removeChild(existingCanvas);
+    }
+
     // Initialize three.js objects to satisfy definite assignment
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    // Use alpha: false to ensure background color is visible
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
     
     // Set up renderer with proper size and ensure it's visible
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -87,8 +94,37 @@ class SceneManager {
     gridHelper.position.y = 0;
     this.scene.add(gridHelper);
 
+    // Add axis helper for better visualization
+    const axesHelper = new THREE.AxesHelper(5);
+    this.scene.add(axesHelper);
+
+    // Add visible buildings immediately for rendering
+    this.createVisibleBuildings();
+
     // Start animation loop
     this.animationFrameId = requestAnimationFrame(this.animate);
+  }
+
+  private createVisibleBuildings(): void {
+    // Create a grid of visible buildings for the city block
+    for (let row = 0; row < 4; row++) {
+      for (let col = 0; col < 6; col++) {
+        const height = 3 + Math.random() * 4;
+        const geometry = new THREE.BoxGeometry(2, height, 2);
+        const hue = (row * 60 + col * 30) % 360;
+        const color = new THREE.Color(`hsl(${hue}, 70%, 50%)`);
+        const material = new THREE.MeshStandardMaterial({
+          color: color,
+          metalness: 0.3,
+          roughness: 0.5,
+        });
+        const building = new THREE.Mesh(geometry, material);
+        building.position.set((col - 2.5) * 3, height / 2, (row - 1.5) * 3 - 2);
+        building.castShadow = true;
+        building.receiveShadow = true;
+        this.scene.add(building);
+      }
+    }
   }
 
   private setupEventListeners(): void {
@@ -134,7 +170,7 @@ class SceneManager {
         this.loadAssets(buildingAssets),
         this.loadAssets(vehicleAssets),
         this.loadAssets(pedestrianAssets),
-        this.loadAssets(streetAssets.props), // Street assets return {layout, props}
+        this.loadAssets(props),
         this.loadTextures(textureAssets),
       ]);
 
@@ -151,7 +187,7 @@ class SceneManager {
       this.addAssetsToScene(this.currentAssets);
 
       // Apply street layout
-      this.applyStreetLayout(streetAssets.layout);
+      this.applyStreetLayout(layout);
 
       this.currentEra = era;
       console.log(`Era ${era} loaded successfully`);
@@ -178,18 +214,31 @@ class SceneManager {
     // Simulate async loading
     return new Promise((resolve) => {
       setTimeout(() => {
-        // Create a simple placeholder object - a sphere instead of a box for better visibility
-        const geometry = new THREE.SphereGeometry(1, 8, 8);
+        // Create a visible colored box geometry
+        const geometry = new THREE.BoxGeometry(2, 2, 2);
+        
+        // Generate a distinct color for this object based on its name hash
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) {
+          hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const hue = Math.abs(hash) % 360;
+        const color = new THREE.Color(`hsl(${hue}, 70%, 50%)`);
+        
         const material = new THREE.MeshStandardMaterial({
-          color: 0xffffff,
+          color: color,
           metalness: 0.3,
           roughness: 0.4,
         });
         const mesh = new THREE.Mesh(geometry, material);
         mesh.name = name;
-        mesh.position.set(0, 0, 0);
+        
+        // Place objects in a visible arrangement across the scene
+        const index = Math.abs(hash) % 25;
+        const gridX = index % 5;
+        const gridZ = Math.floor(index / 5);
+        mesh.position.set((gridX - 2) * 4, 1, (gridZ - 2) * 4);
 
-        // Add some animation to make it visible
         mesh.traverse((child) => {
           if (child instanceof THREE.Mesh) {
             child.castShadow = true;
@@ -234,9 +283,9 @@ class SceneManager {
   }
 
   private applyStreetLayout(layout: StreetLayout): void {
-    // In a full implementation, this would create the actual street geometry
-    // based on the layout parameters (road width, lanes, sidewalks, etc.)    
-    // For now, we'll create a simple road
+    // Create a ground plane based on layout parameters
+    const totalWidth = layout.roadWidth + 2 * layout.sidewalkWidth;
+    
     const removeExistingGround = this.scene.getObjectByName('ground');
     if (removeExistingGround) {
       this.scene.remove(removeExistingGround);
@@ -255,8 +304,8 @@ class SceneManager {
       }
     }
 
-    // Create a simple ground plane to represent the street
-    const groundGeometry = new THREE.PlaneGeometry(50, 50);
+    // Create a ground plane to represent the street
+    const groundGeometry = new THREE.PlaneGeometry(totalWidth * 5, totalWidth * 5);
     const groundMaterial = new THREE.MeshStandardMaterial({
       color: 0x808080,
       roughness: 0.8,
