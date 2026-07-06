@@ -56,6 +56,7 @@ class SceneManager {
 
     // Set up camera
     this.camera.position.set(0, 10, 20);
+this.camera.zoom = 10; // Initial zoom to fit city block
     this.camera.lookAt(0, 0, 0);
 
     // Set up renderer
