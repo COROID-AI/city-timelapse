@@ -1,5 +1,5 @@
-import { EraId, SFX_ERA_DATA } from '../eras';
-import { getTransitionSfxParams, TransitionSfxParams } from './transitions';
+import { EraId, SFX_ERA_DATA } from '../eras.js';
+import { getTransitionSfxParams, TransitionSfxParams } from './transitions.js';
 
 export interface TransitionPlayerOptions {
   /** Gain relative to master ambient (~0.2 default) */

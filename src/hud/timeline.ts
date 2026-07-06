@@ -1,7 +1,7 @@
 // Timeline Slider UI Component
 // This component implements a slider for selecting eras in the timeline interface
 
-import { EraId, ERA_IDS, getEraSpec } from '../eras';
+import { EraId, ERA_IDS, getEraSpec } from '../eras.js';
 
 // Define the timeline slider component
 export class TimelineSlider {

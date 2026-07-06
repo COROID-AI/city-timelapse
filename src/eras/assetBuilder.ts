@@ -1,4 +1,4 @@
-import { EraType } from './types';
+import { EraType } from './types.js';
 
 /**
  * Example asset builder that returns asset names for a given era.

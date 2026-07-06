@@ -1,5 +1,5 @@
-import { TimelineSlider } from './hud/timeline';
-import { initScene } from './scene';
+import { TimelineSlider } from './hud/timeline.js';
+import { initScene } from './scene.js';
 
 function ensureContainerExists(): HTMLElement {
   const el = document.getElementById('app');

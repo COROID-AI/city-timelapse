@@ -1,9 +1,9 @@
 // src/audio/mixer.ts
 // Era-aware crossfade mixer for ambient audio
 
-import { EraId } from '../eras';
-import { EraAudioBuffers, generateAllEraBuffers } from './sfx';
-import { transitionPlayer } from './transitionPlayer';
+import { EraId } from '../eras.js';
+import { EraAudioBuffers, generateAllEraBuffers } from './sfx.js';
+import { transitionPlayer } from './transitionPlayer.js';
 
 /**
  * Options for the SFX mixer

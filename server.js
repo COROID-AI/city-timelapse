@@ -46,42 +46,45 @@ function contentTypeFor(filePath) {
 
 function resolveDistPath(urlPath) {
   // urlPath is like '/dist/hud/timeline.js'
-  const clean = urlPath.replace(/^\//, '');
+  const clean = urlPath.replace(/^\\//, '');
   return path.join(__dirname, clean);
 }
 
 function remapRequestPath(urlPath) {
   // Handle bare specifier requests (e.g. import "three" → request for "/three").
-  if (!urlPath.startsWith('/dist/') && !urlPath.startsWith('/node_modules/') && urlPath.startsWith('/')) {
-    const bare = urlPath.slice(1);
-    if (bare && !bare.includes('/')) {
+  if (!urlPath.startsWith('/dist/') && !urlPath.startsWith('/node_modules/')) {
+    const candidate = path.join(__dirname, 'node_modules', urlPath);
+    if (existsSync(candidate)) {
       // Prefer package module entry.
-      const candidate = path.join(__dirname, 'node_modules', bare);
-      if (existsSync(candidate)) {
-        const pkgJson = path.join(candidate, 'package.json');
-        if (existsSync(pkgJson)) {
-          try {
-            const pkg = JSON.parse(readFileSync(pkgJson, 'utf8'));
-            const entry = pkg.module ?? pkg.main;
-            if (typeof entry === 'string') {
-              return `/node_modules/${bare}/${entry}`;
+      const pkgJson = path.join(candidate, 'package.json');
+      if (existsSync(pkgJson)) {
+        try {
+          const pkg = JSON.parse(readFileSync(pkgJson, 'utf8'));
+          const entry = pkg.module ?? pkg.main;
+          if (typeof entry === 'string') {
+            const entryPath = path.join(candidate, entry);
+            if (existsSync(entryPath) && !statSync(entryPath).isDirectory()) {
+              return `/node_modules/${urlPath}/${entry}`;
             }
-          } catch {
-            // ignore
           }
+        } catch {
+          // ignore
         }
-        // Fallback to directory index.js.
-        const indexJs = path.join(candidate, 'index.js');
-        if (existsSync(indexJs)) {
-          return `/node_modules/${bare}/index.js`;
-        }
+      }
+      // Fallback to directory index.js.
+      const indexJs = path.join(candidate, 'index.js');
+      if (existsSync(indexJs) && !statSync(indexJs).isDirectory()) {
+        return `/node_modules/${urlPath}/index.js`;
       }
     }
   }
 
   // Make extensionless module imports work.
   if (urlPath.startsWith('/dist/') && !path.extname(urlPath)) {
-    return `${urlPath}.js`;
+    const jsPath = `${urlPath}.js`;
+    if (existsSync(path.join(__dirname, jsPath))) {
+      return jsPath;
+    }
   }
 
   // Handle internal imports that might be requested without a /dist prefix.
@@ -109,9 +112,7 @@ const server = http.createServer((req, res) => {
       const indexPath = path.join(__dirname, 'index.html');
       if (existsSync(indexPath)) {
         tryServeFile(res, indexPath, 'text/html; charset=utf-8');
-        return;
       }
-      send404(res);
       return;
     }
 
@@ -136,6 +137,10 @@ const server = http.createServer((req, res) => {
           } catch {
             // Fall back to the directory handler.
           }
+        }
+        if (existsSync(indexJs) && !statSync(indexJs).isDirectory()) {
+          tryServeFile(res, indexJs, contentTypeFor(indexJs));
+          return;
         }
       }
     }
@@ -179,6 +184,11 @@ const server = http.createServer((req, res) => {
           return;
         }
       }
+      // Handle extensionless requests for files that exist with .js extension
+      if (!path.extname(urlPath) && existsSync(path.join(__dirname, urlPath + '.js'))) {
+        tryServeFile(res, path.join(__dirname, urlPath + '.js'), contentTypeFor(urlPath + '.js'));
+        return;
+      }
     }
 
     // Serve /dist compiled artifacts.
@@ -193,7 +203,7 @@ const server = http.createServer((req, res) => {
     }
 
     // Serve any static file under project root (best-effort).
-    const candidate = path.join(__dirname, urlPath.replace(/^\//, ''));
+    const candidate = path.join(__dirname, urlPath.replace(/^\\//, ''));
     if (existsSync(candidate) && !statSync(candidate).isDirectory()) {
       tryServeFile(res, candidate, contentTypeFor(candidate));
       return;

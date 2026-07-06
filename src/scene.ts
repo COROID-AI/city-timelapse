@@ -1,11 +1,11 @@
 import * as THREE from 'three';
-import { EraId } from './eras';
-import { getBuildingAssetsForEra } from './assetBuilder/buildings';
-import { getVehicleAssetsForEra } from './assetBuilder/vehicles';
-import { getPedestrianAssetsForEra } from './assetBuilder/pedestrians';
-import { getStreetAssetsForEra, StreetLayout } from './assetBuilder/streets';
-import { getTextureAssetsForEra } from './assetBuilder/textures';
-import { CameraController } from './cameraController';
+import { EraId } from './eras.js';
+import { getBuildingAssetsForEra } from './assetBuilder/buildings.js';
+import { getVehicleAssetsForEra } from './assetBuilder/vehicles.js';
+import { getPedestrianAssetsForEra } from './assetBuilder/pedestrians.js';
+import { getStreetAssetsForEra, StreetLayout } from './assetBuilder/streets.js';
+import { getTextureAssetsForEra } from './assetBuilder/textures.js';
+import { CameraController } from './cameraController.js';
 
 /**
  * Scene manager that handles era transitions and asset loading
