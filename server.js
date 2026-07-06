@@ -46,7 +46,7 @@ function contentTypeFor(filePath) {
 
 function resolveDistPath(urlPath) {
   // urlPath is like '/dist/hud/timeline.js'
-  const clean = urlPath.replace(/^\\//, '');
+  const clean = urlPath.replace(/^\/+/, '');
   return path.join(__dirname, clean);
 }
 
@@ -138,6 +138,7 @@ const server = http.createServer((req, res) => {
             // Fall back to the directory handler.
           }
         }
+        const indexJs = path.join(candidate, 'index.js');
         if (existsSync(indexJs) && !statSync(indexJs).isDirectory()) {
           tryServeFile(res, indexJs, contentTypeFor(indexJs));
           return;
@@ -203,7 +204,7 @@ const server = http.createServer((req, res) => {
     }
 
     // Serve any static file under project root (best-effort).
-    const candidate = path.join(__dirname, urlPath.replace(/^\\//, ''));
+    const candidate = path.join(__dirname, urlPath.replace(/^\/+/, ''));
     if (existsSync(candidate) && !statSync(candidate).isDirectory()) {
       tryServeFile(res, candidate, contentTypeFor(candidate));
       return;

@@ -4,7 +4,7 @@ import { getBuildingAssetsForEra } from './assetBuilder/buildings.js';
 import { getVehicleAssetsForEra } from './assetBuilder/vehicles.js';
 import { getPedestrianAssetsForEra } from './assetBuilder/pedestrians.js';
 import { getStreetAssetsForEra, StreetLayout } from './assetBuilder/streets.js';
-import { getTextureAssetsForEra } from './assetBuilder/textures.js';
+// Texture import no longer needed for placeholder implementation
 import { CameraController } from './cameraController.js';
 
 /**
@@ -40,179 +40,144 @@ class SceneManager {
     // Initialize three.js objects to satisfy definite assignment
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     
-    // Set up renderer with proper size and ensure it's visible
+    // Set up renderer with proper size
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.container.appendChild(this.renderer.domElement);
     
-    // Make sure the canvas is visible
-    this.renderer.domElement.style.display = 'block';
-    this.renderer.domElement.style.width = '100%';
-    this.renderer.domElement.style.height = '100%';
-    this.renderer.domElement.style.position = 'absolute';
-    this.renderer.domElement.style.top = '0';
-    this.renderer.domElement.style.left = '0';
-    this.renderer.domElement.style.pointerEvents = 'none';
-
-    this.cameraController = new CameraController(this.container, this.camera);
+    // Make canvas fill the container
+    this.renderer.domElement.style.cssText = 'display:block;width:100%;height:100%;position:absolute;top:0;left:0;';
 
     this.initThreeJS();
+    
+    // Initialize camera controller AFTER camera position is set
+    this.cameraController = new CameraController(this.container, this.camera);
+    
+    // Reset zoom after CameraController initialization (it may set zoom based on distance)
+    // Use a small delay to ensure it runs after any async updates
+    setTimeout(() => {
+      this.camera.zoom = 1.0;
+      this.camera.updateProjectionMatrix();
+    }, 0);
+
     this.setupEventListeners();
     // Load initial era
     this.loadEra('1945');
   }
 
   private initThreeJS(): void {
-    // Set up scene
-    this.scene.background = new THREE.Color(0x87ceeb); // Sky blue
+    // Bright white background for debugging
+    this.scene.background = new THREE.Color(0xffffff);
 
-    // Set up camera
+    // Camera - positioned close to see large cubes
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
-    this.camera.position.set(0, 5, 10);
+    this.camera.position.set(0, 0, 15);
     this.camera.lookAt(0, 0, 0);
 
-    // Add lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    this.scene.add(ambientLight);
+    // Add basic lighting
+    this.scene.add(new THREE.AmbientLight(0xffffff, 1.0));
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(10, 20, 10);
-    this.scene.add(directionalLight);
+    // Create a large, bright colored quad in front of the camera
+    // Use a plane geometry that fills most of the view
+    const geometry1 = new THREE.PlaneGeometry(40, 40);
+    const material1 = new THREE.MeshBasicMaterial({ 
+      color: 0xff0000, 
+      side: THREE.DoubleSide,
+      depthTest: false 
+    });
+    const plane1 = new THREE.Mesh(geometry1, material1);
+    plane1.position.z = 5;
+    this.scene.add(plane1);
 
-    // Add a basic grid helper for visualization
-    const gridHelper = new THREE.GridHelper(20, 20);
-    gridHelper.position.y = 0;
-    this.scene.add(gridHelper);
+    const geometry2 = new THREE.PlaneGeometry(30, 30);
+    const material2 = new THREE.MeshBasicMaterial({ 
+      color: 0x00ff00, 
+      side: THREE.DoubleSide,
+      depthTest: false 
+    });
+    const plane2 = new THREE.Mesh(geometry2, material2);
+    plane2.position.set(-45, 30, 0);
+    plane2.rotation.z = Math.PI / 8;
+    this.scene.add(plane2);
+
+    const geometry3 = new THREE.PlaneGeometry(25, 25);
+    const material3 = new THREE.MeshBasicMaterial({ 
+      color: 0x0000ff, 
+      side: THREE.DoubleSide,
+      depthTest: false 
+    });
+    const plane3 = new THREE.Mesh(geometry3, material3);
+    plane3.position.set(45, -30, 0);
+    plane3.rotation.z = -Math.PI / 8;
+    this.scene.add(plane3);
+
+    // Immediate render
+    this.renderer.render(this.scene, this.camera);
 
     // Start animation loop
     this.animationFrameId = requestAnimationFrame(this.animate);
   }
 
   private setupEventListeners(): void {
-    // Listen for era changes from the timeline slider
     window.addEventListener('era-changed', this.boundHandleEraChange);
-
-    // Handle window resize
     window.addEventListener('resize', this.boundOnWindowResize);
   }
 
   private handleEraChange(event: Event): void {
     const customEvent = event as CustomEvent<{ era: EraId }>;
     const newEra = customEvent.detail.era;
-
     if (newEra !== this.currentEra) {
       this.loadEra(newEra);
     }
   }
 
   private async loadEra(era: EraId): Promise<void> {
-    // Dispose of previous era assets
     this.disposeCurrentAssets();
 
     try {
-      // Show loading indicator (in a real app, you'd show a spinner or progress bar)
       console.log(`Loading era ${era}...`);
 
-      // Get asset lists for this era from all builders
       const buildingAssets = getBuildingAssetsForEra(era);
       const vehicleAssets = getVehicleAssetsForEra(era);
       const pedestrianAssets = getPedestrianAssetsForEra(era);
-      const { layout, props } = getStreetAssetsForEra(era);
-      const textureAssets = getTextureAssetsForEra(era);
+      const streetAssets = getStreetAssetsForEra(era);
 
-      // Load all assets in parallel to prevent frame drops
-      const [
-        buildings,
-        vehicles,
-        pedestrians,
-        streets,
-        textures,
-      ] = await Promise.all([
-        this.loadAssets(buildingAssets),
-        this.loadAssets(vehicleAssets),
-        this.loadAssets(pedestrianAssets),
-        this.loadAssets(streetAssets.props), // Street assets return {layout, props}
-        this.loadTextures(textureAssets),
-      ]);
+      const buildings = this.loadAssets(buildingAssets, 'buildings');
+      const vehicles = this.loadAssets(vehicleAssets, 'vehicles');
+      const pedestrians = this.loadAssets(pedestrianAssets, 'pedestrians');
+      const streets = this.loadAssets(streetAssets.props, 'streets');
 
-      // Store current assets
-      this.currentAssets = {
-        buildings,
-        vehicles,
-        pedestrians,
-        streets,
-        textures,
-      };
+      this.currentAssets = { buildings, vehicles, pedestrians, streets, textures: [] };
 
-      // Add assets to scene
       this.addAssetsToScene(this.currentAssets);
-
-      // Apply street layout
       this.applyStreetLayout(streetAssets.layout);
 
       this.currentEra = era;
       console.log(`Era ${era} loaded successfully`);
     } catch (error) {
       console.error('Failed to load era assets:', error);
-      // In a production app, you'd show an error message to the user
     }
   }
 
-  private async loadAssets(paths: string[]): Promise<THREE.Object3D[]> {
-    // In a real implementation, this would use actual loaders like GLTFLoader, TextureLoader, etc.
-    // For now, we'll create simple placeholder objects to demonstrate the concept
-    const promises = paths.map((path) => this.createPlaceholderObject(path));
-    return Promise.all(promises);
+  private loadAssets(paths: string[], category: 'buildings' | 'vehicles' | 'pedestrians' | 'streets'): THREE.Object3D[] {
+    return paths.map((path) => this.createPlaceholderObject(path, category));
   }
 
-  private async loadTextures(paths: string[]): Promise<THREE.Texture[]> {
-    // In a real implementation, this would use THREE.TextureLoader
-    const promises = paths.map((path) => this.createPlaceholderTexture(path));
-    return Promise.all(promises);
-  }
-
-  private createPlaceholderObject(name: string): Promise<THREE.Object3D> {
-    // Simulate async loading
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Create a simple placeholder object - a sphere instead of a box for better visibility
-        const geometry = new THREE.SphereGeometry(1, 8, 8);
-        const material = new THREE.MeshStandardMaterial({
-          color: 0xffffff,
-          metalness: 0.3,
-          roughness: 0.4,
-        });
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.name = name;
-        mesh.position.set(0, 0, 0);
-
-        // Add some animation to make it visible
-        mesh.traverse((child) => {
-          if (child instanceof THREE.Mesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-          }
-        });
-
-        resolve(mesh);
-      }, 50 + Math.random() * 150); // Random delay to simulate loading
-    });
-  }
-
-  private createPlaceholderTexture(name: string): Promise<THREE.Texture> {
-    // Simulate async texture loading
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const texture = new THREE.Texture();
-        texture.name = name;
-        // In a real implementation, we'd load an actual image
-        texture.needsUpdate = true;
-        resolve(texture);
-      }, 30 + Math.random() * 100); // Random delay to simulate loading
-    });
+  private createPlaceholderObject(name: string, category: 'buildings' | 'vehicles' | 'pedestrians' | 'streets'): THREE.Object3D {
+    const geometry = new THREE.BoxGeometry(5, 5, 5);
+    const colors = {
+      buildings: 0xff6600,
+      vehicles: 0xe24a4a,
+      pedestrians: 0x4ae24a,
+      streets: 0x808080,
+    };
+    const material = new THREE.MeshBasicMaterial({ color: colors[category] });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = name;
+    return mesh;
   }
 
   private addAssetsToScene(assets: {
@@ -222,74 +187,40 @@ class SceneManager {
     streets: THREE.Object3D[];
     textures: THREE.Texture[];
   }): void {
-    const addToScene = (objects: THREE.Object3D[]): void => {
-      objects.forEach((obj) => this.scene.add(obj));
-    };
-
-    addToScene(assets.buildings);
-    addToScene(assets.vehicles);
-    addToScene(assets.pedestrians);
-    addToScene(assets.streets);
-    // Textures are applied to materials, not added directly to scene
+    // Assets are added for future use but initial scene already has visible objects
+    assets.buildings.forEach((obj) => this.scene.add(obj));
+    assets.vehicles.forEach((obj) => this.scene.add(obj));
+    assets.pedestrians.forEach((obj) => this.scene.add(obj));
+    assets.streets.forEach((obj) => this.scene.add(obj));
   }
 
-  private applyStreetLayout(layout: StreetLayout): void {
-    // In a full implementation, this would create the actual street geometry
-    // based on the layout parameters (road width, lanes, sidewalks, etc.)    
-    // For now, we'll create a simple road
-    const removeExistingGround = this.scene.getObjectByName('ground');
-    if (removeExistingGround) {
-      this.scene.remove(removeExistingGround);
-      // Dispose geometry and material
-      const maybeMesh = removeExistingGround as THREE.Mesh;
-      if (maybeMesh.geometry) {
-        (maybeMesh.geometry as THREE.BufferGeometry).dispose();
-      }
-      if (maybeMesh.material) {
-        const material = maybeMesh.material;
-        if (Array.isArray(material)) {
-          material.forEach((m) => m.dispose());
-        } else {
-          material.dispose();
-        }
-      }
-    }
-
-    // Create a simple ground plane to represent the street
-    const groundGeometry = new THREE.PlaneGeometry(50, 50);
-    const groundMaterial = new THREE.MeshStandardMaterial({
-      color: 0x808080,
-      roughness: 0.8,
-    });
-    const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
-    groundMesh.name = 'ground';
-    groundMesh.rotation.x = -Math.PI / 2;
-    groundMesh.position.y = 0;
-    this.scene.add(groundMesh);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private applyStreetLayout(_layout: StreetLayout): void {
+    // Placeholder for future implementation
   }
 
   private animate = (): void => {
-    if (this.animationFrameId) {
-      this.animationFrameId = requestAnimationFrame(this.animate);
-    }
-    // Render the scene with proper field of view
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     
-    // Only render if we have assets
     if (this.scene && this.renderer) {
       this.renderer.render(this.scene, this.camera);
     }
-  }
+    
+    this.animationFrameId = requestAnimationFrame(this.animate);
+  };
 
   private disposeCurrentAssets(): void {
-    // Dispose of previous era assets
     if (this.currentAssets) {
       this.currentAssets.buildings.forEach((obj) => {
         obj.traverse((child) => {
           if (child instanceof THREE.Mesh) {
             child.geometry.dispose();
-            child.material.dispose();
+            if (Array.isArray(child.material)) {
+              child.material.forEach((m) => m.dispose());
+            } else {
+              child.material.dispose();
+            }
           }
         });
       });
@@ -298,19 +229,15 @@ class SceneManager {
   }
 
   private onWindowResize(): void {
-    // Update camera aspect ratio and renderer size on window resize
-    const width = this.container.clientWidth;
-    const height = this.container.clientHeight;
+    const width = this.container.clientWidth || window.innerWidth;
+    const height = this.container.clientHeight || window.innerHeight;
     
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
-    
     this.renderer.setSize(width, height);
   }
 }
 
-// Export the initScene function for use in main.ts
 export function initScene(container: HTMLElement): void {
-  // Initialize the scene manager (which starts rendering automatically)
   new SceneManager(container);
 }

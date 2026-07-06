@@ -1,34 +1,39 @@
-import * as THREE from 'three';
 import { EraId } from '../eras.js';
-import { emitEraChanged } from './timeline-events';
 
+/**
+ * Timeline slider component that allows users to select historical eras
+ */
 class TimelineSlider {
   private container!: HTMLElement;
   private input!: HTMLInputElement;
-  private loadingIndicator!: HTMLElement;
 
-  constructor(container: HTMLElement) {
-    this.container = container;
+  constructor(containerId: string) {
+    const el = document.getElementById(containerId);
+    if (!el) {
+      throw new Error(`Container element with id '${containerId}' not found`);
+    }
+    this.container = el;
     this.initUI();
   }
 
   private initUI(): void {
-    // Create loading indicator
-    this.loadingIndicator = document.createElement('div');
-    this.loadingIndicator.id = 'loading';
-    this.loadingIndicator.style.display = 'none';
-    this.container.appendChild(this.loadingIndicator);
-
     // Create slider container
     const sliderContainer = document.createElement('div');
     sliderContainer.className = 'timeline-slider-container';
     sliderContainer.innerHTML = `
+      <div class="timeline-era-label" id="era-label">1945</div>
+      <div class="timeline-era-description" id="era-description">Post-War Era</div>
       <div class="timeline-tick-marks">
-        <div class="timeline-tick" data-year="1945"></div>
-        <div class="timeline-tick" data-year="1965"></div>
-        <div class="timeline-tick" data-year="1985"></div>
-        <div class="timeline-tick" data-year="2005"></div>
-        <div class="timeline-tick" data-year="2025"></div>
+        <div class="timeline-tick active" data-year="1945" style="left: 0%;"></div>
+        <div class="timeline-tick-label" style="left: 0%;">1945</div>
+        <div class="timeline-tick" data-year="1965" style="left: 25%;"></div>
+        <div class="timeline-tick-label" style="left: 25%;">1965</div>
+        <div class="timeline-tick" data-year="1985" style="left: 50%;"></div>
+        <div class="timeline-tick-label" style="left: 50%;">1985</div>
+        <div class="timeline-tick" data-year="2005" style="left: 75%;"></div>
+        <div class="timeline-tick-label" style="left: 75%;">2005</div>
+        <div class="timeline-tick" data-year="2025" style="left: 100%;"></div>
+        <div class="timeline-tick-label" style="left: 100%;">2025</div>
       </div>
     `;
     this.container.appendChild(sliderContainer);
@@ -40,56 +45,60 @@ class TimelineSlider {
     this.input.max = '4';
     this.input.value = '0';
     this.input.step = '1';
+    this.input.className = 'timeline-slider';
     this.input.addEventListener('input', this.handleInputChange);
     sliderContainer.appendChild(this.input);
-
-    // Add era labels
-    const labels = sliderContainer.querySelectorAll('.timeline-tick');n const eraLabels = {
-      '1945': { label: '1945', desc: 'World War II Era' },
-      '1965': { label: '1965', desc: 'Cold War Era' },
-      '1985': { label: '1985', desc: 'Digital Revolution' },
-      '2005': { label: '2005', desc: 'Information Age' },
-      '2025': { label: '2025', desc: 'Future Projections' }
-    };
-
-    labels.forEach(label => {
-      const year = label.dataset.year;
-      const labelDiv = document.createElement('div');
-      labelDiv.className = 'timeline-era-label';
-      labelDiv.textContent = eraLabels[year].label;
-      label.insertAdjacentElement('afterend', labelDiv);
-
-      const descDiv = document.createElement('div');
-      descDiv.className = 'timeline-era-description';
-      descDiv.textContent = eraLabels[year].desc;
-      label.insertAdjacentElement('afterend', descDiv);
-    });
   }
 
   private handleInputChange = (event: Event): void => {
     const value = (event.target as HTMLInputElement).value;
-    const year = ['1945', '1965', '1985', '2005', '2025'][Number(value)];n
-    emitEraChanged({ era: year as EraId });
-    this.updateLoadingIndicator();
-  }
+    const years: EraId[] = ['1945', '1965', '1985', '2005', '2025'];
+    const year = years[Number(value)];
 
-  private updateLoadingIndicator(): void {
-    this.loadingIndicator.style.display = 'block';
-    setTimeout(() => {
-      this.loadingIndicator.style.display = 'none';
-    }, 1500); // Simulate loading delay
+    // Update UI labels
+    const labelEl = document.getElementById('era-label');
+    const descEl = document.getElementById('era-description');
+    const eraLabels: Record<string, { label: string; desc: string }> = {
+      '1945': { label: '1945', desc: 'Post-War Era' },
+      '1965': { label: '1965', desc: 'Swinging Sixties' },
+      '1985': { label: '1985', desc: 'Neon Eighties' },
+      '2005': { label: '2005', desc: 'Digital Dawn' },
+      '2025': { label: '2025', desc: 'Near Future' },
+    };
+
+    if (labelEl) labelEl.textContent = eraLabels[year].label;
+    if (descEl) descEl.textContent = eraLabels[year].desc;
+
+    // Update tick mark active state
+    const ticks = this.container.querySelectorAll('.timeline-tick');
+    ticks.forEach((tick, index) => {
+      tick.classList.toggle('active', index === Number(value));
+    });
+
+    // Emit era change event
+    this.emitEraChanged(year);
+  };
+
+  private emitEraChanged(era: EraId): void {
+    const event = new CustomEvent('era-changed', {
+      detail: { era },
+      bubbles: true,
+      composed: true,
+    });
+    window.dispatchEvent(event);
   }
 }
 
-export function initTimelineSlider(container: HTMLElement): void {
-  new TimelineSlider(container);
+/**
+ * Initialize the timeline slider
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function initTimelineSlider(_container: HTMLElement): void {
+  // eslint-disable-next-line no-new
+  new TimelineSlider('app');
 }
 
-export function emitEraChanged(event: { era: EraId }): void {
-  const event = new CustomEvent('era-changed', {
-    detail: { era: event.era },
-    bubbles: true,
-    composed: true
-  });
-  window.dispatchEvent(event);
-}</script>
+/**
+ * Alias for backward compatibility with main.ts import
+ */
+export { TimelineSlider };
