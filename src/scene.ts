@@ -1,6 +1,21 @@
 import * as THREE from 'three';
 import type { EraId } from './eras.js';
 import { createAssetSet, type AssetSet } from './assetBuilder/assetSet.js';
+import type { EraAudioBuffers as EraAudioBuffersType } from './audio/sfx.js';
+import { generateEraAudioBuffers } from './audio/sfx.js';
+import { SfxMixer } from './audio/mixer.js';
+
+/**
+ * Transition animation state
+ */
+interface TransitionState {
+  progress: number; // 0 to 1
+  fromEra: EraId;
+  toEra: EraId;
+  startTime: number;
+  duration: number;
+  meshesToTransition: THREE.Mesh[];
+}
 
 /**
  * Scene manager for the City Time Period Timelapse
@@ -15,6 +30,66 @@ export interface SceneManager {
   handleResize(): void;
   dispose(): void;
 }
+
+/**
+ * Era style configuration for smooth transitions
+ */
+interface EraStyleConfig {
+  colors: number[];
+  heights: [number, number];
+  featureWeights: Record<string, number>;
+}
+
+/**
+ * Style configurations for each era with interpolation values
+ */
+const ERA_STYLE_CONFIGS: Record<EraId, EraStyleConfig> = {
+  '1945': {
+    colors: [0x8B4513, 0xCD853F, 0xA0522D, 0x654321],
+    heights: [4, 8],
+    featureWeights: {
+      'brick-facade': 1,
+      'glass-facade': 0,
+      'modern': 0
+    }
+  },
+  '1965': {
+    colors: [0x9370DB, 0x4169E1, 0x8B008B, 0x2F4F4F],
+    heights: [6, 12],
+    featureWeights: {
+      'brick-facade': 1,
+      'glass-facade': 0,
+      'modern': 0.3
+    }
+  },
+  '1985': {
+    colors: [0x2F4F4F, 0x708090, 0x778899, 0x2C3539],
+    heights: [10, 20],
+    featureWeights: {
+      'brick-facade': 0,
+      'glass-facade': 1,
+      'modern': 0.6
+    }
+  },
+  '2005': {
+    colors: [0x000080, 0x87CEEB, 0xFFFFFF, 0xC0C0C0],
+    heights: [15, 30],
+    featureWeights: {
+      'brick-facade': 0,
+      'glass-facade': 1,
+      'modern': 1
+    }
+  },
+  '2025': {
+    colors: [0x00CED1, 0x1E90FF, 0x87CEFA, 0x98FB98],
+    heights: [20, 40],
+    featureWeights: {
+      'brick-facade': 0,
+      'glass-facade': 0.3,
+      'modern': 1
+    }
+  }
+};
 
 /**
  * Sets up the Three.js scene with WebGL renderer, lighting, and ground plane
@@ -57,39 +132,67 @@ export function setupScene(): SceneManager {
   // Current era state
   let currentEra: EraId = '2025';
   let currentAssetSet: AssetSet | null = null;
+  let transitionState: TransitionState | null = null;
+  let audioMixer: SfxMixer | null = null;
+  let audioBuffers: Record<EraId, EraAudioBuffersType> | null = null;
 
   // Initialize with default era assets
   currentAssetSet = createAssetSet(currentEra);
   scene.add(currentAssetSet.group);
+
+  // Initialize audio mixer on first user interaction
+  const initAudio = async () => {
+    if (!audioBuffers && !audioMixer) {
+      try {
+        const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof window.AudioContext }).webkitAudioContext;
+        const ctx = new AudioContextClass();
+        
+        // Generate all era buffers
+        audioBuffers = {} as Record<EraId, EraAudioBuffersType>;
+        const eraIds: EraId[] = ['1945', '1965', '1985', '2005', '2025'];
+        
+        for (const eraId of eraIds) {
+          audioBuffers[eraId] = generateEraAudioBuffers(ctx, eraId, (await import('./eras.js')).SFX_ERA_DATA[eraId]);
+        }
+        
+        audioMixer = new SfxMixer();
+        await audioMixer.init(audioBuffers);
+        audioMixer.setEra(currentEra);
+      } catch (error) {
+        console.warn('Failed to initialize audio:', error);
+      }
+    }
+  };
+
+  // Initialize audio on user interaction
+  const handleUserInteraction = () => {
+    initAudio();
+    document.removeEventListener('click', handleUserInteraction);
+    document.removeEventListener('keydown', handleUserInteraction);
+  };
+  document.addEventListener('click', handleUserInteraction);
+  document.addEventListener('keydown', handleUserInteraction);
 
   return {
     camera,
     scene,
     renderer,
     setEra: (eraId: EraId) => {
-      currentEra = eraId;
-      // Remove old assets
-      if (currentAssetSet) {
-        scene.remove(currentAssetSet.group);
-        // Dispose geometries and materials
-        currentAssetSet.group.traverse((obj) => {
-          if (obj instanceof THREE.Mesh) {
-            if (obj.geometry) obj.geometry.dispose();
-            if (obj.material) {
-              if (Array.isArray(obj.material)) {
-                obj.material.forEach(m => m.dispose());
-              } else {
-                obj.material.dispose();
-              }
-            }
-          }
-        });
+      if (currentEra === eraId || transitionState) return;
+      
+      // Start smooth transition
+      startTransition(eraId);
+      
+      // Update audio
+      if (audioMixer) {
+        audioMixer.setEra(eraId);
       }
-      // Create new era assets
-      currentAssetSet = createAssetSet(eraId);
-      scene.add(currentAssetSet.group);
     },
     render: () => {
+      // Update transition animation
+      if (transitionState) {
+        updateTransition();
+      }
       renderer.render(scene, camera);
     },
     handleResize: () => {
@@ -100,6 +203,15 @@ export function setupScene(): SceneManager {
       renderer.setSize(width, height);
     },
     dispose: () => {
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+      
+      if (currentAssetSet) {
+        scene.remove(currentAssetSet.group);
+        disposeAssetSet(currentAssetSet);
+      }
+      
+      audioMixer?.dispose();
       renderer.dispose();
       scene.traverse((obj) => {
         if (obj instanceof THREE.Mesh) {
@@ -115,6 +227,127 @@ export function setupScene(): SceneManager {
       });
     }
   };
+
+  /**
+   * Starts a smooth transition between eras
+   */
+  function startTransition(toEra: EraId): void {
+    transitionState = {
+      progress: 0,
+      fromEra: currentEra,
+      toEra,
+      startTime: performance.now(),
+      duration: 1500, // 1.5 second transition
+      meshesToTransition: []
+    };
+
+    // Collect meshes to transition
+    if (currentAssetSet) {
+      currentAssetSet.group.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          transitionState!.meshesToTransition.push(obj);
+        }
+      });
+    }
+  }
+
+  /**
+   * Updates the transition animation each frame
+   */
+  function updateTransition(): void {
+    if (!transitionState || !currentAssetSet) return;
+
+    const elapsed = performance.now() - transitionState.startTime;
+    transitionState.progress = Math.min(elapsed / transitionState.duration, 1);
+
+    // Apply interpolation to meshes
+    const t = easeInOutCubic(transitionState.progress);
+    interpolateVisuals(transitionState.meshesToTransition, t, transitionState.toEra);
+
+    // Complete transition when done
+    if (transitionState.progress >= 1) {
+      completeTransition();
+    }
+  }
+
+  /**
+   * Interpolates visual properties between eras
+   */
+  function interpolateVisuals(meshes: THREE.Mesh[], t: number, targetEra: EraId): void {
+    const fromConfig = ERA_STYLE_CONFIGS[currentEra];
+    const toConfig = ERA_STYLE_CONFIGS[targetEra];
+
+    meshes.forEach((mesh, index) => {
+      // Stagger the transition based on mesh index
+      const stagger = (index % 30) / 30;
+      const individualT = Math.min(1, t * 3 - stagger * 2);
+      
+      if (individualT <= 0) return;
+
+      // Interpolate color
+      if (mesh.material && 'color' in mesh.material) {
+        const fromColor = new THREE.Color(fromConfig.colors[index % fromConfig.colors.length]);
+        const toColor = new THREE.Color(toConfig.colors[index % toConfig.colors.length]);
+        const interpolated = new THREE.Color().lerpColors(fromColor, toColor, individualT);
+        (mesh.material as THREE.MeshStandardMaterial).color.copy(interpolated);
+      }
+
+      // Interpolate scale for morphing effect
+      if (individualT > 0) {
+        const fromHeight = fromConfig.heights[0] + (fromConfig.heights[1] - fromConfig.heights[0]) * (Math.random() * 0.5 + 0.25);
+        const toHeight = toConfig.heights[0] + (toConfig.heights[1] - toConfig.heights[0]) * (Math.random() * 0.5 + 0.25);
+        
+        const yScale = 1 + (toHeight / fromHeight - 1) * individualT;
+        mesh.scale.y = yScale;
+        mesh.position.y = mesh.position.y * yScale;
+      }
+    });
+  }
+
+  /**
+   * Completes the transition by swapping to new era assets
+   */
+  function completeTransition(): void {
+    if (!transitionState || !currentAssetSet) return;
+
+    const oldEra = currentEra;
+    const newEra = transitionState.toEra;
+
+    // Remove old assets
+    scene.remove(currentAssetSet.group);
+    disposeAssetSet(currentAssetSet);
+
+    // Create new era assets
+    currentAssetSet = createAssetSet(newEra);
+    scene.add(currentAssetSet.group);
+    currentEra = newEra;
+
+    // Clear transition state
+    transitionState = null;
+
+    // Play transition sound
+    if (audioMixer) {
+      audioMixer.playEvent(newEra, '');
+    }
+  }
+
+  /**
+   * Disposes an asset set's geometries and materials
+   */
+  function disposeAssetSet(assetSet: AssetSet): void {
+    assetSet.group.traverse((obj) => {
+      if (obj instanceof THREE.Mesh) {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach(m => m.dispose());
+          } else {
+            obj.material.dispose();
+          }
+        }
+      }
+    });
+  }
 }
 
 /**
@@ -201,4 +434,11 @@ function addCityBlockBoundaries(scene: THREE.Scene): void {
     marker.position.set(corner[0], corner[1], corner[2]);
     scene.add(marker);
   });
+}
+
+/**
+ * Easing function for smooth transitions
+ */
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
