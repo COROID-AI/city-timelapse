@@ -11,6 +11,7 @@ class CityTimelapseApp {
   private cameraController: CameraController;
   private timelineUI: TimelineUI;
   private animationId: number | null = null;
+  private lastTime: number = 0;
 
   constructor() {
     this.sceneManager = setupScene();
@@ -24,13 +25,19 @@ class CityTimelapseApp {
   }
 
   start() {
+    this.lastTime = performance.now();
     this.animate();
   }
 
   private animate = () => {
     this.animationId = requestAnimationFrame(this.animate);
+    
+    const now = performance.now();
+    const deltaTime = (now - this.lastTime) / 1000; // Convert to seconds
+    this.lastTime = now;
+    
     this.cameraController.update();
-    this.sceneManager.render();
+    this.sceneManager.render(deltaTime);
   };
 
   dispose() {

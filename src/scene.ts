@@ -4,6 +4,7 @@ import { createAssetSet, type AssetSet } from './assetBuilder/assetSet.js';
 import type { EraAudioBuffers as EraAudioBuffersType } from './audio/sfx.js';
 import { generateEraAudioBuffers } from './audio/sfx.js';
 import { SfxMixer } from './audio/mixer.js';
+import { createParticleSystem, type ParticleSystem } from './particleSystem.js';
 
 /**
  * Transition animation state
@@ -26,7 +27,7 @@ export interface SceneManager {
   scene: THREE.Scene;
   renderer: THREE.WebGLRenderer;
   setEra(eraId: EraId): void;
-  render(): void;
+  render(deltaTime: number): void;
   handleResize(): void;
   dispose(): void;
 }
@@ -38,6 +39,20 @@ interface EraStyleConfig {
   colors: number[];
   heights: [number, number];
   featureWeights: Record<string, number>;
+}
+
+/**
+ * Lighting configuration for each era
+ */
+interface EraLightingConfig {
+  ambientIntensity: number;
+  directionalIntensity: number;
+  directionalColor: number;
+  hemiSkyIntensity: number;
+  hemiGroundColor: number;
+  fogColor: number;
+  fogNear: number;
+  fogFar: number;
 }
 
 /**
@@ -92,6 +107,108 @@ const ERA_STYLE_CONFIGS: Record<EraId, EraStyleConfig> = {
 };
 
 /**
+ * Lighting configurations for each era
+ */
+const ERA_LIGHTING_CONFIGS: Record<EraId, EraLightingConfig> = {
+  '1945': {
+    ambientIntensity: 0.7,      // Warmer, softer
+    directionalIntensity: 0.9,  // Natural sunlight
+    directionalColor: 0xffe0a0, // Warm sunlight
+    hemiSkyIntensity: 0.5,
+    hemiGroundColor: 0x5d4037,  // Earthy ground tone
+    fogColor: 0x87ceeb,
+    fogNear: 100,
+    fogFar: 300
+  },
+  '1965': {
+    ambientIntensity: 0.6,
+    directionalIntensity: 0.8,
+    directionalColor: 0xffd54f, // Slightly warmer
+    hemiSkyIntensity: 0.4,
+    hemiGroundColor: 0x388e3c,
+    fogColor: 0x81d4fa,
+    fogNear: 120,
+    fogFar: 350
+  },
+  '1985': {
+    ambientIntensity: 0.5,
+    directionalIntensity: 0.7,
+    directionalColor: 0x81d4fa, // Cooler modern light
+    hemiSkyIntensity: 0.4,
+    hemiGroundColor: 0x424242,
+    fogColor: 0x607d8b,
+    fogNear: 150,
+    fogFar: 400
+  },
+  '2005': {
+    ambientIntensity: 0.4,
+    directionalIntensity: 0.6,
+    directionalColor: 0xb3e5fc, // Cool blue-white
+    hemiSkyIntensity: 0.3,
+    hemiGroundColor: 0x263238,
+    fogColor: 0x4fc3f7,
+    fogNear: 180,
+    fogFar: 450
+  },
+  '2025': {
+    ambientIntensity: 0.3,
+    directionalIntensity: 0.5,
+    directionalColor: 0x00bcd4, // Futuristic cyan
+    hemiSkyIntensity: 0.3,
+    hemiGroundColor: 0x004d40,
+    fogColor: 0x00bfa5,
+    fogNear: 200,
+    fogFar: 500
+  }
+};
+
+/**
+ * Updates lighting for a specific era with smooth transition
+ */
+function updateEraLighting(
+  eraId: EraId,
+  ambientLight: THREE.AmbientLight,
+  directionalLight: THREE.DirectionalLight,
+  hemiLight: THREE.HemisphereLight,
+  scene: THREE.Scene
+): void {
+  const config = ERA_LIGHTING_CONFIGS[eraId];
+  
+  // Animate to new lighting values
+  const tweenDuration = 1500;
+  const start = performance.now();
+  
+  const initialAmbient = ambientLight.intensity;
+  const initialDirIntensity = directionalLight.intensity;
+  const initialDirColor = new THREE.Color(directionalLight.color.getHex());
+  
+  const animateLighting = () => {
+    const elapsed = performance.now() - start;
+    const t = Math.min(elapsed / tweenDuration, 1);
+    const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    
+    ambientLight.intensity = initialAmbient + (config.ambientIntensity - initialAmbient) * eased;
+    directionalLight.intensity = initialDirIntensity + (config.directionalIntensity - initialDirIntensity) * eased;
+    directionalLight.color.lerpColors(initialDirColor, new THREE.Color(config.directionalColor), eased);
+    hemiLight.intensity = config.hemiSkyIntensity;
+    hemiLight.groundColor.set(config.hemiGroundColor);
+    
+    // Update fog
+    if (scene.fog) {
+      (scene.fog as THREE.Fog).color.set(config.fogColor);
+      (scene.fog as THREE.Fog).near = config.fogNear;
+      (scene.fog as THREE.Fog).far = config.fogFar;
+    }
+    
+    if (t < 1) {
+      requestAnimationFrame(animateLighting);
+    }
+  };
+  
+  animateLighting();
+}
+
+/**
  * Sets up the Three.js scene with WebGL renderer, lighting, and ground plane
  */
 export function setupScene(): SceneManager {
@@ -109,6 +226,7 @@ export function setupScene(): SceneManager {
   // Create scene
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x87ceeb); // Sky blue
+  scene.fog = new THREE.Fog(0x87ceeb, 100, 300); // Add fog for depth
 
   // Create camera
   const camera = new THREE.PerspectiveCamera(
@@ -120,14 +238,44 @@ export function setupScene(): SceneManager {
   camera.position.set(0, 50, 100);
   camera.lookAt(0, 0, 0);
 
-  // Add lighting
-  setupLighting(scene);
+  // Add lighting (stored for updates)
+  const ambientLight = new THREE.AmbientLight(0xffffff, ERA_LIGHTING_CONFIGS['2025'].ambientIntensity);
+  scene.add(ambientLight);
+
+  // Directional light (sun) with shadows
+  const directionalLight = new THREE.DirectionalLight(
+    ERA_LIGHTING_CONFIGS['2025'].directionalColor,
+    ERA_LIGHTING_CONFIGS['2025'].directionalIntensity
+  );
+  directionalLight.position.set(50, 100, 50);
+  directionalLight.castShadow = true;
+  directionalLight.shadow.mapSize.width = 2048;
+  directionalLight.shadow.mapSize.height = 2048;
+  directionalLight.shadow.camera.near = 0.5;
+  directionalLight.shadow.camera.far = 500;
+  directionalLight.shadow.camera.left = -100;
+  directionalLight.shadow.camera.right = 100;
+  directionalLight.shadow.camera.top = 100;
+  directionalLight.shadow.camera.bottom = -100;
+  scene.add(directionalLight);
+
+  // Hemisphere light for sky-like lighting
+  const hemiLight = new THREE.HemisphereLight(
+    0x87ceeb,
+    ERA_LIGHTING_CONFIGS['2025'].hemiGroundColor,
+    ERA_LIGHTING_CONFIGS['2025'].hemiSkyIntensity
+  );
+  scene.add(hemiLight);
 
   // Add ground plane
   addGroundPlane(scene);
 
   // Add city block boundaries (marker boxes)
   addCityBlockBoundaries(scene);
+
+  // Initialize particle system
+  const particleSystem = createParticleSystem(scene);
+  particleSystem.setEra('2025');
 
   // Current era state
   let currentEra: EraId = '2025';
@@ -180,6 +328,12 @@ export function setupScene(): SceneManager {
     setEra: (eraId: EraId) => {
       if (currentEra === eraId || transitionState) return;
       
+      // Update particle system
+      particleSystem.setEra(eraId);
+      
+      // Update lighting
+      updateEraLighting(eraId, ambientLight, directionalLight, hemiLight, scene);
+      
       // Start smooth transition
       startTransition(eraId);
       
@@ -188,11 +342,15 @@ export function setupScene(): SceneManager {
         audioMixer.setEra(eraId);
       }
     },
-    render: () => {
+    render: (deltaTime: number = 1 / 60) => {
       // Update transition animation
       if (transitionState) {
         updateTransition();
       }
+      
+      // Update particle system
+      particleSystem.update(deltaTime);
+      
       renderer.render(scene, camera);
     },
     handleResize: () => {
@@ -205,6 +363,8 @@ export function setupScene(): SceneManager {
     dispose: () => {
       document.removeEventListener('click', handleUserInteraction);
       document.removeEventListener('keydown', handleUserInteraction);
+      
+      particleSystem.dispose();
       
       if (currentAssetSet) {
         scene.remove(currentAssetSet.group);
@@ -327,7 +487,7 @@ export function setupScene(): SceneManager {
 
     // Play transition sound
     if (audioMixer) {
-      audioMixer.playEvent(newEra, '');
+      audioMixer.playEvent(newEra, 'transition');
     }
   }
 
