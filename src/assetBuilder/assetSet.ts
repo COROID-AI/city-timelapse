@@ -26,18 +26,42 @@ export function createAssetSet(eraId: EraId): AssetSet {
   const pedestrians: THREE.Group[] = [];
   const storefronts: THREE.Group[] = [];
 
-  // Create buildings for the era
+  // ========================================================================
+  // City block layout
+  // ------------------------------------------------------------------------
+  // A coherent city block built around a central east-west street (along
+  // the x-axis at z ≈ 0). Every object is kept well inside the ±100 block
+  // boundary so nothing appears "outside the city":
+  //   • Buildings flank the street on the north (z < 0) and south (z > 0).
+  //   • Storefronts (with their era-specific signs / "billboards") sit on
+  //     the building fronts and face inward toward the street.
+  //   • Vehicles occupy two traffic lanes down the middle of the street.
+  //   • Pedestrians walk along sidewalks on either side of the street.
+  // ========================================================================
+
+  const BUILDING_Z = 30;      // distance of building rows from street centre
+  const STOREFRONT_Z = 24;    // storefronts sit just in front of buildings
+  const SIDEWALK_Z = 15;      // sidewalk offset from street centre
+  const LANE_Z = 4;           // traffic-lane offset from street centre
+
+  // Evenly spaced x-positions across the block (within ±80 of the boundary)
+  const buildingX = [-75, -45, -15, 15, 45, 75];
+  const storefrontX = [-60, -20, 20, 60];
+  const vehicleX = [-45, -15, 15, 45];
+  const pedestrianX = [-70, -50, -30, -10, 10, 30, 50, 70];
+
+  // --- Buildings: two rows (north / south) flanking the street ---
   const buildingTypes: Array<'residential' | 'commercial' | 'industrial' | 'skyscraper'> = [
     'residential', 'residential', 'commercial', 'commercial', 'industrial', 'skyscraper'
   ];
 
   for (let i = 0; i < 12; i++) {
+    const row = Math.floor(i / 6);   // 0 = north row, 1 = south row
+    const col = i % 6;
+    const z = row === 0 ? -BUILDING_Z : BUILDING_Z;
+
     const building = createBuilding({
-      position: [
-        -40 + (i % 6) * 16,
-        0,
-        -40 + Math.floor(i / 6) * 32
-      ],
+      position: [buildingX[col], 0, z],
       eraId,
       buildingType: buildingTypes[i % buildingTypes.length]
     });
@@ -45,14 +69,39 @@ export function createAssetSet(eraId: EraId): AssetSet {
     group.add(building);
   }
 
-  // Create vehicles for the era
+  // --- Storefronts: mounted on building fronts, facing the street ---
+  // Their era-specific signage ("billboards") is therefore visible from
+  // the street instead of floating far away from the buildings.
+  const storeTypes: Array<'general-store' | 'clothing' | 'electronics' | 'restaurant' | 'cafe' | 'bank' | 'pharmacy' | 'grocery'> = [
+    'general-store', 'clothing', 'electronics', 'restaurant', 'cafe', 'bank', 'pharmacy', 'grocery'
+  ];
+
   for (let i = 0; i < 8; i++) {
+    const side = Math.floor(i / 4);   // 0 = north, 1 = south
+    const col = i % 4;
+    const z = side === 0 ? -STOREFRONT_Z : STOREFRONT_Z;
+
+    const storefront = createStorefront({
+      position: [storefrontX[col], 0, z],
+      eraId,
+      storeType: storeTypes[i % storeTypes.length]
+    });
+    // South-side storefronts are rotated 180° so their signs face the street.
+    if (side === 1) {
+      storefront.rotation.y = Math.PI;
+    }
+    storefronts.push(storefront);
+    group.add(storefront);
+  }
+
+  // --- Vehicles: two traffic lanes down the centre of the street ---
+  for (let i = 0; i < 8; i++) {
+    const lane = Math.floor(i / 4);   // 0 = eastbound (z < 0), 1 = westbound (z > 0)
+    const col = i % 4;
+    const z = lane === 0 ? -LANE_Z : LANE_Z;
+
     const vehicle = createVehicle({
-      position: [
-        -60 + i * 16,
-        0,
-        -60
-      ],
+      position: [vehicleX[col], 0, z],
       eraId,
       vehicleType: getRandomVehicleType(eraId)
     });
@@ -60,38 +109,20 @@ export function createAssetSet(eraId: EraId): AssetSet {
     group.add(vehicle);
   }
 
-  // Create pedestrians for the era
+  // --- Pedestrians: sidewalks on either side of the street ---
   for (let i = 0; i < 16; i++) {
+    const side = Math.floor(i / 8);   // 0 = north sidewalk, 1 = south sidewalk
+    const col = i % 8;
+    const x = pedestrianX[col] + (Math.random() - 0.5) * 4;
+    const z = (side === 0 ? -SIDEWALK_Z : SIDEWALK_Z) + (Math.random() - 0.5) * 3;
+
     const pedestrian = createPedestrian({
-      position: [
-        -60 + i * 8 + (Math.random() - 0.5) * 4,
-        0,
-        -40 + (Math.random() - 0.5) * 20
-      ],
+      position: [x, 0, z],
       eraId,
       pedestrianType: getRandomPedestrianType()
     });
     pedestrians.push(pedestrian);
     group.add(pedestrian);
-  }
-
-  // Create storefronts for the era
-  const storeTypes: Array<'general-store' | 'clothing' | 'electronics' | 'restaurant' | 'cafe' | 'bank' | 'pharmacy' | 'grocery'> = [
-    'general-store', 'clothing', 'electronics', 'restaurant', 'cafe', 'bank', 'pharmacy', 'grocery'
-  ];
-
-  for (let i = 0; i < 8; i++) {
-    const storefront = createStorefront({
-      position: [
-        -60 + i * 16,
-        0,
-        60
-      ],
-      eraId,
-      storeType: storeTypes[i % storeTypes.length]
-    });
-    storefronts.push(storefront);
-    group.add(storefront);
   }
 
   // Store metadata on the group

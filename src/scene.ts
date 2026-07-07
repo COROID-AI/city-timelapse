@@ -560,6 +560,48 @@ function addGroundPlane(scene: THREE.Scene): void {
   const gridHelper = new THREE.GridHelper(500, 50, 0x444444, 0x222222);
   gridHelper.position.y = 0.01; // Slightly above ground to avoid z-fighting
   scene.add(gridHelper);
+
+  // Central east-west road surface — matches the street layout used by the
+  // asset set (vehicles at z = ±4, pedestrians at z = ±15, buildings at z = ±30).
+  const roadGeometry = new THREE.PlaneGeometry(170, 20);
+  const roadMaterial = new THREE.MeshStandardMaterial({
+    color: 0x2a2a2a,
+    roughness: 0.9,
+    metalness: 0.1
+  });
+  const road = new THREE.Mesh(roadGeometry, roadMaterial);
+  road.rotation.x = -Math.PI / 2;
+  road.position.y = 0.02;
+  road.receiveShadow = true;
+  scene.add(road);
+
+  // Centre lane marking on the road
+  const markingGeometry = new THREE.PlaneGeometry(170, 0.4);
+  const markingMaterial = new THREE.MeshStandardMaterial({
+    color: 0xffd700,
+    roughness: 0.6,
+    emissive: 0x554400,
+    emissiveIntensity: 0.3
+  });
+  const marking = new THREE.Mesh(markingGeometry, markingMaterial);
+  marking.rotation.x = -Math.PI / 2;
+  marking.position.y = 0.025;
+  scene.add(marking);
+
+  // Sidewalk strips flanking the road (under the pedestrian paths)
+  const sidewalkGeometry = new THREE.PlaneGeometry(170, 8);
+  const sidewalkMaterial = new THREE.MeshStandardMaterial({
+    color: 0x9a9a9a,
+    roughness: 0.8,
+    metalness: 0.1
+  });
+  for (const sz of [-15, 15]) {
+    const sidewalk = new THREE.Mesh(sidewalkGeometry, sidewalkMaterial);
+    sidewalk.rotation.x = -Math.PI / 2;
+    sidewalk.position.set(0, 0.015, sz);
+    sidewalk.receiveShadow = true;
+    scene.add(sidewalk);
+  }
 }
 
 /**
