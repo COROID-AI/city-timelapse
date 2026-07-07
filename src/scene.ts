@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { EraId } from './eras.js';
+import { createAssetSet, type AssetSet } from './assetBuilder/assetSet.js';
 
 /**
  * Scene manager for the City Time Period Timelapse
@@ -55,6 +56,11 @@ export function setupScene(): SceneManager {
 
   // Current era state
   let currentEra: EraId = '2025';
+  let currentAssetSet: AssetSet | null = null;
+
+  // Initialize with default era assets
+  currentAssetSet = createAssetSet(currentEra);
+  scene.add(currentAssetSet.group);
 
   return {
     camera,
@@ -62,7 +68,26 @@ export function setupScene(): SceneManager {
     renderer,
     setEra: (eraId: EraId) => {
       currentEra = eraId;
-      // Scene transition logic will be implemented in later phases
+      // Remove old assets
+      if (currentAssetSet) {
+        scene.remove(currentAssetSet.group);
+        // Dispose geometries and materials
+        currentAssetSet.group.traverse((obj) => {
+          if (obj instanceof THREE.Mesh) {
+            if (obj.geometry) obj.geometry.dispose();
+            if (obj.material) {
+              if (Array.isArray(obj.material)) {
+                obj.material.forEach(m => m.dispose());
+              } else {
+                obj.material.dispose();
+              }
+            }
+          }
+        });
+      }
+      // Create new era assets
+      currentAssetSet = createAssetSet(eraId);
+      scene.add(currentAssetSet.group);
     },
     render: () => {
       renderer.render(scene, camera);
