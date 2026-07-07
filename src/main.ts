@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import { setupScene, SceneManager } from './scene.js';
 import { createCameraController, CameraController } from './cameraController.js';
 import { createTimelineUI, TimelineUI } from './hud/timeline.js';
@@ -27,6 +26,14 @@ class CityTimelapseApp {
   start() {
     this.lastTime = performance.now();
     this.animate();
+    // Also trigger an immediate render after a short delay to ensure canvas is populated
+    setTimeout(() => {
+      this.sceneManager.render(0);
+    }, 100);
+    // And another render after load to ensure content is captured
+    window.addEventListener('load', () => {
+      this.sceneManager.render(0);
+    }, { once: true });
   }
 
   private animate = () => {
@@ -50,15 +57,22 @@ class CityTimelapseApp {
   }
 }
 
-// Initialize app on DOM ready
-document.addEventListener('DOMContentLoaded', () => {
-  const app = new CityTimelapseApp();
-  app.start();
+// Initialize app immediately
+const app = new CityTimelapseApp();
 
-  // Handle window resize
-  window.addEventListener('resize', () => {
-    app.sceneManager.handleResize();
-  });
+// Start when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  app.start();
+});
+
+// Also start immediately if DOM is already ready
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  setTimeout(() => app.start(), 0);
+}
+
+// Handle window resize
+window.addEventListener('resize', () => {
+  app.sceneManager.handleResize();
 });
 
 export { CityTimelapseApp };

@@ -215,7 +215,8 @@ export function setupScene(): SceneManager {
   // Create renderer with WebGL
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
-    alpha: false
+    alpha: false,
+    preserveDrawingBuffer: true
   });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -287,6 +288,9 @@ export function setupScene(): SceneManager {
   // Initialize with default era assets
   currentAssetSet = createAssetSet(currentEra);
   scene.add(currentAssetSet.group);
+
+  // Initial render to populate the canvas
+  renderer.render(scene, camera);
 
   // Initialize audio mixer on first user interaction
   const initAudio = async () => {

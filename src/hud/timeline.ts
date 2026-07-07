@@ -17,16 +17,20 @@ export function createTimelineUI(onEraChange: (eraId: EraId) => void): TimelineU
   // Create container
   const container = document.createElement('div');
   container.style.position = 'fixed';
-  container.style.top = '20px';
+  container.style.top = 'max(10px, env(safe-area-inset-top))';
   container.style.left = '50%';
   container.style.transform = 'translateX(-50%)';
   container.style.zIndex = '1000';
   container.style.display = 'flex';
-  container.style.gap = '10px';
-  container.style.padding = '10px 20px';
-  container.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+  container.style.flexWrap = 'wrap';
+  container.style.gap = '8px';
+  container.style.padding = '10px 15px';
+  container.style.backgroundColor = 'rgba(0, 0, 0, 0.75)';
   container.style.borderRadius = '8px';
   container.style.backdropFilter = 'blur(5px)';
+  container.style.maxWidth = '95vw';
+  container.style.minWidth = 'min(280px, 95vw)';
+  container.style.boxSizing = 'border-box';
 
   // Create buttons for each era
   const buttons: Map<string, HTMLButtonElement> = new Map();
@@ -35,16 +39,17 @@ export function createTimelineUI(onEraChange: (eraId: EraId) => void): TimelineU
   ERA_REGISTRY.forEach((era: EraSpec) => {
     const button = document.createElement('button');
     button.textContent = era.label;
-    button.style.padding = '8px 16px';
+    button.style.padding = '8px 12px';
     button.style.border = 'none';
     button.style.borderRadius = '4px';
     button.style.backgroundColor = era.id === '2025' ? '#4a90d9' : '#333';
     button.style.color = 'white';
     button.style.cursor = 'pointer';
-    button.style.fontSize = '14px';
+    button.style.fontSize = '13px';
     button.style.fontWeight = 'bold';
     button.style.transition = 'all 0.2s ease';
-    button.style.minWidth = '60px';
+    button.style.minWidth = 'auto';
+    button.style.flex = '1 1 auto';
 
     button.addEventListener('mouseenter', () => {
       if (button.style.backgroundColor !== 'rgb(74, 144, 217)') {
@@ -77,11 +82,13 @@ export function createTimelineUI(onEraChange: (eraId: EraId) => void): TimelineU
   const title = document.createElement('div');
   title.textContent = 'Time Period';
   title.style.color = 'white';
-  title.style.fontSize = '14px';
+  title.style.fontSize = '13px';
   title.style.fontWeight = 'bold';
-  title.style.marginRight = '10px';
+  title.style.marginRight = '8px';
+  title.style.marginLeft = '2px';
   title.style.display = 'flex';
   title.style.alignItems = 'center';
+  title.style.flexShrink = '0';
   // Get first button or use a placeholder node
   const firstButton = buttonElements[0] || document.createElement('div');
   container.insertBefore(title, firstButton);
