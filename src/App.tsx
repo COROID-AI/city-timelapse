@@ -9,7 +9,7 @@ import { OrbitControls, Environment, PerspectiveCamera } from '@react-three/drei
 import { TooltipProvider } from '@radix-ui/react-tooltip'
 import * as Slider from '@radix-ui/react-slider'
 import './App.css'
-import { ERA_IDS, EraId, getEraSpec, SFX_ERA_DATA } from './eras'
+import { ERA_IDS, EraId, getEraSpec } from './eras'
 import { SfxMixer } from './audio/mixer'
 import { CityBlock } from './components/CityBlock'
 import { EraParticles } from './components/EraParticles'
