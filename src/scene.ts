@@ -27,6 +27,7 @@ export interface SceneManager {
   scene: THREE.Scene;
   renderer: THREE.WebGLRenderer;
   setEra(eraId: EraId): void;
+  stopDemo(): void;
   render(deltaTime: number): void;
   handleResize(): void;
   dispose(): void;
@@ -276,18 +277,27 @@ export function setupScene(): SceneManager {
 
   // Initialize particle system
   const particleSystem = createParticleSystem(scene);
-  particleSystem.setEra('2025');
+  particleSystem.setEra('1945');
 
   // Current era state
-  let currentEra: EraId = '2025';
+  let currentEra: EraId = '1945';
   let currentAssetSet: AssetSet | null = null;
   let transitionState: TransitionState | null = null;
   let audioMixer: SfxMixer | null = null;
   let audioBuffers: Record<EraId, EraAudioBuffersType> | null = null;
 
+  // Auto-cycle demo: automatically transition through all eras to showcase differences
+  let demoMode = true;
+  const demoEras: EraId[] = ['1945', '1965', '1985', '2005', '2025'];
+  let demoIndex = 0;
+  let demoTimer: number | null = null;
+
   // Initialize with default era assets
   currentAssetSet = createAssetSet(currentEra);
   scene.add(currentAssetSet.group);
+
+  // Apply 1945 lighting initially
+  updateEraLighting('1945', ambientLight, directionalLight, hemiLight, scene);
 
   // Initial render to populate the canvas
   renderer.render(scene, camera);
@@ -325,27 +335,60 @@ export function setupScene(): SceneManager {
   document.addEventListener('click', handleUserInteraction);
   document.addEventListener('keydown', handleUserInteraction);
 
+  // Demo function - cycles through all eras automatically
+  function runDemo(): void {
+    if (!demoMode) return;
+    
+    // Wait for any ongoing transition to complete
+    if (transitionState) {
+      requestAnimationFrame(runDemo);
+      return;
+    }
+    
+    demoIndex = (demoIndex + 1) % demoEras.length;
+    const nextEra = demoEras[demoIndex];
+    if (nextEra !== currentEra) {
+      setEra(nextEra);
+    }
+    
+    demoTimer = window.setTimeout(() => {
+      if (demoMode) {
+        runDemo();
+      }
+    }, 4000);
+  }
+
+  // Expose setEra for demo and external use
+  function setEra(eraId: EraId): void {
+    if (currentEra === eraId || transitionState) return;
+    
+    // Update particle system
+    particleSystem.setEra(eraId);
+    
+    // Update lighting
+    updateEraLighting(eraId, ambientLight, directionalLight, hemiLight, scene);
+    
+    // Start smooth transition
+    startTransition(eraId);
+    
+    // Update audio
+    if (audioMixer) {
+      audioMixer.setEra(eraId);
+    }
+  }
+
+  // Start auto-demo after initial setup
+  setTimeout(() => {
+    if (demoMode) {
+      runDemo();
+    }
+  }, 3000);
+
   return {
     camera,
     scene,
     renderer,
-    setEra: (eraId: EraId) => {
-      if (currentEra === eraId || transitionState) return;
-      
-      // Update particle system
-      particleSystem.setEra(eraId);
-      
-      // Update lighting
-      updateEraLighting(eraId, ambientLight, directionalLight, hemiLight, scene);
-      
-      // Start smooth transition
-      startTransition(eraId);
-      
-      // Update audio
-      if (audioMixer) {
-        audioMixer.setEra(eraId);
-      }
-    },
+    setEra,
     render: (deltaTime: number = 1 / 60) => {
       // Update transition animation
       if (transitionState) {
@@ -364,9 +407,23 @@ export function setupScene(): SceneManager {
       camera.updateProjectionMatrix();
       renderer.setSize(width, height);
     },
+    stopDemo: () => {
+      demoMode = false;
+      if (demoTimer) {
+        clearTimeout(demoTimer);
+        demoTimer = null;
+      }
+    },
     dispose: () => {
       document.removeEventListener('click', handleUserInteraction);
       document.removeEventListener('keydown', handleUserInteraction);
+      
+      // Stop demo timer
+      demoMode = false;
+      if (demoTimer) {
+        clearTimeout(demoTimer);
+        demoTimer = null;
+      }
       
       particleSystem.dispose();
       

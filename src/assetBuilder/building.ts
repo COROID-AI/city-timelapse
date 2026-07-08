@@ -145,7 +145,7 @@ function addArchitecturalDetails(
 }
 
 /**
- * Adds brick facade window details
+ * Adds brick facade window details with varied window styles for 1945-1965
  */
 function addBrickFacadeDetails(group: THREE.Group, width: number, height: number, depth: number): void {
   const windowGeometry = new THREE.BoxGeometry(1, 1.5, 0.2);
@@ -160,40 +160,129 @@ function addBrickFacadeDetails(group: THREE.Group, width: number, height: number
   const rows = Math.floor(depth / 2);
 
   for (let f = 0; f < floors; f++) {
+    // Vary window style based on floor for visual richness
+    const isBayWindow = f % 3 === 1;
+    const isDoubleHung = f % 3 === 0;
+    
     for (let c = 0; c < cols; c++) {
       for (let r = 0; r < rows; r++) {
-        const window = new THREE.Mesh(windowGeometry, windowMaterial);
-        window.position.set(
-          -width / 2 + 1 + c * 2,
-          f * 2 + 1.5,
-          -depth / 2 + 1 + r * 2
-        );
-        group.add(window);
+        if (isBayWindow) {
+          // Create bay window projection
+          const bayGeometry = new THREE.BoxGeometry(1.5, 1.5, 1);
+          const bay = new THREE.Mesh(bayGeometry, windowMaterial);
+          bay.position.set(
+            -width / 2 + 1 + c * 2,
+            f * 2 + 1.5,
+            -depth / 2 + 1 + r * 2 + 0.3
+          );
+          group.add(bay);
+        } else {
+          const window = new THREE.Mesh(windowGeometry, windowMaterial);
+          window.position.set(
+            -width / 2 + 1 + c * 2,
+            f * 2 + 1.5,
+            -depth / 2 + 1 + r * 2
+          );
+          group.add(window);
+        }
+        
+        // Add window sill for double-hung style
+        if (isDoubleHung) {
+          const sillGeometry = new THREE.BoxGeometry(1.2, 0.2, 0.1);
+          const sillMaterial = new THREE.MeshStandardMaterial({
+            color: 0x8B4513,
+            roughness: 0.7
+          });
+          const sill = new THREE.Mesh(sillGeometry, sillMaterial);
+          sill.position.set(
+            -width / 2 + 1 + c * 2,
+            f * 2 + 0.9,
+            -depth / 2 + 1.1 + r * 2
+          );
+          group.add(sill);
+        }
       }
     }
   }
 }
 
 /**
- * Adds glass facade details
+ * Adds glass facade details with varied styles per era
  */
 function addGlassFacadeDetails(group: THREE.Group, width: number, height: number, depth: number, eraId: EraId): void {
-  const stripWidth = eraId === '1985' ? 0.3 : 0.5;
-  const stripGeometry = new THREE.BoxGeometry(stripWidth, height * 0.9, depth);
-  const stripMaterial = new THREE.MeshStandardMaterial({
-    color: 0x87CEEB,
-    roughness: 0.1,
-    metalness: 0.9,
-    transparent: true,
-    opacity: eraId === '1985' ? 0.4 : 0.3
-  });
+  if (eraId === '1985') {
+    // 1985: Reflective glass strips with corporate grid pattern
+    const stripGeometry = new THREE.BoxGeometry(0.3, height * 0.9, depth);
+    const stripMaterial = new THREE.MeshStandardMaterial({
+      color: 0x87CEEB,
+      roughness: 0.1,
+      metalness: 0.9,
+      transparent: true,
+      opacity: 0.4
+    });
 
-  const strips = Math.floor(width / 2);
-  for (let s = 0; s < strips; s++) {
-    const strip = new THREE.Mesh(stripGeometry, stripMaterial);
-    strip.position.set(-width / 2 + 1 + s * 2, height / 2, 0);
-    strip.castShadow = true;
-    group.add(strip);
+    const strips = Math.floor(width / 2);
+    for (let s = 0; s < strips; s++) {
+      const strip = new THREE.Mesh(stripGeometry, stripMaterial);
+      strip.position.set(-width / 2 + 1 + s * 2, height / 2, 0);
+      strip.castShadow = true;
+      group.add(strip);
+    }
+    
+    // Add frame details
+    const frameGeometry = new THREE.BoxGeometry(width, 0.2, 0.1);
+    const frameMaterial = new THREE.MeshStandardMaterial({
+      color: 0x444444,
+      roughness: 0.5,
+      metalness: 0.7
+    });
+    
+    const frameHoriz = new THREE.Mesh(frameGeometry, frameMaterial);
+    frameHoriz.position.set(0, height - 2, depth / 2 + 0.05);
+    group.add(frameHoriz);
+    
+    // Add vertical mullions
+    const mullionGeometry = new THREE.BoxGeometry(0.15, height * 0.8, 0.15);
+    for (let m = 0; m < 5; m++) {
+      const mullion = new THREE.Mesh(mullionGeometry, frameMaterial);
+      mullion.position.set(-width / 2 + m * width / 4, height / 2, depth / 2 + 0.1);
+      group.add(mullion);
+    }
+  } else {
+    // 2005/2025: Smart glass with LED accents
+    const stripGeometry = new THREE.BoxGeometry(0.5, height * 0.9, depth);
+    const stripMaterial = new THREE.MeshStandardMaterial({
+      color: 0x87CEEB,
+      roughness: 0.05,
+      metalness: 0.95,
+      transparent: true,
+      opacity: 0.2
+    });
+
+    const strips = Math.floor(width / 2);
+    for (let s = 0; s < strips; s++) {
+      const strip = new THREE.Mesh(stripGeometry, stripMaterial);
+      strip.position.set(-width / 2 + 1 + s * 2, height / 2, 0);
+      strip.castShadow = true;
+      group.add(strip);
+      
+      // Add LED strip accent for 2005+
+      if (eraId === '2025') {
+        const ledGeometry = new THREE.BoxGeometry(0.05, 0.5, 0.05);
+        const ledMaterial = new THREE.MeshStandardMaterial({
+          color: 0x00CED1,
+          emissive: 0x00CED1,
+          roughness: 0.1,
+          metalness: 0.9
+        });
+        
+        for (let l = 0; l < 3; l++) {
+          const led = new THREE.Mesh(ledGeometry, ledMaterial);
+          led.position.set(-width / 2 + 1 + s * 2, 3 + l * 3, depth / 2 + 0.03);
+          group.add(led);
+        }
+      }
+    }
   }
 }
 
@@ -201,31 +290,64 @@ function addGlassFacadeDetails(group: THREE.Group, width: number, height: number
  * Adds biophilic facade details for future era
  */
 function addBiophilicFacadeDetails(group: THREE.Group, width: number, height: number, depth: number): void {
-  // Add living wall panels
+  // Add living wall panels with varied heights
   const panelGeometry = new THREE.BoxGeometry(width * 0.8, height * 0.3, 0.5);
   const panelMaterial = new THREE.MeshStandardMaterial({
     color: 0x98FB98,
     roughness: 0.6,
-    metalness: 0.2
+    metalness: 0.2,
+    emissive: 0x98FB98,
+    emissiveIntensity: 0.3
   });
 
-  for (let p = 0; p < 3; p++) {
+  for (let p = 0; p < 5; p++) {
     const panel = new THREE.Mesh(panelGeometry, panelMaterial);
-    panel.position.set(0, 5 + p * 10, depth / 2 + 0.25);
+    panel.position.set(0, 3 + p * 8, depth / 2 + 0.25);
     group.add(panel);
+    
+    // Add glowing accent to each panel
+    const accentGeometry = new THREE.BoxGeometry(width * 0.8, 0.3, 0.1);
+    const accentMaterial = new THREE.MeshStandardMaterial({
+      color: 0x00CED1,
+      emissive: 0x00CED1,
+      roughness: 0.1,
+      metalness: 0.8
+    });
+    const accent = new THREE.Mesh(accentGeometry, accentMaterial);
+    accent.position.set(0, 3 + p * 8, depth / 2 + 0.5);
+    group.add(accent);
   }
 
-  // Add integrated LED strips
+  // Add integrated LED strips along the top
   const ledGeometry = new THREE.BoxGeometry(width, 0.2, 0.1);
   const ledMaterial = new THREE.MeshStandardMaterial({
     color: 0x00CED1,
     emissive: 0x00CED1,
-    roughness: 0.3
+    roughness: 0.1,
+    metalness: 0.9
   });
 
   const ledStrip = new THREE.Mesh(ledGeometry, ledMaterial);
-  ledStrip.position.set(0, height - 2, depth / 2 + 0.1);
+  ledStrip.position.set(0, height - 1, depth / 2 + 0.1);
   group.add(ledStrip);
+  
+  // Add holographic projections
+  const holoGeometry = new THREE.PlaneGeometry(3, 5);
+  const holoMaterial = new THREE.MeshStandardMaterial({
+    color: 0xFFFFFF,
+    emissive: 0x00CED1,
+    roughness: 0.1,
+    metalness: 0.8,
+    transparent: true,
+    opacity: 0.7,
+    side: THREE.DoubleSide
+  });
+  
+  for (let h = 0; h < 3; h++) {
+    const holo = new THREE.Mesh(holoGeometry, holoMaterial);
+    holo.position.set(-width / 3 + h * width / 3, height / 2, depth / 2 + 0.6);
+    group.add(holo);
+  }
 }
 
 /**

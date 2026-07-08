@@ -13,7 +13,7 @@ export interface PedestrianConfig {
 }
 
 /**
- * Era-specific pedestrian styles
+ * Era-specific pedestrian styles with vibrant colors for visibility
  */
 const PEDESTRIAN_STYLES: Record<EraId, {
   clothingColors: number[];
@@ -22,31 +22,31 @@ const PEDESTRIAN_STYLES: Record<EraId, {
   heightRange: [number, number];
 }> = {
   '1945': {
-    clothingColors: [0x1E90FF, 0x8B0000, 0x2F4F4F, 0x8B4513, 0x654321],
+    clothingColors: [0x8B4513, 0x8B0000, 0x4682B4, 0xCD853F, 0xA0522D],
     hatStyles: ['fedora', 'flat-cap', 'headscarf', 'none'],
     accessoryStyles: ['briefcase', 'newspaper', 'handbag', 'none'],
     heightRange: [1.5, 1.8]
   },
   '1965': {
-    clothingColors: [0xFF69B4, 0x32CD32, 0x4169E1, 0xFF4500, 0x9370DB],
+    clothingColors: [0xFF69B4, 0x32CD32, 0x4169E1, 0xFFD700, 0xFF4500],
     hatStyles: ['newsboy', 'bandana', 'none', 'hair-bow'],
     accessoryStyles: ['radio', 'newspaper', 'none', 'record-player'],
     heightRange: [1.5, 1.8]
   },
   '1985': {
-    clothingColors: [0x000080, 0x800080, 0xFFD700, 0x2F4F4F, 0x8B0000],
+    clothingColors: [0x0000FF, 0xFF0000, 0xFFFF00, 0x00FF00, 0xFF00FF],
     hatStyles: ['baseball-cap', 'visor', 'none', 'sweatband'],
     accessoryStyles: ['walkman', 'boombox', 'none', 'jewelry'],
     heightRange: [1.5, 1.9]
   },
   '2005': {
-    clothingColors: [0x000000, 0xFFFFFF, 0xFF0000, 0x00FF00, 0x0000FF],
+    clothingColors: [0xFF0000, 0x00FF00, 0x0000FF, 0xFFFF00, 0xFF00FF],
     hatStyles: ['baseball-cap', 'beanie', 'visor', 'none'],
     accessoryStyles: ['cellphone', 'ipod', 'shopping-bag', 'none'],
     heightRange: [1.5, 1.9]
   },
   '2025': {
-    clothingColors: [0x00CED1, 0x1E90FF, 0x98FB98, 0xFF69B4, 0xFFFFFF],
+    clothingColors: [0x00CED1, 0x1E90FF, 0xFF69B4, 0xFF0000, 0xFFFF00],
     hatStyles: ['smart-cap', 'visor', 'none', 'ar-glasses'],
     accessoryStyles: ['smartphone', 'tablet', 'wearable', 'none'],
     heightRange: [1.5, 1.9]
@@ -75,14 +75,15 @@ export const pedestrianBuilder: AssetBuilder<PedestrianConfig> = {
 export function createPedestrian(config: PedestrianConfig): THREE.Group {
   const group = new THREE.Group();
   const styles = PEDESTRIAN_STYLES[config.eraId];
-  const height = styles.heightRange[0] + Math.random() * (styles.heightRange[1] - styles.heightRange[0]);
+  // Make pedestrians slightly larger and more visible
+  const height = 1.6 + Math.random() * 0.3;
 
-  // Body
-  const bodyGeometry = new THREE.CylinderGeometry(0.3, 0.3, height * 0.4);
+  // Body - wider for better visibility
+  const bodyGeometry = new THREE.CylinderGeometry(0.4, 0.4, height * 0.4);
   const bodyMaterial = new THREE.MeshStandardMaterial({
     color: styles.clothingColors[Math.floor(Math.random() * styles.clothingColors.length)],
-    roughness: 0.8,
-    metalness: 0.2
+    roughness: 0.7,
+    metalness: 0.3
   });
   const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
   body.position.y = height * 0.2;
@@ -90,7 +91,7 @@ export function createPedestrian(config: PedestrianConfig): THREE.Group {
   group.add(body);
 
   // Head
-  const headGeometry = new THREE.SphereGeometry(0.3, 12, 12);
+  const headGeometry = new THREE.SphereGeometry(0.35, 12, 12);
   const skinColor = 0xF5DEB3;
   const headMaterial = new THREE.MeshStandardMaterial({
     color: skinColor,
@@ -102,37 +103,37 @@ export function createPedestrian(config: PedestrianConfig): THREE.Group {
   head.castShadow = true;
   group.add(head);
 
-  // Legs
-  const legGeometry = new THREE.CylinderGeometry(0.1, 0.1, height * 0.4);
+  // Legs - slightly thicker
+  const legGeometry = new THREE.CylinderGeometry(0.12, 0.12, height * 0.4);
   const legMaterial = new THREE.MeshStandardMaterial({
     color: 0x2F4F4F,
     roughness: 0.9
   });
 
   const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
-  leftLeg.position.set(-0.15, height * 0.05, 0);
+  leftLeg.position.set(-0.2, height * 0.05, 0);
   leftLeg.castShadow = true;
   group.add(leftLeg);
 
   const rightLeg = new THREE.Mesh(legGeometry, legMaterial);
-  rightLeg.position.set(0.15, height * 0.05, 0);
+  rightLeg.position.set(0.2, height * 0.05, 0);
   rightLeg.castShadow = true;
   group.add(rightLeg);
 
-  // Arms
-  const armGeometry = new THREE.CylinderGeometry(0.08, 0.08, height * 0.3);
+  // Arms - slightly thicker
+  const armGeometry = new THREE.CylinderGeometry(0.1, 0.1, height * 0.35);
   const armMaterial = new THREE.MeshStandardMaterial({
     color: styles.clothingColors[Math.floor(Math.random() * styles.clothingColors.length)],
-    roughness: 0.8
+    roughness: 0.7
   });
 
   const leftArm = new THREE.Mesh(armGeometry, armMaterial);
-  leftArm.position.set(-0.4, height * 0.3, 0);
+  leftArm.position.set(-0.45, height * 0.3, 0);
   leftArm.castShadow = true;
   group.add(leftArm);
 
   const rightArm = new THREE.Mesh(armGeometry, armMaterial);
-  rightArm.position.set(0.4, height * 0.3, 0);
+  rightArm.position.set(0.45, height * 0.3, 0);
   rightArm.castShadow = true;
   group.add(rightArm);
 
