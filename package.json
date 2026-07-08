@@ -1,0 +1,25 @@
+{
+  "name": "city-timelapse",
+  "version": "1.0.0",
+  "description": "3D City Block Timelapse with Era Transitions",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext .ts,.js",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.160.0",
+    "eslint": "^8.50.0",
+    "typescript": "^5.2.0",
+    "vite": "^5.0.0"
+  },
+  "keywords": ["threejs", "3d", "timelapse", "city"],
+  "author": "",
+  "license": "MIT"
+}

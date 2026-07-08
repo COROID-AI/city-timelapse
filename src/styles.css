@@ -1,0 +1,147 @@
+/* Timeline UI Styles */
+.timeline-ui {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  padding: 15px 30px;
+  border-radius: 10px;
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.timeline-title {
+  color: #fff;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  text-align: center;
+  margin-bottom: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.timeline-slider {
+  position: relative;
+  width: 500px;
+  height: 40px;
+}
+
+.timeline-year {
+  position: absolute;
+  width: 50px;
+  height: 40px;
+  background: linear-gradient(180deg, #4682B4, #1E90FF);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border-radius: 8px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transform: translateX(-50%);
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+}
+
+.timeline-year:hover {
+  background: linear-gradient(180deg, #6495ED, #4169E1);
+  transform: translateX(-50%) scale(1.1);
+  box-shadow: 0 0 20px rgba(65, 105, 185, 0.8);
+}
+
+.timeline-year.active {
+  background: linear-gradient(180deg, #FFD700, #FFA500);
+  border-color: #FFD700;
+  box-shadow: 0 0 25px rgba(255, 215, 0, 0.9);
+  transform: translateX(-50%) scale(1.15);
+}
+
+.timeline-year.transitioning {
+  animation: pulse 1.5s ease-in-out;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: translateX(-50%) scale(1.15); }
+  50% { transform: translateX(-50%) scale(1.25); box-shadow: 0 0 35px rgba(255, 215, 0, 1); }
+}
+
+/* Loading Screen Styles */
+.loading-screen {
+  display: flex;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #0F0F23, #1A1A3E);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s ease;
+}
+
+.loading-content {
+  text-align: center;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+.loading-content h2 {
+  font-size: 28px;
+  margin-bottom: 30px;
+  letter-spacing: 3px;
+}
+
+.progress-bar {
+  width: 300px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 15px;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #4682B4, #6495ED);
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}
+
+.loading-text {
+  font-size: 14px;
+  color: #AAA;
+  letter-spacing: 1px;
+}
+
+/* Enter Button */
+.enter-button {
+  background: linear-gradient(180deg, #4682B4, #1E90FF);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-family: Arial, sans-serif;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 5px 25px rgba(65, 105, 185, 0.4);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.enter-button:hover {
+  transform: translate(-50%, -50%) scale(1.05);
+  box-shadow: 0 8px 35px rgba(65, 105, 185, 0.6);
+}
+
+/* Responsive Layout */
+@media (max-width: 768px) {
+  .timeline-slider {
+    width: 300px;
+  }
+  
+  .timeline-year {
+    width: 40px;
+    height: 35px;
+    font-size: 12px;
+  }
+}
