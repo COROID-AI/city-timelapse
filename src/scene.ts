@@ -4,7 +4,7 @@ import { createAssetSet, type AssetSet } from './assetBuilder/assetSet.js';
 import type { EraAudioBuffers as EraAudioBuffersType } from './audio/sfx.js';
 import { generateEraAudioBuffers } from './audio/sfx.js';
 import { SfxMixer } from './audio/mixer.js';
-import { createParticleSystem, type ParticleSystem } from './particleSystem.js';
+import { createParticleSystem } from './particleSystem.js';
 
 /**
  * Transition animation state
@@ -474,7 +474,6 @@ export function setupScene(): SceneManager {
   function completeTransition(): void {
     if (!transitionState || !currentAssetSet) return;
 
-    const oldEra = currentEra;
     const newEra = transitionState.toEra;
 
     // Remove old assets
@@ -512,33 +511,6 @@ export function setupScene(): SceneManager {
       }
     });
   }
-}
-
-/**
- * Sets up scene lighting with ambient and directional lights
- */
-function setupLighting(scene: THREE.Scene): void {
-  // Ambient light for base illumination
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-  scene.add(ambientLight);
-
-  // Directional light (sun) with shadows
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  directionalLight.position.set(50, 100, 50);
-  directionalLight.castShadow = true;
-  directionalLight.shadow.mapSize.width = 2048;
-  directionalLight.shadow.mapSize.height = 2048;
-  directionalLight.shadow.camera.near = 0.5;
-  directionalLight.shadow.camera.far = 500;
-  directionalLight.shadow.camera.left = -100;
-  directionalLight.shadow.camera.right = 100;
-  directionalLight.shadow.camera.top = 100;
-  directionalLight.shadow.camera.bottom = -100;
-  scene.add(directionalLight);
-
-  // Hemisphere light for sky-like lighting
-  const hemiLight = new THREE.HemisphereLight(0x87ceeb, 0x2f4f2f, 0.4);
-  scene.add(hemiLight);
 }
 
 /**

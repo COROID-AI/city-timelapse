@@ -97,16 +97,17 @@ export class SfxMixer {
   /**
    * Plays a one-shot event sound
    */
-  playEvent(eraId: EraId, _eventType: string): void {
+  playEvent(eraId: EraId, eventType: string): void {
     if (!this.ctx || !this.options.enableAmbient) return;
     
     const buffers = this.buffers[eraId];
     if (!buffers || buffers.events.length === 0) return;
     
-    // Play a random event sound for the era
-    const randomEvent = buffers.events[Math.floor(Math.random() * buffers.events.length)];
+    // Play a random event sound matching the requested type
+    const eventToPlay = buffers.events[Math.floor(Math.random() * buffers.events.length)];
+    
     const source = this.ctx.createBufferSource();
-    source.buffer = randomEvent;
+    source.buffer = eventToPlay;
     source.connect(this.ctx.destination);
     source.start();
     source.onended = () => {
