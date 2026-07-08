@@ -6,6 +6,65 @@ import { createPedestrian } from './pedestrian.js';
 import { createStorefront } from './storefront.js';
 
 /**
+ * Position tuple type for 3D coordinates
+ */
+export type Position3D = [number, number, number];
+
+/**
+ * Base asset builder interface - defines common methods for all entity types.
+ * All era-specific builders implement this interface to ensure consistent
+ * creation and management patterns across building, vehicle, pedestrian, and storefront entities.
+ *
+ * @template T - The configuration type specific to each entity type
+ */
+export interface AssetBuilder<T> {
+  /** Creates a mesh/group for the asset with era-appropriate styling */
+  create(config: T): THREE.Group;
+  /** Gets the era ID for this asset */
+  getEraId(asset: THREE.Group): EraId | undefined;
+  /** Updates the asset to reflect a new era (for transitions) */
+  updateToEra?(asset: THREE.Group, eraId: EraId): void;
+  /** Gets asset type identifier for debugging/artists */
+  getAssetType(): string;
+}
+
+/**
+ * Base configuration shared by all asset types
+ */
+export interface BaseAssetConfig {
+  position: Position3D;
+  eraId: EraId;
+}
+
+/**
+ * Building configuration for era-specific architectural styles
+ */
+export interface BuildingConfig extends BaseAssetConfig {
+  buildingType: 'residential' | 'commercial' | 'industrial' | 'skyscraper';
+}
+
+/**
+ * Vehicle configuration for era-specific designs
+ */
+export interface VehicleConfig extends BaseAssetConfig {
+  vehicleType: 'car' | 'truck' | 'bus' | 'horse-drawn' | 'motorcycle' | 'electric' | 'autonomous';
+}
+
+/**
+ * Pedestrian configuration for era-specific human models
+ */
+export interface PedestrianConfig extends BaseAssetConfig {
+  pedestrianType: 'business' | 'casual' | 'worker' | 'child' | 'elderly';
+}
+
+/**
+ * Storefront configuration for era-specific commercial building facades
+ */
+export interface StorefrontConfig extends BaseAssetConfig {
+  storeType: 'general-store' | 'clothing' | 'electronics' | 'restaurant' | 'cafe' | 'bank' | 'pharmacy' | 'grocery';
+}
+
+/**
  * Complete asset set for an era
  */
 export interface AssetSet {
@@ -14,6 +73,17 @@ export interface AssetSet {
   pedestrians: THREE.Group[];
   storefronts: THREE.Group[];
   group: THREE.Group;
+}
+
+/**
+ * Era-specific asset builders - centralized registry for all entity types.
+ * Provides a consistent interface for creating and managing era-appropriate assets.
+ */
+export interface AssetBuilders {
+  building: AssetBuilder<BuildingConfig>;
+  vehicle: AssetBuilder<VehicleConfig>;
+  pedestrian: AssetBuilder<PedestrianConfig>;
+  storefront: AssetBuilder<StorefrontConfig>;
 }
 
 /**
@@ -171,3 +241,51 @@ function getRandomPedestrianType(): 'business' | 'casual' | 'worker' | 'child' |
   }
   return 'casual';
 }
+
+/**
+ * ============================================================================
+ * ARTIST DOCUMENTATION
+ * ============================================================================
+ *
+ * Asset Builder Pattern - Extending for Artists
+ * --------------------------------------------
+ *
+ * This module defines the core interfaces for creating era-specific assets.
+ * To add a new asset type (or extend an existing one):
+ *
+ * 1. DEFINE A CONFIG:
+ *    Extend BaseAssetConfig from this file, adding era-specific properties.
+ *
+ *    Example for a new "streetlamp" asset:
+ *
+ *    interface StreetlampConfig extends BaseAssetConfig {
+ *      streetlampType: 'vintage' | 'modern' | 'led' | 'smart';
+ *    }
+ *
+ * 2. IMPLEMENT THE BUILDER:
+ *    Create a function that implements AssetBuilder<T> for your type.
+ *    Ensure the returned THREE.Group has userData with eraId and selectable.
+ *
+ *    Example:
+ *
+ *    function createStreetlamp(config: StreetlampConfig): THREE.Group {
+ *      const group = new THREE.Group();
+ *      // ... create geometry based on config.eraId ...
+ *      group.userData = { eraId: config.eraId, selectable: true };
+ *      return group;
+ *    }
+ *
+ * 3. REGISTER IN INDEX:
+ *    Add your export to src/assetBuilder/index.ts
+ *
+ * 4. INTEGRATE INTO ASSET SET:
+ *    Add your asset type to AssetSet interface and createAssetSet function.
+ *
+ * ERAS AND THEIR CHARACTERISTICS:
+ * -------------------------------
+ * 1945: Brownstone/brick, horse-drawn vehicles, post-war reconstruction
+ * 1965: Mid-century modern, chrome cars, early suburban growth
+ * 1985: Glass/steel, digital displays, urban densification
+ * 2005: Postmodern mix, smartphones, smart infrastructure emergence
+ * 2025: Biophilic smart, electric/autonomous, transparent displays
+ */

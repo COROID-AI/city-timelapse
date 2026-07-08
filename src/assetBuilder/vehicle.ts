@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import type { EraId } from '../eras.js';
+import type { AssetBuilder, VehicleConfig as IVehicleConfig } from './assetSet.js';
 
 /**
  * Vehicle configuration for era-specific designs
+ * Implements BaseAssetConfig with vehicle-specific properties
  */
 export interface VehicleConfig {
   position: [number, number, number];
@@ -54,6 +56,22 @@ const VEHICLE_STYLES: Record<EraId, {
     wheelCount: [4, 4],
     sizeRange: [4, 1.4],
     features: ['smooth-curves', 'LED-strip', 'autonomous-sensors', 'smart-glass', 'wireless-charging']
+  }
+};
+
+/**
+ * Creates a vehicle mesh with era-appropriate design
+ * Implements AssetBuilder<VehicleConfig>
+ */
+export const vehicleBuilder: AssetBuilder<VehicleConfig> = {
+  create(config: VehicleConfig): THREE.Group {
+    return createVehicle(config);
+  },
+  getEraId(asset: THREE.Group): EraId | undefined {
+    return asset.userData?.eraId;
+  },
+  getAssetType(): string {
+    return 'vehicle';
   }
 };
 

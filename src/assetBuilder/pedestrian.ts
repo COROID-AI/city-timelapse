@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import type { EraId } from '../eras.js';
+import type { AssetBuilder, PedestrianConfig as IPedestrianConfig } from './assetSet.js';
 
 /**
  * Pedestrian configuration for era-specific human models
+ * Implements BaseAssetConfig with pedestrian-specific properties
  */
 export interface PedestrianConfig {
   position: [number, number, number];
@@ -48,6 +50,22 @@ const PEDESTRIAN_STYLES: Record<EraId, {
     hatStyles: ['smart-cap', 'visor', 'none', 'ar-glasses'],
     accessoryStyles: ['smartphone', 'tablet', 'wearable', 'none'],
     heightRange: [1.5, 1.9]
+  }
+};
+
+/**
+ * Creates a pedestrian mesh with era-appropriate clothing and accessories
+ * Implements AssetBuilder<PedestrianConfig>
+ */
+export const pedestrianBuilder: AssetBuilder<PedestrianConfig> = {
+  create(config: PedestrianConfig): THREE.Group {
+    return createPedestrian(config);
+  },
+  getEraId(asset: THREE.Group): EraId | undefined {
+    return asset.userData?.eraId;
+  },
+  getAssetType(): string {
+    return 'pedestrian';
   }
 };
 

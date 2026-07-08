@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import type { EraId } from '../eras.js';
+import type { AssetBuilder, StorefrontConfig as IStorefrontConfig } from './assetSet.js';
 
 /**
  * Storefront configuration for era-specific commercial building facades
+ * Implements BaseAssetConfig with storefront-specific properties
  */
 export interface StorefrontConfig {
   position: [number, number, number];
@@ -54,6 +56,22 @@ const STOREFRONT_STYLES: Record<EraId, {
     windowDisplayStyles: ['holographic', 'AR-overlay', 'transparent-display'],
     materials: ['smart-glass', 'carbon-fiber', 'bioluminescent'],
     signStyles: ['hologram', 'OLED', 'nano-pixel']
+  }
+};
+
+/**
+ * Creates a storefront mesh with era-appropriate design
+ * Implements AssetBuilder<StorefrontConfig>
+ */
+export const storefrontBuilder: AssetBuilder<StorefrontConfig> = {
+  create(config: StorefrontConfig): THREE.Group {
+    return createStorefront(config);
+  },
+  getEraId(asset: THREE.Group): EraId | undefined {
+    return asset.userData?.eraId;
+  },
+  getAssetType(): string {
+    return 'storefront';
   }
 };
 

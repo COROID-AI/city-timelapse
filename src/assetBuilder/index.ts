@@ -1,6 +1,7 @@
 // Re-export all asset builder modules
-export { createBuilding, type BuildingConfig } from './building.js';
-export { createVehicle, type VehicleConfig } from './vehicle.js';
-export { createPedestrian, type PedestrianConfig } from './pedestrian.js';
-export { createStorefront, type StorefrontConfig } from './storefront.js';
+export { createBuilding, buildingBuilder } from './building.js';
+export { createVehicle, vehicleBuilder } from './vehicle.js';
+export { createPedestrian, pedestrianBuilder } from './pedestrian.js';
+export { createStorefront, storefrontBuilder } from './storefront.js';
 export { createAssetSet, type AssetSet } from './assetSet.js';
+export type { AssetBuilder, BaseAssetConfig, Position3D } from './assetSet.js';

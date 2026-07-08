@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import type { EraId } from '../eras.js';
+import type { AssetBuilder, BuildingConfig as IBuildingConfig } from './assetSet.js';
 
 /**
  * Building configuration for era-specific architectural styles
+ * Implements BaseAssetConfig with building-specific properties
  */
 export interface BuildingConfig {
   position: [number, number, number];
@@ -48,6 +50,22 @@ const BUILDING_STYLES: Record<EraId, {
     colors: [0x00CED1, 0x1E90FF, 0x87CEFA, 0x98FB98],
     windowStyles: ['smart-glass', 'electrochromic', 'transparent-solar'],
     architecturalFeatures: ['biophilic', 'smart-surfaces', 'carbon-fiber', 'dynamic-facade']
+  }
+};
+
+/**
+ * Creates a building mesh with era-appropriate architectural style
+ * Implements AssetBuilder<BuildingConfig>
+ */
+export const buildingBuilder: AssetBuilder<BuildingConfig> = {
+  create(config: BuildingConfig): THREE.Group {
+    return createBuilding(config);
+  },
+  getEraId(asset: THREE.Group): EraId | undefined {
+    return asset.userData?.eraId;
+  },
+  getAssetType(): string {
+    return 'building';
   }
 };
 
