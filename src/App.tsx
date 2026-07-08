@@ -3,9 +3,9 @@
  * City Timelapse - 3D scene with era transitions
  */
 
-import React, { useState, useEffect, useRef, Suspense } from 'react'
-import { Canvas } from '@react-three/fiber'
-import { OrbitControls, Environment, PerspectiveCamera } from '@react-three/drei'
+import React, { useState, useEffect, useRef } from 'react'
+import { Canvas, useFrame } from '@react-three/fiber'
+import { OrbitControls, PerspectiveCamera } from '@react-three/drei'
 import { TooltipProvider } from '@radix-ui/react-tooltip'
 import * as Slider from '@radix-ui/react-slider'
 import './App.css'
@@ -66,6 +66,18 @@ function LoadingScreen() {
   )
 }
 
+// Loader component that dismisses loading screen on first frame
+function Loader({ onLoaded }: { onLoaded: () => void }) {
+  const hasLoaded = React.useRef(false)
+  useFrame(() => {
+    if (!hasLoaded.current) {
+      hasLoaded.current = true
+      onLoaded()
+    }
+  })
+  return null
+}
+
 export default function App() {
   const [currentEra, setCurrentEra] = useState<EraId>('1945')
   const [audioEnabled, setAudioEnabled] = useState(false)
@@ -110,7 +122,6 @@ export default function App() {
           shadows
           gl={{ antialias: true, alpha: false }}
           camera={{ position: [15, 15, 15], fov: 60 }}
-          onCreated={() => setIsLoading(false)}
         >
           <PerspectiveCamera makeDefault position={[15, 15, 15]} />
           <ambientLight intensity={0.5} />
@@ -120,11 +131,8 @@ export default function App() {
             castShadow
             shadow-mapSize={[2048, 2048]}
           />
-          <Suspense fallback={null}>
-            <CityBlock era={currentEra} />
-            <EraParticles era={currentEra} />
-            <Environment preset="city" />
-          </Suspense>
+          <CityBlock era={currentEra} />
+          <EraParticles era={currentEra} />
           <OrbitControls
             enablePan={true}
             enableZoom={true}
@@ -133,6 +141,7 @@ export default function App() {
             maxDistance={50}
             maxPolarAngle={Math.PI / 2 - 0.1}
           />
+          <Loader onLoaded={() => setIsLoading(false)} />
         </Canvas>
       </div>
     </TooltipProvider>
