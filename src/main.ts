@@ -90,7 +90,9 @@ class CityTimelapseApp {
     directional.shadow.camera.right = 100;
     directional.shadow.mapSize.width = 2048;
     directional.shadow.mapSize.height = 2048;
-    
+  }
+
+  private setupHud(): void {
     document.body.appendChild(this.timelineUI.getElement());
   }
 
@@ -166,6 +168,7 @@ class CityTimelapseApp {
 
   async start(): Promise<void> {
     await this.initialize();
+    this.setupHud();
     this.animate();
   }
 

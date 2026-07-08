@@ -4,6 +4,7 @@
  */
 
 import type { EraId } from '../eras';
+import { SFX_ERA_DATA } from '../eras';
 import { generateEraAudioBuffers, type EraAudioBuffers } from './sfx';
 
 export interface SfxMixerOptions {
@@ -58,8 +59,6 @@ export class SfxMixer {
    * Load all era audio buffers
    */
   async loadAllEras(): Promise<void> {
-    const { SFX_ERA_DATA } = await import('../eras');
-    
     for (const eraId of Object.keys(SFX_ERA_DATA) as EraId[]) {
       this.eraBuffers.set(eraId, generateEraAudioBuffers(this.ctx, SFX_ERA_DATA[eraId]));
     }
