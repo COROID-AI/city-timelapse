@@ -162,8 +162,8 @@ export class SfxMixer {
       this.ambientSource = this.ctx.createBufferSource();
       this.ambientSource.buffer = buffers.ambient;
       this.ambientSource.loop = true;
-      this.ambientGain.gain.setValueAtTime(0, this.ctx.currentTime);
-      this.ambientGain.gain.linearRampToValueAtTime(
+      this.ambientGain.gain.setValueAtTime(0.001, this.ctx.currentTime);
+      this.ambientGain.gain.exponentialRampToValueAtTime(
         0.4,
         this.ctx.currentTime + duration
       );
@@ -176,8 +176,8 @@ export class SfxMixer {
       this.trafficSource = this.ctx.createBufferSource();
       this.trafficSource.buffer = buffers.traffic;
       this.trafficSource.loop = true;
-      this.trafficGain.gain.setValueAtTime(0, this.ctx.currentTime);
-      this.trafficGain.gain.linearRampToValueAtTime(
+      this.trafficGain.gain.setValueAtTime(0.001, this.ctx.currentTime);
+      this.trafficGain.gain.exponentialRampToValueAtTime(
         0.3,
         this.ctx.currentTime + duration
       );
@@ -190,8 +190,8 @@ export class SfxMixer {
       this.musicSource = this.ctx.createBufferSource();
       this.musicSource.buffer = buffers.music;
       this.musicSource.loop = true;
-      this.musicGain.gain.setValueAtTime(0, this.ctx.currentTime);
-      this.musicGain.gain.linearRampToValueAtTime(
+      this.musicGain.gain.setValueAtTime(0.001, this.ctx.currentTime);
+      this.musicGain.gain.exponentialRampToValueAtTime(
         0.2,
         this.ctx.currentTime + duration
       );
@@ -223,19 +223,23 @@ export class SfxMixer {
     if (this.ambientGain && oldBuffers) {
       this.ambientGain.gain.cancelScheduledValues(startTime);
       this.ambientGain.gain.setValueAtTime(this.ambientGain.gain.value, startTime);
-      this.ambientGain.gain.linearRampToValueAtTime(0, startTime + duration);
+      // Use exponential ramp for smooth fade-out, but clamp to minimum value to avoid silence
+      const minValue = Math.max(this.ambientGain.gain.value * 0.001, 0.001);
+      this.ambientGain.gain.exponentialRampToValueAtTime(minValue, startTime + duration);
     }
     
     if (this.trafficGain && oldBuffers) {
       this.trafficGain.gain.cancelScheduledValues(startTime);
       this.trafficGain.gain.setValueAtTime(this.trafficGain.gain.value, startTime);
-      this.trafficGain.gain.linearRampToValueAtTime(0, startTime + duration);
+      const minValue = Math.max(this.trafficGain.gain.value * 0.001, 0.001);
+      this.trafficGain.gain.exponentialRampToValueAtTime(minValue, startTime + duration);
     }
     
     if (this.musicGain && oldBuffers) {
       this.musicGain.gain.cancelScheduledValues(startTime);
       this.musicGain.gain.setValueAtTime(this.musicGain.gain.value, startTime);
-      this.musicGain.gain.linearRampToValueAtTime(0, startTime + duration);
+      const minValue = Math.max(this.musicGain.gain.value * 0.001, 0.001);
+      this.musicGain.gain.exponentialRampToValueAtTime(minValue, startTime + duration);
     }
     
     // Stop old sources after fade
