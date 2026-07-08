@@ -14,6 +14,8 @@ export interface TimelineUI {
  * Provides buttons for each era year (1945, 1965, 1985, 2005, 2025)
  */
 export function createTimelineUI(onEraChange: (eraId: EraId) => void): TimelineUI {
+  // No-op for hover preview (can be extended for preview on hover)
+  void onEraChange;
   // Create container
   const container = document.createElement('div');
   container.style.position = 'fixed';
