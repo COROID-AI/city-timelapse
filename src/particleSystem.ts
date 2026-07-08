@@ -190,18 +190,17 @@ export function createParticleSystem(scene: THREE.Scene): ParticleSystem {
   };
 
   return {
-    setEra: (eraId: EraId) => {
-      if (eraId !== currentEra) {
-        setupEraParticles(eraId);
+    setEra: (_eraId: EraId) => {
+      if (_eraId !== currentEra) {
+        setupEraParticles(_eraId);
       }
     },
     
-    update: (deltaTime: number) => {
+    update: (_deltaTime: number) => {
       if (!visible) return;
       
       particles.forEach((points, idx) => {
         const positions = points.geometry.attributes.position.array as Float32Array;
-        const lifetimeAttr = points.geometry.attributes.lifetime;
         const count = points.userData.count as number;
         
         // Animate particles drifting slowly
