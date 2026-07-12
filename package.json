@@ -4,9 +4,13 @@
   "private": true,
   "description": "3D city block that transforms across six eras from 1945 to 2055.",
   "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "vite": "^5.4.0"
   }
 }
