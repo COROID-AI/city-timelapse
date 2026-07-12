@@ -1,0 +1,12 @@
+{
+  "name": "city-timelapse-1945-2055",
+  "version": "0.1.0",
+  "private": true,
+  "description": "3D city block that transforms across six eras from 1945 to 2055.",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}
