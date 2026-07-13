@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 import {
   ERA_REGISTRY,
@@ -6,6 +7,7 @@ import {
   type EraSpec,
   type TransitionProgress,
 } from './eras';
+import { createCityWorld, type CityWorld } from './city-world';
 
 export interface CityAppOptions {
   mount: HTMLElement;
@@ -24,8 +26,13 @@ export class CityApp {
   private readonly onEraChange?: CityAppOptions['onEraChange'];
   private camera?: THREE.PerspectiveCamera;
   private renderer?: THREE.WebGLRenderer;
+  private controls?: OrbitControls;
+  private cityWorld?: CityWorld;
   private resizeObserver?: ResizeObserver;
   private animationFrame = 0;
+  private readonly clock = new THREE.Clock();
+  private transitionFrom?: EraId;
+  private transitionTarget?: EraId;
   private eraIndex: number;
   private disposed = false;
 
@@ -52,12 +59,14 @@ export class CityApp {
 
     const previousEra = this.currentEra;
     this.eraIndex = nextIndex;
-    this.applyEraAtmosphere();
+    this.transitionFrom = previousEra.id;
+    this.transitionTarget = this.currentEra.id;
+    this.cityWorld?.updateEra(this.currentEra);
     this.onEraChange?.(this.currentEra, {
       from: previousEra.id,
       to: this.currentEra.id,
-      progress: 1,
-      isTransitioning: false,
+      progress: 0,
+      isTransitioning: true,
     });
   }
 
@@ -70,6 +79,8 @@ export class CityApp {
     window.cancelAnimationFrame(this.animationFrame);
     window.removeEventListener('resize', this.resize);
     this.resizeObserver?.disconnect();
+    this.controls?.dispose();
+    this.cityWorld?.dispose();
     this.scene.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) {
         return;
@@ -99,9 +110,17 @@ export class CityApp {
       this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
       this.camera.position.set(9, 6.5, 11);
       this.camera.lookAt(0, 1.3, 0);
+      this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+      this.controls.target.set(0, 1.4, 0);
+      this.controls.enableDamping = true;
+      this.controls.dampingFactor = 0.07;
+      this.controls.minDistance = 7;
+      this.controls.maxDistance = 24;
+      this.controls.maxPolarAngle = Math.PI * 0.47;
+      this.controls.update();
 
       this.applyEraAtmosphere();
-      this.addStarterCity();
+      this.cityWorld = createCityWorld(this.scene, this.currentEra);
       this.resizeObserver = new ResizeObserver(() => this.resize());
       this.resizeObserver.observe(viewport);
       window.addEventListener('resize', this.resize, { passive: true });
@@ -116,59 +135,6 @@ export class CityApp {
     const { atmosphere } = this.currentEra.config;
     this.scene.background = new THREE.Color(atmosphere.sky);
     this.scene.fog = new THREE.FogExp2(atmosphere.fog, atmosphere.fogDensity);
-  }
-
-  private addStarterCity(): void {
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(28, 22),
-      new THREE.MeshStandardMaterial({ color: '#1c2935', roughness: 0.92 }),
-    );
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    this.scene.add(ground);
-
-    const road = new THREE.Mesh(
-      new THREE.PlaneGeometry(6, 22),
-      new THREE.MeshStandardMaterial({ color: '#10161f', roughness: 0.76 }),
-    );
-    road.rotation.x = -Math.PI / 2;
-    road.position.y = 0.012;
-    this.scene.add(road);
-
-    const blockMaterial = new THREE.MeshStandardMaterial({
-      color: '#9a6c5b',
-      roughness: 0.75,
-      metalness: 0.08,
-    });
-    const lowRise = new THREE.Mesh(new THREE.BoxGeometry(4.8, 5.4, 3.8), blockMaterial);
-    lowRise.position.set(-5.8, 2.7, -1.8);
-    lowRise.castShadow = true;
-    lowRise.receiveShadow = true;
-    this.scene.add(lowRise);
-
-    const tower = new THREE.Mesh(
-      new THREE.BoxGeometry(4.2, 8, 3.2),
-      new THREE.MeshStandardMaterial({ color: '#31536a', roughness: 0.42, metalness: 0.3 }),
-    );
-    tower.position.set(5.2, 4, -3.2);
-    tower.castShadow = true;
-    tower.receiveShadow = true;
-    this.scene.add(tower);
-
-    const storefront = new THREE.Mesh(
-      new THREE.BoxGeometry(3.5, 2.6, 2.8),
-      new THREE.MeshStandardMaterial({ color: '#704d52', roughness: 0.62 }),
-    );
-    storefront.position.set(-0.2, 1.3, 2.8);
-    storefront.castShadow = true;
-    storefront.receiveShadow = true;
-    this.scene.add(storefront);
-
-    const sun = new THREE.DirectionalLight('#ffd2a1', 3.2);
-    sun.position.set(-5, 10, 8);
-    sun.castShadow = true;
-    this.scene.add(sun);
-    this.scene.add(new THREE.HemisphereLight('#9eb4d3', '#15202d', 1.2));
   }
 
   private createLoadingState(): HTMLElement {
@@ -212,8 +178,29 @@ export class CityApp {
     }
 
     this.animationFrame = window.requestAnimationFrame(this.animate);
+    this.cityWorld?.update(this.clock.getDelta());
+    this.controls?.update();
+    this.emitTransitionProgress();
     this.renderer.render(this.scene, this.camera);
   };
+
+  private emitTransitionProgress(): void {
+    if (!this.cityWorld || !this.transitionFrom || !this.transitionTarget) {
+      return;
+    }
+
+    const progress = this.cityWorld.transitionProgress;
+    this.onEraChange?.(this.currentEra, {
+      from: this.transitionFrom,
+      to: this.transitionTarget,
+      progress,
+      isTransitioning: progress < 1,
+    });
+    if (progress >= 1) {
+      this.transitionFrom = undefined;
+      this.transitionTarget = undefined;
+    }
+  }
 
   private escapeHtml(value: string): string {
     const entities: Record<string, string> = {
