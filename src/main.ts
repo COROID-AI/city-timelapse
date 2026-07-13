@@ -82,6 +82,13 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 // ---------------------------------------------------------------------------
+// Shadow mapping — autoUpdate with a single bounded directional light.
+// ---------------------------------------------------------------------------
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.autoUpdate = true;
+
+// ---------------------------------------------------------------------------
 // Scene
 // ---------------------------------------------------------------------------
 
@@ -120,14 +127,15 @@ scene.add(hemisphereLight);
 const directionalLight = new THREE.DirectionalLight(0xfff4e0, 1.2);
 directionalLight.position.set(50, 80, 30);
 directionalLight.castShadow = true;
+// Bounded shadow camera covering the city block — tight frustum for quality.
 directionalLight.shadow.mapSize.width = 2048;
 directionalLight.shadow.mapSize.height = 2048;
-directionalLight.shadow.camera.near = 1;
-directionalLight.shadow.camera.far = 300;
-directionalLight.shadow.camera.left = -80;
-directionalLight.shadow.camera.right = 80;
-directionalLight.shadow.camera.top = 80;
-directionalLight.shadow.camera.bottom = -80;
+directionalLight.shadow.camera.near = 10;
+directionalLight.shadow.camera.far = 200;
+directionalLight.shadow.camera.left = -60;
+directionalLight.shadow.camera.right = 60;
+directionalLight.shadow.camera.top = 60;
+directionalLight.shadow.camera.bottom = -60;
 directionalLight.shadow.bias = -0.0005;
 scene.add(directionalLight);
 

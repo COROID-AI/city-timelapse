@@ -67,6 +67,13 @@ const FORWARD = new THREE.Vector3(0, 0, 1);
 /** Unit scale reused when composing per-instance matrices. */
 const UNIT_SCALE = new THREE.Vector3(1, 1, 1);
 
+/**
+ * Bounding sphere covering the full road loop. Assigned to every
+ * InstancedMesh geometry so frustum culling only culls the fleet when the
+ * entire block is off-screen — not when individual instances leave view.
+ */
+const ROAD_BOUNDS = new THREE.Sphere(new THREE.Vector3(0, 1, 0), 42);
+
 // ---------------------------------------------------------------------------
 // Internal: geometry helpers
 // ---------------------------------------------------------------------------
@@ -369,7 +376,8 @@ function buildEraLayer(era: EraId, af: VehicleAssetFactory): EraLayer {
     }
     const mesh = new THREE.InstancedMesh(merged, material, VEHICLE_COUNT);
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    mesh.frustumCulled = false;
+    mesh.frustumCulled = true;
+    merged.boundingSphere = ROAD_BOUNDS;
     mesh.castShadow = false;
     mesh.receiveShadow = false;
     if (material === mats.body) {
@@ -524,29 +532,32 @@ export function createVehicleSystem(
 
     if (transitioning) {
       transitionT += step / FADE_SECONDS;
-      if (transitionT >= 1) {
+      const finished = transitionT >= 1;
+      if (finished) {
         transitionT = 1;
         transitioning = false;
       }
-    }
 
-    for (const id of ERA_IDS) {
-      let opacity = 0;
-      if (id === activeEra) {
-        opacity = transitioning ? transitionT : 1;
-      } else if (transitioning && id === prevEra) {
-        opacity = 1 - transitionT;
+      // Crossfade: update only the two participating layers.
+      const prevLayer = layers[prevEra];
+      const prevOpacity = 1 - transitionT;
+      for (const mesh of prevLayer.meshes) mesh.visible = prevOpacity > 0;
+      for (const mat of prevLayer.materials) mat.opacity = prevOpacity;
+      writeToLayer(prevEra, prevLayer);
+
+      const activeLayer = layers[activeEra];
+      for (const mesh of activeLayer.meshes) mesh.visible = true;
+      for (const mat of activeLayer.materials) mat.opacity = transitionT;
+      writeToLayer(activeEra, activeLayer);
+
+      // When the transition completes, hide the previous era for good.
+      if (finished) {
+        for (const mesh of prevLayer.meshes) mesh.visible = false;
       }
-
-      const layer = layers[id];
-      const visible = opacity > 0;
-
-      for (const mesh of layer.meshes) mesh.visible = visible;
-      for (const mat of layer.materials) mat.opacity = opacity;
-
-      if (visible) {
-        writeToLayer(id, layer);
-      }
+    } else {
+      // Steady state: only update the active era layer.
+      // Inactive era layers are already invisible and skipped entirely.
+      writeToLayer(activeEra, layers[activeEra]);
     }
   }
 

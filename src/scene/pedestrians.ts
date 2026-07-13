@@ -92,6 +92,13 @@ const HIP_R = new THREE.Vector3(0.1, 0.95, 0);
 const SHOULDER_L = new THREE.Vector3(-0.26, 1.42, 0);
 const SHOULDER_R = new THREE.Vector3(0.26, 1.42, 0);
 
+/**
+ * Bounding sphere covering the full sidewalk loop. Assigned to every
+ * InstancedMesh geometry so frustum culling only culls the crowd when the
+ * entire block is off-screen — not when individual instances leave view.
+ */
+const SIDEWALK_BOUNDS = new THREE.Sphere(new THREE.Vector3(0, 1, 0), 32);
+
 // ---------------------------------------------------------------------------
 // Internal types
 // ---------------------------------------------------------------------------
@@ -499,7 +506,8 @@ const ERA_BUILDERS: Record<EraId, (af: PedestrianAssetFactory) => Record<PartId,
 function makeInstancedMesh(part: PedestrianPart): THREE.InstancedMesh {
   const mesh = new THREE.InstancedMesh(part.geometry, part.material, PEDESTRIAN_COUNT);
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  mesh.frustumCulled = false;
+  mesh.frustumCulled = true;
+  mesh.geometry.boundingSphere = SIDEWALK_BOUNDS;
   mesh.castShadow = false;
   mesh.receiveShadow = false;
   return mesh;
@@ -742,40 +750,37 @@ export function createPedestrianSystem(
     const step = Math.min(Math.max(dt, 0), 0.1);
     elapsed += step;
 
-    // Advance the crossfade timer.
-    if (transitioning) {
-      transitionT += step / FADE_SECONDS;
-      if (transitionT >= 1) {
-        transitionT = 1;
-        transitioning = false;
-      }
-    }
-
     // Compute per-pedestrian matrices once.
     computeMatrices(step);
 
-    // Write matrices + update opacity for every era layer.
-    for (const id of ERA_IDS) {
-      let opacity = 0;
-      if (id === activeEra) {
-        opacity = transitioning ? transitionT : 1;
-      } else if (transitioning && id === prevEra) {
-        opacity = 1 - transitionT;
+    // Advance the crossfade timer and update only the relevant layers.
+    if (transitioning) {
+      transitionT += step / FADE_SECONDS;
+      const finished = transitionT >= 1;
+      if (finished) {
+        transitionT = 1;
+        transitioning = false;
       }
 
-      const layer = layers[id];
-      const visible = opacity > 0;
+      // Crossfade: update only the two participating layers.
+      const prevLayer = layers[prevEra];
+      const prevOpacity = 1 - transitionT;
+      for (const partId of PART_IDS) prevLayer.meshes[partId].visible = prevOpacity > 0;
+      for (const mat of prevLayer.materials) mat.opacity = prevOpacity;
+      writeToLayer(prevLayer);
 
-      for (const partId of PART_IDS) {
-        layer.meshes[partId].visible = visible;
-      }
-      for (const mat of layer.materials) {
-        mat.opacity = opacity;
-      }
+      const activeLayer = layers[activeEra];
+      for (const partId of PART_IDS) activeLayer.meshes[partId].visible = true;
+      for (const mat of activeLayer.materials) mat.opacity = transitionT;
+      writeToLayer(activeLayer);
 
-      if (visible) {
-        writeToLayer(layer);
+      if (finished) {
+        for (const partId of PART_IDS) prevLayer.meshes[partId].visible = false;
       }
+    } else {
+      // Steady state: only update the active era layer.
+      // Inactive era layers are already invisible and skipped entirely.
+      writeToLayer(layers[activeEra]);
     }
   }
 
