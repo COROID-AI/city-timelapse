@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EraState } from './scene/EraState';
+import { mountTimeline } from './ui/timeline';
+
 
 // =============================================================================
 // City Timelapse — Foundation Scaffold
@@ -161,6 +164,13 @@ function onWindowResize(): void {
 window.addEventListener('resize', onWindowResize);
 
 // ---------------------------------------------------------------------------
+// Timeline UI — fixed top-of-viewport era slider
+// ---------------------------------------------------------------------------
+
+const eraState = new EraState();
+const disposeTimeline = mountTimeline(eraState);
+
+// ---------------------------------------------------------------------------
 // Render loop
 // ---------------------------------------------------------------------------
 
@@ -187,6 +197,7 @@ animate();
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     window.removeEventListener('resize', onWindowResize);
+    disposeTimeline();
     renderer.dispose();
     skyGeometry.dispose();
     skyMaterial.dispose();
