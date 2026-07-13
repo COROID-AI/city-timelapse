@@ -1,6 +1,7 @@
 import './styles.css';
 
 import { CityApp } from './app';
+import { SfxMixer } from './audio/mixer';
 import { ERA_REGISTRY, type EraId, type EraSpec } from './eras';
 
 const mount = document.querySelector<HTMLElement>('#app');
@@ -9,15 +10,28 @@ if (!mount) {
   throw new Error('Luna could not find its application mount.');
 }
 
+const mixer = new SfxMixer({ initialEra: ERA_REGISTRY[0].id });
+let timeline: HTMLElement | undefined;
+
 const app = new CityApp({
   mount,
-  onEraChange: updateEraReadout,
+  onEraChange: (era, transition) => {
+    updateEraReadout(era);
+    if (mixer.currentEra !== transition.to) mixer.setEra(transition.to);
+    if (timeline) updateTimeline(timeline, transition.to);
+  },
 });
 
 mount.prepend(createHud(app.currentEra));
-wireTimeline(app);
+timeline = createTimeline(app);
+mount.append(timeline);
+mount.append(createControlDock(app, mixer));
 updateEraReadout(app.currentEra);
-window.addEventListener('beforeunload', () => app.dispose(), { once: true });
+updateTimeline(timeline, app.currentEra.id);
+window.addEventListener('beforeunload', () => {
+  mixer.dispose();
+  app.dispose();
+}, { once: true });
 
 function createHud(activeEra: EraSpec): HTMLElement {
   const hud = document.createElement('header');
@@ -38,11 +52,16 @@ function createHud(activeEra: EraSpec): HTMLElement {
   return hud;
 }
 
-function wireTimeline(cityApp: CityApp): void {
+function createTimeline(cityApp: CityApp): HTMLElement {
   const timeline = document.createElement('nav');
   timeline.className = 'timeline';
   timeline.setAttribute('aria-label', 'Choose a city era');
   timeline.innerHTML = `
+    <div class="timeline__heading">
+      <span class="eyebrow">Timeline / select a year</span>
+      <span class="timeline__state" aria-live="polite">Scene ready</span>
+    </div>
+    <input class="timeline__range" type="range" min="0" max="${ERA_REGISTRY.length - 1}" step="1" value="0" aria-label="Era timeline" />
     <div class="timeline__line" aria-hidden="true"></div>
     <ol>
       ${ERA_REGISTRY.map(
@@ -57,28 +76,89 @@ function wireTimeline(cityApp: CityApp): void {
         `,
       ).join('')}
     </ol>
-    <p class="timeline__hint">Select an era to change the block</p>
+    <p class="timeline__hint">Click a year, use arrow keys, or scrub the line to transform the block</p>
   `;
-  mount?.append(timeline);
 
+  const range = timeline.querySelector<HTMLInputElement>('.timeline__range');
+  range?.addEventListener('input', () => {
+    const era = ERA_REGISTRY[Number(range.value)]?.id;
+    if (era) selectEra(cityApp, timeline, era);
+  });
   timeline.querySelectorAll<HTMLButtonElement>('[data-era]').forEach((button) => {
     button.addEventListener('click', () => {
       const era = button.dataset.era as EraId | undefined;
-      if (!era) return;
-      cityApp.setEra(era);
-      updateTimeline(timeline, era);
+      if (era) selectEra(cityApp, timeline, era);
     });
   });
-  updateTimeline(timeline, cityApp.currentEra.id);
+  return timeline;
+}
+
+function selectEra(cityApp: CityApp, timeline: HTMLElement, era: EraId): void {
+  cityApp.setEra(era);
+  updateTimeline(timeline, era);
 }
 
 function updateTimeline(timeline: HTMLElement, activeId: EraId): void {
+  const activeIndex = ERA_REGISTRY.findIndex((era) => era.id === activeId);
+  const activeEra = ERA_REGISTRY[activeIndex];
+  const range = timeline.querySelector<HTMLInputElement>('.timeline__range');
+  if (range && activeIndex >= 0) {
+    range.value = String(activeIndex);
+    range.setAttribute('aria-valuetext', `${activeEra.year}, ${activeEra.label}`);
+  }
+  const state = timeline.querySelector<HTMLElement>('.timeline__state');
+  if (state && activeEra) state.textContent = `${activeEra.year} / transforming`;
   timeline.querySelectorAll<HTMLButtonElement>('[data-era]').forEach((button) => {
     const isActive = button.dataset.era === activeId;
     button.classList.toggle('is-active', isActive);
-    if (isActive) button.setAttribute('aria-current', 'date');
-    else button.removeAttribute('aria-current');
+    if (isActive) {
+      button.setAttribute('aria-current', 'date');
+      button.setAttribute('aria-pressed', 'true');
+    } else {
+      button.removeAttribute('aria-current');
+      button.setAttribute('aria-pressed', 'false');
+    }
   });
+}
+
+function createControlDock(cityApp: CityApp, audio: SfxMixer): HTMLElement {
+  const dock = document.createElement('section');
+  dock.className = 'control-dock';
+  dock.setAttribute('aria-label', 'Scene controls');
+  dock.innerHTML = `
+    <div class="control-dock__buttons">
+      <button type="button" class="control-button" data-control="audio" aria-pressed="false">Sound off</button>
+      <button type="button" class="control-button" data-control="pause" aria-pressed="false">Pause scene</button>
+      <button type="button" class="control-button" data-control="reset">Reset view</button>
+      <button type="button" class="control-button" data-control="help" aria-expanded="false" aria-controls="scene-help">Controls</button>
+    </div>
+    <aside id="scene-help" class="scene-help" hidden>
+      <strong>Explore the block</strong>
+      <p>Drag to orbit · wheel or pinch to zoom · WASD or arrow keys to move · Q/E to change height · Home resets view.</p>
+      <p>Use the timeline above to stage a time change. Sound starts only after you choose Sound on.</p>
+    </aside>
+  `;
+  const audioButton = dock.querySelector<HTMLButtonElement>('[data-control="audio"]');
+  audioButton?.addEventListener('click', async () => {
+    const enabled = await audio.setEnabled(!audio.isEnabled);
+    audioButton.textContent = enabled && audio.isEnabled ? 'Sound on' : 'Sound unavailable';
+    audioButton.setAttribute('aria-pressed', String(audio.isEnabled));
+  });
+  const pauseButton = dock.querySelector<HTMLButtonElement>('[data-control="pause"]');
+  pauseButton?.addEventListener('click', () => {
+    const paused = cityApp.togglePaused();
+    pauseButton.textContent = paused ? 'Resume scene' : 'Pause scene';
+    pauseButton.setAttribute('aria-pressed', String(paused));
+  });
+  dock.querySelector<HTMLButtonElement>('[data-control="reset"]')?.addEventListener('click', () => cityApp.resetView());
+  const helpButton = dock.querySelector<HTMLButtonElement>('[data-control="help"]');
+  const help = dock.querySelector<HTMLElement>('#scene-help');
+  helpButton?.addEventListener('click', () => {
+    const open = help?.hidden ?? true;
+    if (help) help.hidden = !open;
+    helpButton.setAttribute('aria-expanded', String(open));
+  });
+  return dock;
 }
 
 function updateEraReadout(era: EraSpec): void {

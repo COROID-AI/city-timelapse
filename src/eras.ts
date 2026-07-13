@@ -39,6 +39,19 @@ export interface AudioConfig {
   music: string;
 }
 
+/** Parameters used by the procedural sound generator. */
+export interface SfxEraData {
+  ambientTone: number;
+  ambientHarmonics: readonly number[];
+  ambientNoise: number;
+  ambientFilter: number;
+  trafficProfile: number;
+  trafficPitch: number;
+  eventTypes: readonly string[];
+  musicStyle: string;
+  musicNotes: readonly number[];
+}
+
 export interface EraConfiguration {
   world: WorldConfig;
   atmosphere: AtmosphereConfig;
@@ -113,6 +126,17 @@ export const ERA_REGISTRY = [
     { typography: 'spatial type and multilingual light fields', materials: 'programmable glass and responsive bioplastic', illumination: 'holographic projection and solar edge light', motifs: ['circular exchange', 'orbital weather', 'neighborhood AI'] },
     { ambient: 'photonic canopy, filtered wind, and civic soundscape', traffic: 'near-silent electric transit and aerial rotors', events: ['wayfinding pulse', 'pod arrival tone', 'rain catch'], music: 'generative spatial music' }),
 ] as const satisfies readonly EraSpec[];
+
+
+/** Audio identity for each timeline stop; all sounds are synthesized offline. */
+export const SFX_ERA_DATA: Record<EraId, SfxEraData> = {
+  '1945': { ambientTone: 92, ambientHarmonics: [1, 2, 3], ambientNoise: 0.24, ambientFilter: 760, trafficProfile: 0.28, trafficPitch: 74, eventTypes: ['tram-bell', 'bicycle-bell', 'shop-chime'], musicStyle: 'swing quartet', musicNotes: [196, 247, 294, 392] },
+  '1965': { ambientTone: 128, ambientHarmonics: [1, 2, 4], ambientNoise: 0.2, ambientFilter: 1100, trafficProfile: 0.43, trafficPitch: 104, eventTypes: ['bus-hiss', 'payphone-ring', 'crossing-signal'], musicStyle: 'soul and early electronic pop', musicNotes: [220, 277, 330, 440] },
+  '1985': { ambientTone: 184, ambientHarmonics: [1, 2, 5], ambientNoise: 0.18, ambientFilter: 1700, trafficProfile: 0.68, trafficPitch: 128, eventTypes: ['arcade-tone', 'taxi-horn', 'camera-shutter'], musicStyle: 'analog synth and drum machine', musicNotes: [165, 208, 247, 330] },
+  '2005': { ambientTone: 226, ambientHarmonics: [1, 3, 6], ambientNoise: 0.16, ambientFilter: 2200, trafficProfile: 0.78, trafficPitch: 156, eventTypes: ['crosswalk-chirp', 'phone-ring', 'bus-kneel'], musicStyle: 'indie rock and compressed dance', musicNotes: [147, 185, 220, 294] },
+  '2025': { ambientTone: 294, ambientHarmonics: [1, 2, 6], ambientNoise: 0.13, ambientFilter: 2800, trafficProfile: 0.42, trafficPitch: 196, eventTypes: ['bike-bell', 'delivery-chirp', 'shuttle-tone'], musicStyle: 'ambient electronica and global radio', musicNotes: [196, 247, 311, 415] },
+  '2055': { ambientTone: 392, ambientHarmonics: [1, 3, 5, 8], ambientNoise: 0.1, ambientFilter: 3600, trafficProfile: 0.2, trafficPitch: 248, eventTypes: ['wayfinding-pulse', 'pod-arrival', 'rain-catch'], musicStyle: 'generative spatial music', musicNotes: [131, 196, 262, 392] },
+};
 
 export function getEraSpec(id: EraId): EraSpec {
   const spec = ERA_REGISTRY.find((candidate) => candidate.id === id);
