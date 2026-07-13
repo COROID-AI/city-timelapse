@@ -1,0 +1,9 @@
++<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Luna">
++  <circle cx="32" cy="32" r="30" fill="#09101c" stroke="#f3ba82" stroke-width="2" />
++  <path d="M39 13a20 20 0 1 0 0 38 19 19 0 1 1 0-38Z" fill="#f3ba82" />
++</svg>
+*** Update File: index.html
+@@
+     <meta name="theme-color" content="#09101c" />
+     <meta name="description" content="Luna is an interactive 3D city block spanning 1945 to 2055." />
++    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
