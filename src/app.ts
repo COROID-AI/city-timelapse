@@ -6,6 +6,7 @@ import {
   type EraSpec,
   type TransitionProgress,
 } from './eras';
+import { createCityWorld, type CityWorld } from './city-world';
 
 export interface CityAppOptions {
   mount: HTMLElement;
@@ -13,13 +14,6 @@ export interface CityAppOptions {
   onEraChange?: (era: EraSpec, transition: TransitionProgress) => void;
 }
 
-interface TransitionState {
-  from: EraSpec;
-  to: EraSpec;
-  startedAt: number;
-  duration: number;
-  progress: number;
-}
 
 /**
  * Rendering and exploration composition root. The city is kept in one scene
@@ -33,20 +27,14 @@ export class CityApp {
   private camera?: THREE.PerspectiveCamera;
   private renderer?: THREE.WebGLRenderer;
   private viewport?: HTMLElement;
+  private cityWorld?: CityWorld;
   private resizeObserver?: ResizeObserver;
   private animationFrame = 0;
+  private transitionFrom?: EraId;
+  private transitionTarget?: EraId;
   private eraIndex: number;
-  private transition?: TransitionState;
   private disposed = false;
   private paused = false;
-  private reducedMotion = false;
-  private readonly city = new THREE.Group();
-  private readonly buildings = new THREE.Group();
-  private readonly vehicles = new THREE.Group();
-  private readonly foliage = new THREE.Group();
-  private readonly buildingMaterials: THREE.MeshStandardMaterial[] = [];
-  private readonly trimMaterials: THREE.MeshStandardMaterial[] = [];
-  private readonly vehicleMaterials: THREE.MeshStandardMaterial[] = [];
   private keys = new Set<string>();
   private pointerId?: number;
   private readonly pointers = new Map<number, { x: number; y: number }>();
@@ -62,7 +50,6 @@ export class CityApp {
   constructor(options: CityAppOptions) {
     this.mount = options.mount;
     this.onEraChange = options.onEraChange;
-    this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const requestedEra = options.initialEra ?? ERA_REGISTRY[0].id;
     const requestedIndex = ERA_REGISTRY.findIndex((era) => era.id === requestedEra);
     this.eraIndex = requestedIndex >= 0 ? requestedIndex : 0;
@@ -75,19 +62,26 @@ export class CityApp {
   }
 
   get isTransitioning(): boolean {
-    return this.transition !== undefined;
+    return this.transitionTarget !== undefined;
   }
 
   setEra(id: EraId): void {
     if (this.disposed) return;
     const nextIndex = ERA_REGISTRY.findIndex((era) => era.id === id);
-    if (nextIndex < 0 || nextIndex === this.eraIndex && !this.transition) return;
-    const from = this.transition ? this.transition.to : this.currentEra;
-    const to = ERA_REGISTRY[nextIndex];
+    if (nextIndex < 0 || nextIndex === this.eraIndex) return;
+    const previousEra = this.transitionTarget
+      ? ERA_REGISTRY.find((era) => era.id === this.transitionTarget) ?? this.currentEra
+      : this.currentEra;
     this.eraIndex = nextIndex;
-    const duration = this.reducedMotion ? 320 : 1800;
-    this.transition = { from, to, startedAt: performance.now(), duration, progress: 0 };
-    this.onEraChange?.(to, { from: from.id, to: to.id, progress: 0, isTransitioning: true });
+    this.transitionFrom = previousEra.id;
+    this.transitionTarget = this.currentEra.id;
+    this.cityWorld?.updateEra(this.currentEra);
+    this.onEraChange?.(this.currentEra, {
+      from: previousEra.id,
+      to: this.currentEra.id,
+      progress: 0,
+      isTransitioning: true,
+    });
   }
 
   resetView(): void {
@@ -124,6 +118,7 @@ export class CityApp {
     this.viewport?.removeEventListener('pointerup', this.onPointerUp);
     this.viewport?.removeEventListener('pointercancel', this.onPointerUp);
     this.viewport?.removeEventListener('wheel', this.onWheel);
+    this.cityWorld?.dispose();
     this.scene.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
       object.geometry.dispose();
@@ -147,11 +142,8 @@ export class CityApp {
       this.viewport.append(this.renderer.domElement);
       this.mount.replaceChildren(this.viewport);
 
-      this.camera = new THREE.PerspectiveCamera(48, 1, 0.1, 100);
-      this.scene.add(this.city);
-      this.city.add(this.buildings, this.vehicles, this.foliage);
-      this.addStarterCity();
-      this.applyEraAtmosphere(this.currentEra, 1);
+      this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+      this.cityWorld = createCityWorld(this.scene, this.currentEra);
       this.attachControls();
       this.resizeObserver = new ResizeObserver(() => this.resize());
       this.resizeObserver.observe(this.viewport);
@@ -162,134 +154,6 @@ export class CityApp {
     } catch (error) {
       this.showError(error);
     }
-  }
-
-  private addStarterCity(): void {
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, 25), new THREE.MeshStandardMaterial({ color: '#253544', roughness: 0.94 }));
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    this.city.add(ground);
-
-    const road = new THREE.Mesh(new THREE.PlaneGeometry(7, 24), new THREE.MeshStandardMaterial({ color: '#111b25', roughness: 0.78 }));
-    road.rotation.x = -Math.PI / 2;
-    road.position.y = 0.015;
-    this.city.add(road);
-    const crossing = new THREE.Mesh(new THREE.PlaneGeometry(6.7, 1.2), new THREE.MeshStandardMaterial({ color: '#aeb3b1', roughness: 0.7 }));
-    crossing.rotation.x = -Math.PI / 2;
-    crossing.position.set(0, 0.024, 4.2);
-    this.city.add(crossing);
-
-    const buildingData = [
-      [-6.1, 3.2, -2.3, 5.2, 6.4, 4.2], [-6.2, 2.3, 3.1, 4.5, 4.6, 3.2],
-      [5.3, 4.8, -3.3, 4.4, 9.6, 3.5], [5.4, 2.7, 2.4, 4.5, 5.4, 3.7],
-    ];
-    buildingData.forEach(([x, y, z, width, height, depth], index) => {
-      const material = new THREE.MeshStandardMaterial({ color: index % 2 ? '#765869' : '#a06d5d', roughness: 0.68, metalness: 0.08 });
-      this.buildingMaterials.push(material);
-      const building = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
-      building.position.set(x, y, z);
-      building.castShadow = true;
-      building.receiveShadow = true;
-      this.buildings.add(building);
-      this.addWindows(building, width, height, depth, index);
-    });
-
-    [-2.4, 0, 2.4].forEach((x, index) => {
-      const storefrontMaterial = new THREE.MeshStandardMaterial({ color: ['#7a5260', '#496b76', '#80634a'][index], roughness: 0.5, metalness: 0.14 });
-      this.trimMaterials.push(storefrontMaterial);
-      const shop = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2.2, 2.8), storefrontMaterial);
-      shop.position.set(x, 1.1, 2.2);
-      shop.castShadow = true;
-      shop.receiveShadow = true;
-      this.buildings.add(shop);
-      const awning = new THREE.Mesh(new THREE.BoxGeometry(2.35, 0.15, 0.35), new THREE.MeshStandardMaterial({ color: '#d4a26e', roughness: 0.5 }));
-      awning.position.set(x, 2.1, 0.73);
-      this.buildings.add(awning);
-    });
-
-    [-4.1, 0.8, 4.1].forEach((x, index) => {
-      const carMaterial = new THREE.MeshStandardMaterial({ color: ['#b84f4e', '#3d7789', '#c08c4d'][index], roughness: 0.42, metalness: 0.4 });
-      this.vehicleMaterials.push(carMaterial);
-      const car = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.55, 2.3), carMaterial);
-      car.position.set(x, 0.38, index === 1 ? -4.5 : 4.8);
-      car.rotation.y = index === 1 ? Math.PI : 0;
-      car.castShadow = true;
-      this.vehicles.add(car);
-    });
-
-    [-9, -3, 3, 9].forEach((z) => {
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.06, 3.4, 8), new THREE.MeshStandardMaterial({ color: '#8b9498', metalness: 0.75, roughness: 0.3 }));
-      pole.position.set(-3.6, 1.7, z);
-      this.city.add(pole);
-      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 6), new THREE.MeshStandardMaterial({ color: '#ffe1a6', emissive: '#bf754a', emissiveIntensity: 1.5 }));
-      lamp.position.set(-3.6, 3.35, z);
-      this.city.add(lamp);
-    });
-
-    [-10, -7, 7, 10].forEach((x, index) => {
-      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 1.8, 8), new THREE.MeshStandardMaterial({ color: '#60483d', roughness: 0.9 }));
-      trunk.position.set(x, 0.9, index % 2 ? 7 : -7);
-      this.foliage.add(trunk);
-      const canopy = new THREE.Mesh(new THREE.IcosahedronGeometry(1.15, 1), new THREE.MeshStandardMaterial({ color: '#3d765d', roughness: 0.92 }));
-      canopy.position.set(x, 2.3, index % 2 ? 7 : -7);
-      canopy.castShadow = true;
-      this.foliage.add(canopy);
-    });
-
-    const sun = new THREE.DirectionalLight('#ffd2a1', 3.2);
-    sun.position.set(-5, 12, 8);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(1024, 1024);
-    this.city.add(sun);
-    this.city.add(new THREE.HemisphereLight('#9eb4d3', '#15202d', 1.25));
-  }
-
-  private addWindows(building: THREE.Mesh, width: number, height: number, depth: number, seed: number): void {
-    const rows = Math.max(2, Math.floor(height / 1.4));
-    for (let row = 0; row < rows; row += 1) {
-      const window = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(0.75, width / 4), 0.42), new THREE.MeshStandardMaterial({ color: '#9ac1c6', emissive: '#29464e', emissiveIntensity: 0.7, roughness: 0.3 }));
-      window.position.set(building.position.x + (seed % 2 ? -0.8 : 0.8), 0.8 + row * 1.25, building.position.z + depth / 2 + 0.012);
-      this.city.add(window);
-    }
-  }
-
-  private applyEraAtmosphere(era: EraSpec, progress: number): void {
-    const atmosphere = era.config.atmosphere;
-    this.scene.background = new THREE.Color(atmosphere.sky);
-    this.scene.fog = new THREE.FogExp2(atmosphere.fog, atmosphere.fogDensity * (0.8 + progress * 0.2));
-  }
-
-  private applyTransition(transition: TransitionState, progress: number): void {
-    const from = transition.from.config;
-    const to = transition.to.config;
-    const eased = progress * progress * (3 - 2 * progress);
-    const sky = new THREE.Color(from.atmosphere.sky).lerp(new THREE.Color(to.atmosphere.sky), eased);
-    this.scene.background = sky;
-    this.scene.fog = new THREE.FogExp2(new THREE.Color(from.atmosphere.fog).lerp(new THREE.Color(to.atmosphere.fog), eased), THREE.MathUtils.lerp(from.atmosphere.fogDensity, to.atmosphere.fogDensity, eased));
-    this.buildingMaterials.forEach((material, index) => {
-      const fromColor = new THREE.Color(index % 2 ? '#765869' : '#a06d5d');
-      const toColor = new THREE.Color(to.world.materials[index % to.world.materials.length].includes('glass') ? '#557a89' : '#78906c');
-      material.color.copy(fromColor.lerp(toColor, eased));
-      material.roughness = THREE.MathUtils.lerp(0.78, 0.32, eased);
-    });
-    this.vehicleMaterials.forEach((material, index) => {
-      material.metalness = THREE.MathUtils.lerp(0.25, 0.8, eased);
-      material.roughness = THREE.MathUtils.lerp(0.55, 0.22, eased);
-      if (to.world.vehicleProfile.includes('electric')) material.color.set(index === 1 ? '#65c2ca' : '#7b8ce0');
-    });
-    this.trimMaterials.forEach((material, index) => {
-      const targetColor = to.signage.illumination.includes('neon') || to.signage.illumination.includes('holographic')
-        ? new THREE.Color('#5fd5e1')
-        : new THREE.Color(index % 2 ? '#c08c63' : '#7897a0');
-      material.color.lerp(targetColor, eased);
-      material.emissive.lerp(targetColor, eased * 0.25);
-      material.emissiveIntensity = THREE.MathUtils.lerp(0.15, 1.4, eased);
-    });
-    this.vehicles.scale.setScalar(THREE.MathUtils.lerp(1, 1.08 + to.world.buildingDensity * 0.2, eased));
-    this.foliage.scale.setScalar(THREE.MathUtils.lerp(0.8, 1.25, eased * to.population.density));
-    this.buildings.children.forEach((child, index) => {
-      if (child instanceof THREE.Mesh) child.scale.y = 1 + eased * (to.world.buildingDensity - 0.56) * (index % 2 ? 0.35 : 0.18);
-    });
   }
 
   private attachControls(): void {
@@ -426,15 +290,28 @@ export class CityApp {
     this.lastFrame = time;
     if (this.paused) return;
     this.moveCamera(delta);
-    if (this.transition) {
-      const progress = THREE.MathUtils.clamp((time - this.transition.startedAt) / this.transition.duration, 0, 1);
-      this.transition.progress = progress;
-      this.applyTransition(this.transition, progress);
-      this.onEraChange?.(this.transition.to, { from: this.transition.from.id, to: this.transition.to.id, progress, isTransitioning: progress < 1 });
-      if (progress >= 1) this.transition = undefined;
-    }
+    this.cityWorld?.update(delta);
+    this.emitTransitionProgress();
     this.renderer.render(this.scene, this.camera);
   };
+
+  private emitTransitionProgress(): void {
+    if (!this.cityWorld || !this.transitionFrom || !this.transitionTarget) {
+      return;
+    }
+
+    const progress = this.cityWorld.transitionProgress;
+    this.onEraChange?.(this.currentEra, {
+      from: this.transitionFrom,
+      to: this.transitionTarget,
+      progress,
+      isTransitioning: progress < 1,
+    });
+    if (progress >= 1) {
+      this.transitionFrom = undefined;
+      this.transitionTarget = undefined;
+    }
+  }
 
   private escapeHtml(value: string): string {
     const entities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' };
