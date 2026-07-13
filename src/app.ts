@@ -145,6 +145,11 @@ export class CityApp {
       this.viewport.tabIndex = 0;
       this.renderer = new THREE.WebGLRenderer({
         antialias: this.qualityTier === 'high',
+        // Keep the last frame readable to browser evidence tooling. Without
+        // this, WebGL is allowed to discard the back buffer after presenting,
+        // so a perfectly rendered scene can be reported as a blank canvas by
+        // screenshot/readback checks.
+        preserveDrawingBuffer: true,
         powerPreference: this.qualityTier === 'low' ? 'low-power' : 'high-performance',
       });
       const pixelRatio = this.qualityTier === 'high' ? 2 : this.qualityTier === 'balanced' ? 1.5 : 1;
