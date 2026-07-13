@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EraState } from './scene/EraState';
+import { CameraController, type CameraPresetId } from './scene/cameraController';
+import { mountCameraUI } from './ui/cameraControls';
 import { mountTimeline } from './ui/timeline';
 
 
@@ -150,6 +152,10 @@ controls.maxPolarAngle = Math.PI / 2 - 0.05;
 controls.target.set(0, 5, 0);
 controls.update();
 
+// Collidables the camera should not clip through. Buildings are added by the
+// content phase; for now the ground plane keeps the camera above ground.
+const cameraCollidables: THREE.Object3D[] = [ground];
+
 // ---------------------------------------------------------------------------
 // Window resize — keep canvas filling the viewport
 // ---------------------------------------------------------------------------
@@ -171,19 +177,45 @@ const eraState = new EraState();
 const disposeTimeline = mountTimeline(eraState);
 
 // ---------------------------------------------------------------------------
+// Camera controller — presets, cinematic orbit, smoothed zoom, keyboard pan
+// ---------------------------------------------------------------------------
+
+const cameraController = new CameraController({
+  controls,
+  camera,
+  domElement: renderer.domElement,
+  collidables: cameraCollidables,
+  cinematicSpeed: 0.16,
+  cinematicHeight: 30,
+  cinematicRadius: 72,
+  cinematicTarget: new THREE.Vector3(0, 6, 0),
+  cinematicResumeDelayMs: 4500,
+});
+
+const disposeCameraUI = mountCameraUI({
+  onPreset: (id: CameraPresetId) => cameraController.goToPreset(id),
+  onToggleCinematic: () => cameraController.toggleCinematic(),
+});
+
+// ---------------------------------------------------------------------------
 // Render loop
 // ---------------------------------------------------------------------------
 
 const clock = new THREE.Clock();
 
 function animate(): void {
-  const elapsed = clock.getElapsedTime();
+  const dt = clock.getDelta();
+  const elapsed = clock.elapsedTime;
 
   // Subtle directional light orbit to hint at time passing.
   directionalLight.position.x = Math.cos(elapsed * 0.02) * 50;
   directionalLight.position.z = Math.sin(elapsed * 0.02) * 50;
 
+  // Advance camera (smoothed zoom, keyboard pan, cinematic orbit).
+  cameraController.update(dt);
   controls.update();
+  // Step the camera back out of any collidable after controls settle.
+  cameraController.resolveCollision();
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }
@@ -197,7 +229,9 @@ animate();
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     window.removeEventListener('resize', onWindowResize);
+    cameraController.dispose();
     disposeTimeline();
+    disposeCameraUI();
     renderer.dispose();
     skyGeometry.dispose();
     skyMaterial.dispose();

@@ -52,8 +52,8 @@ const MAX_DURATION_MS = 5000;
 // Easing helpers
 // ---------------------------------------------------------------------------
 
-/** Smooth accelerate-decelerate curve. `p` is clamped internally by callers. */
-function easeInOutCubic(p: number): number {
+/** Smooth accelerate-decelerate curve. `p` must be clamped to 0..1 by callers. Exported so other subsystems (camera tweens, etc.) stay visually consistent with era morphs. */
+export function easeInOutCubic(p: number): number {
   return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
 }
 
