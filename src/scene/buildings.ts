@@ -125,19 +125,38 @@ function buildEraGroup(
     const footprint: BuildingFootprint = { w: lot.w, d: lot.d, h: lot.heightHint };
     const geo = af.makeBuildingGeometry(era, footprint);
     const mat = af.makeMaterial(era, facadeSlot);
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(lot.x, 0, lot.z);
-    mesh.rotation.y = lot.rotation;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    group.add(mesh);
+    // High-detail level: full procedural geometry.
+    const highMesh = new THREE.Mesh(geo, mat);
+    highMesh.castShadow = true;
+    highMesh.receiveShadow = true;
+    // Low-detail level: simplified box matching the building footprint.
+    geo.computeBoundingBox();
+    const bb = geo.boundingBox!;
+    const bbW = bb.max.x - bb.min.x;
+    const bbH = bb.max.y - bb.min.y;
+    const bbD = bb.max.z - bb.min.z;
+    const lowGeo = new THREE.BoxGeometry(bbW, bbH, bbD, 1, 1, 1);
+    lowGeo.translate(0, bbH / 2, 0);
+    const lowMat = mat.clone();
+    lowMat.transparent = mat.transparent;
+    lowMat.opacity = mat.opacity;
+    const lowMesh = new THREE.Mesh(lowGeo, lowMat);
+    lowMesh.castShadow = true;
+    lowMesh.receiveShadow = true;
+    // LOD: high detail up close, simplified box at distance (>= 2 levels/era).
+    const lod = new THREE.LOD();
+    lod.addLevel(highMesh, 0);
+    lod.addLevel(lowMesh, 55);
+    lod.position.set(lot.x, 0, lot.z);
+    lod.rotation.y = lot.rotation;
+    group.add(lod);
     const signText = signTexts[i % signTexts.length];
     const signMat = af.makeSignMaterial(era, signText, { width: 256, height: 96 });
     const signGeo = new THREE.PlaneGeometry(lot.w * 0.7, 2.4);
     const sign = new THREE.Mesh(signGeo, signMat);
     sign.position.set(0, 3.5, lot.facesPositiveZ ? lot.d / 2 + 0.06 : -lot.d / 2 - 0.06);
     if (!lot.facesPositiveZ) sign.rotation.y = Math.PI;
-    mesh.add(sign);
+    lod.add(sign);
   });
   const sidewalkMat = af.makeMaterial(era, 'sidewalk');
   for (const side of [-1, 1]) {

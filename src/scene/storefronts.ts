@@ -536,11 +536,14 @@ export function createStorefrontSystem(
       const w = eraWeight(currentT, layer.pos);
       if (layer.eraId === '2055') weight2055 = w;
       const visible = w > 0.0001;
-      layer.group.visible = visible;
-      if (visible) {
-        for (const m of layer.materials) {
-          m.opacity = w;
-        }
+      // Skip invisible layers entirely — no opacity writes, no iteration.
+      if (!visible) {
+        if (layer.group.visible) layer.group.visible = false;
+        continue;
+      }
+      layer.group.visible = true;
+      for (const m of layer.materials) {
+        m.opacity = w;
       }
     }
     // Shader ribbon fades with the 2055 layer via its own uniform.
@@ -552,8 +555,10 @@ export function createStorefrontSystem(
   return {
     group: root,
     update(dt: number): void {
-      // Advance the 2055 ribbon scroll; speed is uniform-driven (uSpeed).
-      ribbonMat.uniforms.uTime.value += dt;
+      // Only advance the shader ribbon when the 2055 layer has any weight.
+      if (ribbonMat.uniforms.uOpacity.value > 0.0001) {
+        ribbonMat.uniforms.uTime.value += dt;
+      }
       applyCrossfade();
     },
     dispose(): void {

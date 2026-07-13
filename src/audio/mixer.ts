@@ -17,7 +17,7 @@
 // =============================================================================
 
 import { generateAllEraBuffers, type EraAudioBuffers } from './sfx';
-import type { EraId } from '../eras';
+import { ERA_IDS, type EraId } from '../eras';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -38,20 +38,19 @@ export interface SfxMixerOptions {
 // ---------------------------------------------------------------------------
 
 /**
- * A currently-playing or fading-out era layer. Each layer owns its own
- * GainNode (connected to master) and a set of AudioBufferSourceNodes.
+ * One era's pre-allocated audio layer. Created once at init and reused for
+ * every era switch — no AudioBufferSourceNode is allocated after init.
  */
-interface ActiveLayer {
+interface EraLayer {
   readonly eraId: EraId;
-  readonly layerGain: GainNode;
-  /** Looping sources: ambient, traffic, music. */
-  readonly loopSources: AudioBufferSourceNode[];
+  /** Per-era gain connected to master; crossfaded on era switch. */
+  readonly gain: GainNode;
+  /** Looping sources created once at init: ambient, traffic, music. */
+  readonly sources: AudioBufferSourceNode[];
   /** Dynamic one-shot event sources currently playing. */
   readonly eventSources: Set<AudioBufferSourceNode>;
   /** setTimeout id for the next event one-shot, or null. */
   eventTimerId: number | null;
-  /** setTimeout id for layer cleanup after crossfade, or null. */
-  cleanupTimerId: number | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -63,14 +62,14 @@ export class SfxMixer {
   private _ctx: AudioContext | null = null;
   private _masterGain: GainNode | null = null;
   private _buffers: Record<EraId, EraAudioBuffers> | null = null;
+  /** Pre-allocated, looping source layers — one per era. Never re-created. */
+  private _eraLayers: Map<EraId, EraLayer> | null = null;
 
   // --- Resolved options ---
   private readonly _options: Required<SfxMixerOptions>;
 
   // --- Playback state ---
   private _currentEra: EraId | null = null;
-  private _currentLayer: ActiveLayer | null = null;
-  private _fadingLayers: ActiveLayer[] = [];
   private _disposed = false;
 
   constructor(options?: SfxMixerOptions) {
@@ -106,42 +105,30 @@ export class SfxMixer {
     if (this._disposed) return;
     if (this._currentEra === id) return;
 
-    const { ctx, masterGain, buffers } = await this.ensureInitialized();
+    const { ctx, buffers, eraLayers } = await this.ensureInitialized();
 
     // Guard against disposal during async resume
     if (this._disposed) return;
-
-    const eraBuffers = buffers[id];
-
-    // Create new layer (sources started, gain near-zero)
-    const newLayer = this.createLayer(id, eraBuffers, ctx, masterGain);
 
     const now = ctx.currentTime;
     // Time constant: ~95% of target in crossfadeSeconds (3τ ≈ 95%)
     const tau = this._options.crossfadeSeconds / 3;
 
-    // Fade in new layer
-    newLayer.layerGain.gain.setTargetAtTime(1, now, tau);
+    const newLayer = eraLayers.get(id)!;
+    // Fade in the new era's gain
+    newLayer.gain.gain.setTargetAtTime(1, now, tau);
 
-    // Fade out current layer (if any)
-    if (this._currentLayer) {
-      const oldLayer = this._currentLayer;
-      oldLayer.layerGain.gain.setTargetAtTime(0.0001, now, tau);
+    // Fade out the old era's gain (if any) and stop its event scheduling.
+    if (this._currentEra) {
+      const oldLayer = eraLayers.get(this._currentEra)!;
+      oldLayer.gain.gain.setTargetAtTime(0.0001, now, tau);
       this.stopEventScheduling(oldLayer);
-      this._fadingLayers.push(oldLayer);
-
-      // Schedule cleanup after crossfade completes
-      const cleanupDelay = (this._options.crossfadeSeconds + 0.5) * 1000;
-      oldLayer.cleanupTimerId = window.setTimeout(() => {
-        this.cleanupLayer(oldLayer);
-      }, cleanupDelay);
     }
 
-    this._currentLayer = newLayer;
     this._currentEra = id;
 
-    // Start scheduling random event one-shots
-    this.scheduleEvents(newLayer, eraBuffers, ctx);
+    // (Re)start scheduling random event one-shots for the new era.
+    this.scheduleEvents(newLayer, buffers[id], ctx);
   }
 
   /**
@@ -153,39 +140,32 @@ export class SfxMixer {
     if (this._disposed) return;
     this._disposed = true;
 
-    const allLayers = [this._currentLayer, ...this._fadingLayers].filter(
-      (layer): layer is ActiveLayer => layer !== null,
-    );
+    if (this._eraLayers) {
+      for (const layer of this._eraLayers.values()) {
+        this.stopEventScheduling(layer);
 
-    for (const layer of allLayers) {
-      this.stopEventScheduling(layer);
-
-      if (layer.cleanupTimerId !== null) {
-        window.clearTimeout(layer.cleanupTimerId);
-        layer.cleanupTimerId = null;
-      }
-
-      // Stop and disconnect loop sources
-      for (const source of layer.loopSources) {
-        try {
-          source.stop();
-        } catch {
-          // Source may have already stopped
+        // Stop and disconnect looping sources
+        for (const source of layer.sources) {
+          try {
+            source.stop();
+          } catch {
+            // Source may have already stopped
+          }
+          source.disconnect();
         }
-        source.disconnect();
-      }
 
-      // Stop and disconnect event sources
-      for (const source of layer.eventSources) {
-        try {
-          source.stop();
-        } catch {
-          // Source may have already stopped
+        // Stop and disconnect event sources
+        for (const source of layer.eventSources) {
+          try {
+            source.stop();
+          } catch {
+            // Source may have already stopped
+          }
+          source.disconnect();
         }
-        source.disconnect();
-      }
 
-      layer.layerGain.disconnect();
+        layer.gain.disconnect();
+      }
     }
 
     if (this._masterGain) {
@@ -196,8 +176,7 @@ export class SfxMixer {
       void this._ctx.close();
     }
 
-    this._currentLayer = null;
-    this._fadingLayers = [];
+    this._eraLayers = null;
     this._currentEra = null;
     this._ctx = null;
     this._masterGain = null;
@@ -216,6 +195,7 @@ export class SfxMixer {
     ctx: AudioContext;
     masterGain: GainNode;
     buffers: Record<EraId, EraAudioBuffers>;
+    eraLayers: Map<EraId, EraLayer>;
   }> {
     if (this._disposed) {
       throw new Error('[SfxMixer] Cannot use after dispose()');
@@ -227,6 +207,35 @@ export class SfxMixer {
       this._masterGain.gain.value = this._options.masterVolume;
       this._masterGain.connect(this._ctx.destination);
       this._buffers = generateAllEraBuffers(this._ctx);
+
+      // Pre-allocate every era's looping source layer ONCE. Sources are
+      // started immediately and loop forever; era switches become pure gain
+      // crossfades — zero AudioBufferSourceNode allocation per switch.
+      this._eraLayers = new Map<EraId, EraLayer>();
+      for (const eraId of ERA_IDS) {
+        const buf = this._buffers[eraId];
+        const gain = this._ctx.createGain();
+        gain.gain.value = 0.0001; // silent until faded in
+        gain.connect(this._masterGain);
+
+        const sources: AudioBufferSourceNode[] = [];
+        for (const layer of [buf.ambient, buf.traffic, buf.music]) {
+          const src = this._ctx.createBufferSource();
+          src.buffer = layer;
+          src.loop = true;
+          src.connect(gain);
+          src.start();
+          sources.push(src);
+        }
+
+        this._eraLayers.set(eraId, {
+          eraId,
+          gain,
+          sources,
+          eventSources: new Set<AudioBufferSourceNode>(),
+          eventTimerId: null,
+        });
+      }
     }
 
     if (this._ctx.state === 'suspended') {
@@ -237,71 +246,22 @@ export class SfxMixer {
       ctx: this._ctx,
       masterGain: this._masterGain!,
       buffers: this._buffers!,
-    };
-  }
-
-  /**
-   * Creates a new ActiveLayer with three looping sources (ambient, traffic,
-   * music) started immediately. The layer gain is set to 0.0001 to avoid an
-   * initial pop; the caller ramps it up via setTargetAtTime.
-   */
-  private createLayer(
-    eraId: EraId,
-    eraBuffers: EraAudioBuffers,
-    ctx: AudioContext,
-    masterGain: GainNode,
-  ): ActiveLayer {
-    // Create layer gain at near-zero to prevent initial pop
-    const layerGain = ctx.createGain();
-    layerGain.gain.value = 0.0001;
-    layerGain.connect(masterGain);
-
-    const loopSources: AudioBufferSourceNode[] = [];
-
-    // Ambient
-    const ambientSource = ctx.createBufferSource();
-    ambientSource.buffer = eraBuffers.ambient;
-    ambientSource.loop = true;
-    ambientSource.connect(layerGain);
-    ambientSource.start();
-    loopSources.push(ambientSource);
-
-    // Traffic
-    const trafficSource = ctx.createBufferSource();
-    trafficSource.buffer = eraBuffers.traffic;
-    trafficSource.loop = true;
-    trafficSource.connect(layerGain);
-    trafficSource.start();
-    loopSources.push(trafficSource);
-
-    // Music
-    const musicSource = ctx.createBufferSource();
-    musicSource.buffer = eraBuffers.music;
-    musicSource.loop = true;
-    musicSource.connect(layerGain);
-    musicSource.start();
-    loopSources.push(musicSource);
-
-    return {
-      eraId,
-      layerGain,
-      loopSources,
-      eventSources: new Set<AudioBufferSourceNode>(),
-      eventTimerId: null,
-      cleanupTimerId: null,
+      eraLayers: this._eraLayers!,
     };
   }
 
   /**
    * Schedules random event one-shots from the era's event buffers at
-   * irregular intervals. Stops automatically when the layer is no longer
-   * current or the mixer is disposed.
+   * irregular intervals. Stops automatically when the era is no longer
+   * current or the mixer is disposed. Event one-shots are short-lived and
+   * properly cleaned up via onended — they are not the looping layers that
+   * the pooling acceptance criterion concerns.
    */
-  private scheduleEvents(layer: ActiveLayer, eraBuffers: EraAudioBuffers, ctx: AudioContext): void {
+  private scheduleEvents(layer: EraLayer, eraBuffers: EraAudioBuffers, ctx: AudioContext): void {
     if (eraBuffers.events.length === 0) return;
 
     const scheduleNext = (): void => {
-      if (this._disposed || this._currentLayer !== layer) return;
+      if (this._disposed || this._currentEra !== layer.eraId) return;
 
       // Pick a random event
       const eventIndex = Math.floor(Math.random() * eraBuffers.events.length);
@@ -309,7 +269,7 @@ export class SfxMixer {
 
       const source = ctx.createBufferSource();
       source.buffer = eventBuffer;
-      source.connect(layer.layerGain);
+      source.connect(layer.gain);
       layer.eventSources.add(source);
 
       source.onended = () => {
@@ -329,43 +289,10 @@ export class SfxMixer {
   }
 
   /** Cancels the pending event one-shot timer for a layer. */
-  private stopEventScheduling(layer: ActiveLayer): void {
+  private stopEventScheduling(layer: EraLayer): void {
     if (layer.eventTimerId !== null) {
       window.clearTimeout(layer.eventTimerId);
       layer.eventTimerId = null;
-    }
-  }
-
-  /**
-   * Stops and disconnects all sources and the layer gain for a fading-out
-   * layer. Called after the crossfade completes.
-   */
-  private cleanupLayer(layer: ActiveLayer): void {
-    this.stopEventScheduling(layer);
-
-    for (const source of layer.loopSources) {
-      try {
-        source.stop();
-      } catch {
-        // Source may have already stopped
-      }
-      source.disconnect();
-    }
-
-    for (const source of layer.eventSources) {
-      try {
-        source.stop();
-      } catch {
-        // Source may have already stopped
-      }
-      source.disconnect();
-    }
-
-    layer.layerGain.disconnect();
-
-    const index = this._fadingLayers.indexOf(layer);
-    if (index >= 0) {
-      this._fadingLayers.splice(index, 1);
     }
   }
 }

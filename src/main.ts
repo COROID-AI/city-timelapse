@@ -40,6 +40,13 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 
 // ---------------------------------------------------------------------------
+// Shadow mapping — autoUpdate with a single bounded directional light.
+// ---------------------------------------------------------------------------
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.autoUpdate = true;
+
+// ---------------------------------------------------------------------------
 // Scene
 // ---------------------------------------------------------------------------
 
@@ -73,6 +80,17 @@ scene.add(hemisphereLight);
 
 const directionalLight = new THREE.DirectionalLight(0xfff4e0, 1.2);
 directionalLight.position.set(50, 80, 30);
+directionalLight.castShadow = true;
+// Bounded shadow camera covering the city block — tight frustum for quality.
+directionalLight.shadow.mapSize.width = 2048;
+directionalLight.shadow.mapSize.height = 2048;
+directionalLight.shadow.camera.near = 10;
+directionalLight.shadow.camera.far = 200;
+directionalLight.shadow.camera.left = -60;
+directionalLight.shadow.camera.right = 60;
+directionalLight.shadow.camera.top = 60;
+directionalLight.shadow.camera.bottom = -60;
+directionalLight.shadow.bias = -0.0005;
 scene.add(directionalLight);
 
 const ambientLight = new THREE.AmbientLight(0x404050, 0.3);
@@ -133,6 +151,7 @@ const groundMaterial = new THREE.MeshStandardMaterial({
 const ground = new THREE.Mesh(groundGeometry, groundMaterial);
 ground.rotation.x = -Math.PI / 2;
 ground.position.y = 0;
+ground.receiveShadow = true;
 scene.add(ground);
 
 const gridHelper = new THREE.GridHelper(400, 80, 0x666666, 0x333333);
