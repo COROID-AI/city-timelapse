@@ -10,7 +10,8 @@ if (!mount) {
   throw new Error('Luna could not find its application mount.');
 }
 
-const mixer = new SfxMixer({ initialEra: ERA_REGISTRY[0].id });
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const mixer = new SfxMixer({ initialEra: ERA_REGISTRY[0].id, reducedMotion, crossfadeSeconds: 1.6 });
 let timeline: HTMLElement | undefined;
 
 const app = new CityApp({
@@ -18,7 +19,7 @@ const app = new CityApp({
   onEraChange: (era, transition) => {
     updateEraReadout(era);
     if (mixer.currentEra !== transition.to) mixer.setEra(transition.to);
-    if (timeline) updateTimeline(timeline, transition.to);
+    if (timeline) updateTimeline(timeline, transition.to, transition.isTransitioning);
   },
 });
 
@@ -26,6 +27,7 @@ mount.prepend(createHud(app.currentEra));
 timeline = createTimeline(app);
 mount.append(timeline);
 mount.append(createControlDock(app, mixer));
+mount.setAttribute('data-quality', app.quality);
 updateEraReadout(app.currentEra);
 updateTimeline(timeline, app.currentEra.id);
 window.addEventListener('beforeunload', () => {
@@ -95,10 +97,10 @@ function createTimeline(cityApp: CityApp): HTMLElement {
 
 function selectEra(cityApp: CityApp, timeline: HTMLElement, era: EraId): void {
   cityApp.setEra(era);
-  updateTimeline(timeline, era);
+  if (cityApp.currentEra.id === era) updateTimeline(timeline, era, cityApp.isTransitioning);
 }
 
-function updateTimeline(timeline: HTMLElement, activeId: EraId): void {
+function updateTimeline(timeline: HTMLElement, activeId: EraId, isTransitioning = false): void {
   const activeIndex = ERA_REGISTRY.findIndex((era) => era.id === activeId);
   const activeEra = ERA_REGISTRY[activeIndex];
   const range = timeline.querySelector<HTMLInputElement>('.timeline__range');
@@ -107,7 +109,10 @@ function updateTimeline(timeline: HTMLElement, activeId: EraId): void {
     range.setAttribute('aria-valuetext', `${activeEra.year}, ${activeEra.label}`);
   }
   const state = timeline.querySelector<HTMLElement>('.timeline__state');
-  if (state && activeEra) state.textContent = `${activeEra.year} / transforming`;
+  if (state && activeEra) {
+    state.textContent = `${activeEra.year} / ${isTransitioning ? 'transforming' : 'settled'}`;
+    timeline.setAttribute('aria-busy', String(isTransitioning));
+  }
   timeline.querySelectorAll<HTMLButtonElement>('[data-era]').forEach((button) => {
     const isActive = button.dataset.era === activeId;
     button.classList.toggle('is-active', isActive);
@@ -166,4 +171,6 @@ function updateEraReadout(era: EraSpec): void {
   const label = document.querySelector<HTMLElement>('.era-readout__label');
   if (year) year.textContent = String(era.year);
   if (label) label.textContent = era.label;
+  mount?.setAttribute('data-era', era.id);
+  mount?.setAttribute('data-quality', app.quality);
 }

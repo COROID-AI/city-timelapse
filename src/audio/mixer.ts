@@ -32,6 +32,8 @@ export class SfxMixer {
   private enabled = false;
   private disposed = false;
   private eventTimer?: number;
+  private fadeTimers = new Set<number>();
+  private eventSources = new Set<AudioBufferSourceNode>();
 
   constructor(options: SfxMixerOptions = {}) {
     this.initialEra = options.initialEra ?? ERA_IDS[0];
@@ -46,6 +48,10 @@ export class SfxMixer {
 
   get currentEra(): EraId {
     return this.era;
+  }
+
+  get isTransitioning(): boolean {
+    return this.fadeTimers.size > 0;
   }
 
   /** Call from a click/tap/keydown handler; browsers then permit AudioContext resume. */
@@ -71,6 +77,7 @@ export class SfxMixer {
 
   setEra(id: EraId): void {
     if (this.disposed) return;
+    if (id === this.era && this.active) return;
     this.era = id;
     if (!this.enabled || !this.context) return;
     this.startEra(id, this.reducedMotion ? 0.08 : this.crossfadeSeconds);
@@ -80,9 +87,15 @@ export class SfxMixer {
     if (this.disposed) return;
     this.disposed = true;
     if (this.eventTimer !== undefined) window.clearTimeout(this.eventTimer);
+    this.fadeTimers.forEach((timer) => window.clearTimeout(timer));
+    this.fadeTimers.clear();
     this.active?.ambient.stop();
     this.active?.traffic.stop();
     this.active?.music.stop();
+    this.eventSources.forEach((source) => {
+      try { source.stop(); } catch { /* source already ended */ }
+    });
+    this.eventSources.clear();
     this.context?.close().catch(() => undefined);
     this.active = undefined;
   }
@@ -117,7 +130,8 @@ export class SfxMixer {
     if (previous) {
       previous.gain.gain.setValueAtTime(Math.max(0.0001, previous.gain.gain.value), now);
       previous.gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-      window.setTimeout(() => {
+      const timer = window.setTimeout(() => {
+        this.fadeTimers.delete(timer);
         try {
           previous.ambient.stop();
           previous.traffic.stop();
@@ -126,6 +140,7 @@ export class SfxMixer {
           // A source may already have ended during a rapid scrub.
         }
       }, duration * 1000 + 40);
+      this.fadeTimers.add(timer);
     }
     this.active = next;
     this.scheduleEvent(id);
@@ -158,9 +173,12 @@ export class SfxMixer {
     if (!this.enabled || !this.context || !this.buffers) return;
     const delay = 4600 + Math.random() * 3200;
     this.eventTimer = window.setTimeout(() => {
-      if (!this.context || !this.enabled || !this.buffers) return;
+      this.eventTimer = undefined;
+      if (this.disposed || !this.context || !this.enabled || !this.buffers || this.era !== id) return;
       const events = this.buffers[id].events;
       const source = this.context.createBufferSource();
+      this.eventSources.add(source);
+      source.addEventListener('ended', () => this.eventSources.delete(source), { once: true });
       source.buffer = events[Math.floor(Math.random() * events.length)];
       const gain = this.context.createGain();
       gain.gain.value = 0.18;

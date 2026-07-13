@@ -1,13 +1,23 @@
 import * as THREE from 'three';
 
-import type { EraSpec } from './eras';
+import type { EraId, EraSpec } from './eras';
 
 /** The scene systems owned by the procedural city block. */
 export interface CityWorld {
   readonly transitionProgress: number;
+  readonly selectedEraId: EraId;
+  readonly qualityTier: CityQualityTier;
   updateEra(era: EraSpec): void;
   update(deltaSeconds: number): void;
   dispose(): void;
+}
+
+/** Density preset used to keep the camera responsive on constrained devices. */
+export type CityQualityTier = 'high' | 'balanced' | 'low';
+
+export interface CityWorldOptions {
+  qualityTier?: CityQualityTier;
+  reducedMotion?: boolean;
 }
 
 type Side = -1 | 1;
@@ -85,6 +95,8 @@ interface EraVisualState {
   readonly era: EraSpec;
   readonly profile: VisualProfile;
   readonly buildingColors: THREE.Color[];
+  readonly populationColors: THREE.Color[];
+  readonly vehicleColors: THREE.Color[];
   readonly accent: THREE.Color;
   readonly windowColor: THREE.Color;
   readonly interiorColor: THREE.Color;
@@ -93,6 +105,8 @@ interface EraVisualState {
   readonly lampColor: THREE.Color;
   readonly sky: THREE.Color;
   readonly fog: THREE.Color;
+  readonly buildingDensity: number;
+  readonly fogDensity: number;
 }
 
 const BUILDING_SITES = [
@@ -160,7 +174,16 @@ const smoothStep = (value: number): number => {
 
 const tokenColor = (token: string, fallback: string): THREE.Color => {
   const normalized = token.trim().toLowerCase();
-  return new THREE.Color(PALETTE_COLORS[normalized] ?? MATERIAL_COLORS[normalized] ?? fallback);
+  const value = PALETTE_COLORS[normalized] ?? MATERIAL_COLORS[normalized] ?? fallback;
+  const cssColor = value.startsWith('#') ? value : `#${value}`;
+  return new THREE.Color(cssColor);
+};
+
+const configColor = (token: string, fallback: string): THREE.Color => tokenColor(token, fallback);
+
+const canvasColor = (token: string, fallback: string): string => {
+  const normalized = token.trim().toLowerCase();
+  return PALETTE_COLORS[normalized] ?? MATERIAL_COLORS[normalized] ?? (token.startsWith('#') ? token : fallback);
 };
 
 const averageColors = (tokens: readonly string[], fallback: string): THREE.Color => {
@@ -255,8 +278,10 @@ const styleForEra = (era: EraSpec): VisualProfile => {
 
 class ProceduralCityWorld implements CityWorld {
   readonly root = new THREE.Group();
+  get selectedEraId(): EraId { return this.targetState.era.id; }
 
   private readonly scene: THREE.Scene;
+  readonly qualityTier: CityQualityTier;
   private readonly buildingGroup = new THREE.Group();
   private readonly streetGroup = new THREE.Group();
   private readonly vehicleGroup = new THREE.Group();
@@ -290,6 +315,10 @@ class ProceduralCityWorld implements CityWorld {
   private readonly signs: SignRecord[] = [];
   private readonly vehicles: VehicleRecord[] = [];
   private readonly pedestrians: PedestrianRecord[] = [];
+  private readonly vehicleLimit: number;
+  private readonly pedestrianLimit: number;
+  private readonly foliageLimit: number;
+  private readonly reducedMotion: boolean;
   private readonly foliageMaterials = new THREE.MeshStandardMaterial({ color: '#4f7359', roughness: 0.92 });
   private readonly trunkMaterial = new THREE.MeshStandardMaterial({ color: '#5b4837', roughness: 0.94 });
   private readonly roadMaterial = new THREE.MeshStandardMaterial({ color: '#1a2025', roughness: 0.9 });
@@ -301,16 +330,29 @@ class ProceduralCityWorld implements CityWorld {
   private readonly streetLights: THREE.PointLight[] = [];
   private readonly reusableMaterials: THREE.Material[] = [];
   private readonly matrixHelper = new THREE.Object3D();
+  private readonly windowTint = new THREE.Color();
+  private readonly interiorTint = new THREE.Color();
+  private readonly headTint = new THREE.Color();
+  private readonly targetBackground = new THREE.Color();
+  private readonly targetFog = new THREE.Color();
   private currentState: EraVisualState;
   private targetState: EraVisualState;
   private transitionFrom: EraVisualState;
   private transitionElapsed = 0;
-  private readonly transitionDuration = 1.6;
+  private readonly transitionDuration: number;
+  private readonly maxDelta = 0.08;
   private elapsed = 0;
   private disposed = false;
 
-  constructor(scene: THREE.Scene, initialEra: EraSpec) {
+  constructor(scene: THREE.Scene, initialEra: EraSpec, options: CityWorldOptions = {}) {
     this.scene = scene;
+    this.qualityTier = options.qualityTier ?? 'high';
+    this.reducedMotion = options.reducedMotion ?? false;
+    this.transitionDuration = this.reducedMotion ? 0.08 : 1.6;
+    const density = this.qualityTier === 'high' ? 1 : this.qualityTier === 'balanced' ? 0.75 : 0.5;
+    this.vehicleLimit = Math.max(3, Math.round(8 * density));
+    this.pedestrianLimit = Math.max(8, Math.round(24 * density));
+    this.foliageLimit = Math.max(6, Math.round(12 * density));
     this.currentState = this.createState(initialEra);
     this.targetState = this.currentState;
     this.transitionFrom = this.currentState;
@@ -333,6 +375,15 @@ class ProceduralCityWorld implements CityWorld {
 
   updateEra(era: EraSpec): void {
     if (this.disposed || era.id === this.targetState.era.id) return;
+
+    // Scrubbing can interrupt an in-flight transition. Capture the actual
+    // interpolated scene first so the next transition starts from what the
+    // visitor sees rather than from a stale era snapshot.
+    if (this.currentState.era.id !== this.targetState.era.id) {
+      const progress = smoothStep(this.transitionProgress);
+      this.applyState(this.transitionFrom, this.targetState, progress);
+      this.currentState = this.blendState(this.transitionFrom, this.targetState, progress);
+    }
     this.transitionFrom = this.currentState;
     this.targetState = this.createState(era);
     this.transitionElapsed = 0;
@@ -343,7 +394,7 @@ class ProceduralCityWorld implements CityWorld {
 
   update(deltaSeconds: number): void {
     if (this.disposed) return;
-    const delta = THREE.MathUtils.clamp(deltaSeconds, 0, 0.1);
+    const delta = THREE.MathUtils.clamp(deltaSeconds, 0, this.maxDelta);
     this.elapsed += delta;
     if (this.currentState.era.id !== this.targetState.era.id) {
       this.transitionElapsed = Math.min(this.transitionDuration, this.transitionElapsed + delta);
@@ -360,6 +411,7 @@ class ProceduralCityWorld implements CityWorld {
     if (this.disposed) return;
     this.disposed = true;
     this.root.removeFromParent();
+    this.scene.fog = null;
     this.root.traverse((object) => {
       if (object instanceof THREE.Mesh && object.geometry !== this.sharedBox) object.geometry.dispose();
     });
@@ -388,6 +440,7 @@ class ProceduralCityWorld implements CityWorld {
     const buildingColors = BUILDING_SITES.map((_, index) => tokenColor(materials[index % Math.max(1, materials.length)] ?? 'render', '#6e7374'));
     const palette = era.config.population.palette;
     const accent = averageColors(palette, profile.trimColor);
+    const populationColors = Array.from({ length: 24 }, (_, index) => tokenColor(palette[index % Math.max(1, palette.length)] ?? '#53636d', '#53636d'));
     const windowColor = tokenColor(profile.windowColor, '#476d78');
     const interiorColor = averageColors([profile.lampColor, ...palette], '#bb8757');
     const roadToken = era.config.world.roadSurface.toLowerCase();
@@ -396,14 +449,48 @@ class ProceduralCityWorld implements CityWorld {
       era,
       profile,
       buildingColors,
+      populationColors,
+      vehicleColors: populationColors.map((color) => color.clone()),
       accent: tokenColor(profile.trimColor, accent.getHexString()),
       windowColor,
       interiorColor,
-      roadColor: new THREE.Color(ROAD_COLORS[roadKey]),
+      roadColor: tokenColor(ROAD_COLORS[roadKey] ?? '#1a2025', '#1a2025'),
       foliageColor: tokenColor(profile.foliageColor, '#4f7359'),
       lampColor: tokenColor(profile.lampColor, '#ffcf8a'),
-      sky: new THREE.Color(era.config.atmosphere.sky),
-      fog: new THREE.Color(era.config.atmosphere.fog),
+      sky: configColor(era.config.atmosphere.sky, '#152844'),
+      fog: configColor(era.config.atmosphere.fog, '#617286'),
+      buildingDensity: era.config.world.buildingDensity,
+      fogDensity: era.config.atmosphere.fogDensity,
+    };
+  }
+
+  private blendState(from: EraVisualState, to: EraVisualState, progress: number): EraVisualState {
+    const t = THREE.MathUtils.clamp(progress, 0, 1);
+    const blendColors = (fromColors: readonly THREE.Color[], toColors: readonly THREE.Color[]): THREE.Color[] =>
+      toColors.map((color, index) => fromColors[index]?.clone().lerp(color, t) ?? color.clone());
+    return {
+      era: to.era,
+      profile: {
+        ...to.profile,
+        heightScale: THREE.MathUtils.lerp(from.profile.heightScale, to.profile.heightScale, t),
+        widthScale: THREE.MathUtils.lerp(from.profile.widthScale, to.profile.widthScale, t),
+        pedestrianScale: THREE.MathUtils.lerp(from.profile.pedestrianScale, to.profile.pedestrianScale, t),
+        signageGlow: THREE.MathUtils.lerp(from.profile.signageGlow, to.profile.signageGlow, t),
+        vehicleStyle: t < 0.5 ? from.profile.vehicleStyle : to.profile.vehicleStyle,
+      },
+      buildingColors: blendColors(from.buildingColors, to.buildingColors),
+      populationColors: blendColors(from.populationColors, to.populationColors),
+      vehicleColors: blendColors(from.vehicleColors, to.vehicleColors),
+      accent: from.accent.clone().lerp(to.accent, t),
+      windowColor: from.windowColor.clone().lerp(to.windowColor, t),
+      interiorColor: from.interiorColor.clone().lerp(to.interiorColor, t),
+      roadColor: from.roadColor.clone().lerp(to.roadColor, t),
+      foliageColor: from.foliageColor.clone().lerp(to.foliageColor, t),
+      lampColor: from.lampColor.clone().lerp(to.lampColor, t),
+      sky: from.sky.clone().lerp(to.sky, t),
+      fog: from.fog.clone().lerp(to.fog, t),
+      buildingDensity: THREE.MathUtils.lerp(from.buildingDensity, to.buildingDensity, t),
+      fogDensity: THREE.MathUtils.lerp(from.fogDensity, to.fogDensity, t),
     };
   }
 
@@ -549,9 +636,11 @@ class ProceduralCityWorld implements CityWorld {
       const isAdvertisement = sign.kind === 'advertisement';
       const motif = motifs[sign.index % Math.max(1, motifs.length)] ?? 'neighborhood';
       const next = motifs[(sign.index + 1) % Math.max(1, motifs.length)] ?? motif;
-      context.fillStyle = isAdvertisement ? era.config.atmosphere.sky : '#211e22';
+      context.fillStyle = isAdvertisement ? canvasColor(era.config.atmosphere.sky, '#152844') : '#211e22';
       context.fillRect(0, 0, sign.canvas.width, sign.canvas.height);
-      context.fillStyle = isAdvertisement ? era.config.atmosphere.horizon : era.config.population.palette[sign.index % Math.max(1, era.config.population.palette.length)] ?? '#e6d7b9';
+      context.fillStyle = isAdvertisement
+        ? canvasColor(era.config.atmosphere.horizon, '#d38f78')
+        : canvasColor(era.config.population.palette[sign.index % Math.max(1, era.config.population.palette.length)] ?? '#e6d7b9', '#e6d7b9');
       context.fillRect(12, 12, sign.canvas.width - 24, sign.canvas.height - 24);
       context.fillStyle = isAdvertisement ? '#101722' : '#fcf2d8';
       context.font = `700 ${isAdvertisement ? 37 : 30}px ${era.config.signage.typography.includes('serif') ? 'Georgia' : 'Arial'}`;
@@ -561,7 +650,7 @@ class ProceduralCityWorld implements CityWorld {
       context.font = `600 ${isAdvertisement ? 18 : 15}px Arial`;
       context.fillText(isAdvertisement ? next.toUpperCase() : era.config.signage.illumination.toUpperCase(), sign.canvas.width / 2, sign.canvas.height / 2 + 25);
       sign.texture.needsUpdate = true;
-      sign.material.emissive.set(era.config.atmosphere.horizon);
+      sign.material.emissive.set(canvasColor(era.config.atmosphere.horizon, '#d38f78'));
       sign.material.emissiveIntensity = era.config.signage.illumination.includes('neon') || era.id === '2055' ? 1.15 : 0.45;
     });
   }
@@ -571,7 +660,7 @@ class ProceduralCityWorld implements CityWorld {
     const wheelMaterial = new THREE.MeshStandardMaterial({ color: '#161a1d', roughness: 0.86 });
     const lightMaterial = new THREE.MeshStandardMaterial({ color: '#fff1bb', emissive: '#ffbd70', emissiveIntensity: 1.2 });
     this.reusableMaterials.push(windowMaterial, wheelMaterial, lightMaterial);
-    for (let index = 0; index < 8; index += 1) {
+    for (let index = 0; index < this.vehicleLimit; index += 1) {
       const group = new THREE.Group();
       group.name = `traffic pool vehicle ${index + 1}`;
       const bodyMaterial = new THREE.MeshStandardMaterial({ color: '#a45c4f', roughness: 0.45, metalness: 0.28 });
@@ -599,7 +688,7 @@ class ProceduralCityWorld implements CityWorld {
     const skinMaterial = new THREE.MeshStandardMaterial({ color: '#c68462', roughness: 0.72 });
     const shoeMaterial = new THREE.MeshStandardMaterial({ color: '#20252b', roughness: 0.84 });
     this.reusableMaterials.push(skinMaterial, shoeMaterial);
-    for (let index = 0; index < 24; index += 1) {
+    for (let index = 0; index < this.pedestrianLimit; index += 1) {
       const group = new THREE.Group();
       group.name = `pooled pedestrian ${index + 1}`;
       const outfitMaterial = new THREE.MeshStandardMaterial({ color: '#344554', roughness: 0.76 });
@@ -633,9 +722,9 @@ class ProceduralCityWorld implements CityWorld {
   }
 
   private createFoliageAndFurniture(): void {
-    const foliage = new THREE.InstancedMesh(this.sharedFoliage, this.foliageMaterials, 12);
-    const trunks = new THREE.InstancedMesh(this.sharedTrunk, this.trunkMaterial, 12);
-    for (let index = 0; index < 12; index += 1) {
+    const foliage = new THREE.InstancedMesh(this.sharedFoliage, this.foliageMaterials, this.foliageLimit);
+    const trunks = new THREE.InstancedMesh(this.sharedTrunk, this.trunkMaterial, this.foliageLimit);
+    for (let index = 0; index < this.foliageLimit; index += 1) {
       const side = index % 2 === 0 ? 1 : -1;
       const z = -11.5 + Math.floor(index / 2) * 4.6;
       this.matrixHelper.position.set(side * (5.7 + (index % 3) * 0.35), 1.28, z);
@@ -714,12 +803,16 @@ class ProceduralCityWorld implements CityWorld {
     this.sharedInteriorMaterial.color.lerpColors(from.interiorColor, to.interiorColor, t);
     this.sharedInteriorMaterial.emissive.lerpColors(from.lampColor, to.lampColor, t).multiplyScalar(0.24);
     this.laneMaterial.color.lerpColors(from.accent, to.accent, t);
-    this.scene.background = from.sky.clone().lerp(to.sky, t);
+    this.targetBackground.copy(from.sky).lerp(to.sky, t);
+    this.scene.background = this.targetBackground;
     if (this.scene.fog instanceof THREE.FogExp2) {
-      this.scene.fog.color.copy(from.fog).lerp(to.fog, t);
-      this.scene.fog.density = THREE.MathUtils.lerp(from.era.config.atmosphere.fogDensity, to.era.config.atmosphere.fogDensity, t);
+      this.targetFog.copy(from.fog).lerp(to.fog, t);
+      this.scene.fog.color.copy(this.targetFog);
+      this.scene.fog.density = THREE.MathUtils.lerp(from.fogDensity, to.fogDensity, t);
     } else {
-      this.scene.fog = new THREE.FogExp2(from.fog.clone().lerp(to.fog, t), THREE.MathUtils.lerp(from.era.config.atmosphere.fogDensity, to.era.config.atmosphere.fogDensity, t));
+      this.targetFog.copy(from.fog).lerp(to.fog, t);
+      const fog = new THREE.FogExp2(this.targetFog.clone(), THREE.MathUtils.lerp(from.fogDensity, to.fogDensity, t));
+      this.scene.fog = fog;
     }
     this.sun.color.copy(from.lampColor).lerp(to.lampColor, t);
     this.sun.intensity = THREE.MathUtils.lerp(2.2, 3.6, t);
@@ -742,10 +835,10 @@ class ProceduralCityWorld implements CityWorld {
   private updateWindows(building: BuildingRecord, width: number, height: number, depth: number, from: EraVisualState, to: EraVisualState, progress: number): void {
     const rows = Math.min(8, Math.max(3, Math.round(height / 1.05)));
     const columns = 6;
-    const glassTint = from.windowColor.clone().lerp(to.windowColor, progress);
-    const interiorTint = from.interiorColor.clone().lerp(to.interiorColor, progress);
-    this.sharedGlassMaterial.color.copy(glassTint);
-    this.sharedInteriorMaterial.color.copy(interiorTint);
+    this.windowTint.copy(from.windowColor).lerp(to.windowColor, progress);
+    this.interiorTint.copy(from.interiorColor).lerp(to.interiorColor, progress);
+    this.sharedGlassMaterial.color.copy(this.windowTint);
+    this.sharedInteriorMaterial.color.copy(this.interiorTint);
     for (let index = 0; index < 48; index += 1) {
       const row = Math.floor(index / columns);
       const column = index % columns;
@@ -853,7 +946,10 @@ class ProceduralCityWorld implements CityWorld {
       const toColor = tokenColor(toPalette[index % Math.max(1, toPalette.length)] ?? '#53636d', '#53636d');
       (pedestrian.body.material as THREE.MeshStandardMaterial).color.lerpColors(fromColor, toColor, progress);
       (pedestrian.leftArm.material as THREE.MeshStandardMaterial).color.lerpColors(fromColor, toColor, progress);
-      (pedestrian.head.material as THREE.MeshStandardMaterial).color.lerpColors(new THREE.Color('#bd8062'), new THREE.Color('#d39a74'), progress);
+      const headFrom = from.era.id === '1945' ? '#bd8062' : '#c58d6f';
+      const headTo = to.era.id === '2055' ? '#e0ae87' : '#d39a74';
+      this.headTint.set(headFrom).lerp(new THREE.Color(headTo), progress);
+      (pedestrian.head.material as THREE.MeshStandardMaterial).color.copy(this.headTint);
       const silhouette = THREE.MathUtils.lerp(from.profile.pedestrianScale, to.profile.pedestrianScale, progress);
       pedestrian.group.scale.set(silhouette, silhouette * (to.era.id === '2055' ? 1.08 : 1), silhouette);
       pedestrian.group.userData['fashion'] = to.era.config.population.fashion;
@@ -883,6 +979,6 @@ class ProceduralCityWorld implements CityWorld {
   }
 }
 
-export function createCityWorld(scene: THREE.Scene, initialEra: EraSpec): CityWorld {
-  return new ProceduralCityWorld(scene, initialEra);
+export function createCityWorld(scene: THREE.Scene, initialEra: EraSpec, options: CityWorldOptions = {}): CityWorld {
+  return new ProceduralCityWorld(scene, initialEra, options);
 }

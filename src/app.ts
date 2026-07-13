@@ -6,11 +6,12 @@ import {
   type EraSpec,
   type TransitionProgress,
 } from './eras';
-import { createCityWorld, type CityWorld } from './city-world';
+import { createCityWorld, type CityQualityTier, type CityWorld } from './city-world';
 
 export interface CityAppOptions {
   mount: HTMLElement;
   initialEra?: EraId;
+  qualityTier?: CityQualityTier;
   onEraChange?: (era: EraSpec, transition: TransitionProgress) => void;
 }
 
@@ -24,6 +25,7 @@ export class CityApp {
 
   private readonly mount: HTMLElement;
   private readonly onEraChange?: CityAppOptions['onEraChange'];
+  private readonly qualityTier: CityQualityTier;
   private camera?: THREE.PerspectiveCamera;
   private renderer?: THREE.WebGLRenderer;
   private viewport?: HTMLElement;
@@ -50,6 +52,7 @@ export class CityApp {
   constructor(options: CityAppOptions) {
     this.mount = options.mount;
     this.onEraChange = options.onEraChange;
+    this.qualityTier = options.qualityTier ?? this.detectQualityTier();
     const requestedEra = options.initialEra ?? ERA_REGISTRY[0].id;
     const requestedIndex = ERA_REGISTRY.findIndex((era) => era.id === requestedEra);
     this.eraIndex = requestedIndex >= 0 ? requestedIndex : 0;
@@ -64,6 +67,8 @@ export class CityApp {
   get isTransitioning(): boolean {
     return this.transitionTarget !== undefined;
   }
+
+  get quality(): CityQualityTier { return this.qualityTier; }
 
   setEra(id: EraId): void {
     if (this.disposed) return;
@@ -131,19 +136,27 @@ export class CityApp {
 
   private initialize(): void {
     try {
+      if (!('WebGLRenderingContext' in window) || !document.createElement('canvas').getContext('webgl')) {
+        throw new Error('WebGL is not supported by this browser.');
+      }
       this.viewport = document.createElement('div');
       this.viewport.className = 'scene-viewport';
       this.viewport.setAttribute('aria-label', 'Interactive 3D city block. Drag to look around.');
       this.viewport.tabIndex = 0;
-      this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      this.renderer = new THREE.WebGLRenderer({
+        antialias: this.qualityTier === 'high',
+        powerPreference: this.qualityTier === 'low' ? 'low-power' : 'high-performance',
+      });
+      const pixelRatio = this.qualityTier === 'high' ? 2 : this.qualityTier === 'balanced' ? 1.5 : 1;
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, pixelRatio));
       this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-      this.renderer.shadowMap.enabled = true;
+      this.renderer.shadowMap.enabled = this.qualityTier !== 'low';
       this.viewport.append(this.renderer.domElement);
       this.mount.replaceChildren(this.viewport);
 
       this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-      this.cityWorld = createCityWorld(this.scene, this.currentEra);
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      this.cityWorld = createCityWorld(this.scene, this.currentEra, { qualityTier: this.qualityTier, reducedMotion });
       this.attachControls();
       this.resizeObserver = new ResizeObserver(() => this.resize());
       this.resizeObserver.observe(this.viewport);
@@ -154,6 +167,16 @@ export class CityApp {
     } catch (error) {
       this.showError(error);
     }
+  }
+
+  private detectQualityTier(): CityQualityTier {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const device = navigator as Navigator & { deviceMemory?: number };
+    const memory = device.deviceMemory ?? 8;
+    const cores = navigator.hardwareConcurrency ?? 8;
+    if (reducedMotion || memory <= 2 || cores <= 2) return 'low';
+    if (memory <= 4 || cores <= 4) return 'balanced';
+    return 'high';
   }
 
   private attachControls(): void {
@@ -266,8 +289,13 @@ export class CityApp {
   }
 
   private showError(error: unknown): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    window.cancelAnimationFrame(this.animationFrame);
     const message = error instanceof Error ? error.message : 'WebGL could not be initialized.';
     this.mount.replaceChildren();
+    this.renderer?.dispose();
+    this.renderer = undefined;
     const errorState = document.createElement('div');
     errorState.className = 'scene-state scene-state--error';
     errorState.innerHTML = `<span class="state-icon" aria-hidden="true">!</span><p class="eyebrow">Renderer unavailable</p><h2>We could not open the city window</h2><p class="state-detail">${this.escapeHtml(message)}</p><p>Try a browser with WebGL enabled, then reload Luna.</p>`;
@@ -289,10 +317,14 @@ export class CityApp {
     const delta = Math.min(0.05, (time - this.lastFrame) / 1000 || 0);
     this.lastFrame = time;
     if (this.paused) return;
-    this.moveCamera(delta);
-    this.cityWorld?.update(delta);
-    this.emitTransitionProgress();
-    this.renderer.render(this.scene, this.camera);
+    try {
+      this.moveCamera(delta);
+      this.cityWorld?.update(delta);
+      this.emitTransitionProgress();
+      this.renderer.render(this.scene, this.camera);
+    } catch (error) {
+      this.showError(error);
+    }
   };
 
   private emitTransitionProgress(): void {
@@ -310,6 +342,12 @@ export class CityApp {
     if (progress >= 1) {
       this.transitionFrom = undefined;
       this.transitionTarget = undefined;
+      this.onEraChange?.(this.currentEra, {
+        from: this.currentEra.id,
+        to: this.currentEra.id,
+        progress: 1,
+        isTransitioning: false,
+      });
     }
   }
 
