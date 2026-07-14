@@ -3,7 +3,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { ERAS, ERA_COUNT } from '../config/eras';
+import { ERAS } from '../config/eras';
 import type { EraWeights } from '../core/EraTransition';
 import { blendScalar } from '../core/mathUtils';
 
@@ -60,6 +60,5 @@ export class PostFX {
 
   dispose(): void {
     this.composer.dispose();
-    void ERA_COUNT;
   }
 }

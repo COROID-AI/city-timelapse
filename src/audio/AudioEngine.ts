@@ -265,6 +265,3 @@ export class AudioEngine {
 function lerpVal(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
-
-// Re-export for blendScalar usage guard (kept for tree-shake clarity).
-void blendScalar;

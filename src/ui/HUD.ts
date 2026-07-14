@@ -24,7 +24,6 @@ export class HUD {
     this.info = this.el.querySelector('.hud-info') as HTMLDivElement;
     this.stats = this.el.querySelector('.hud-stats') as HTMLDivElement;
     this.help = this.el.querySelector('.hud-help') as HTMLDivElement;
-    void this.help;
   }
 
   setInfo(text: string): void {

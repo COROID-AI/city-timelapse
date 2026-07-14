@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { ERAS, ERA_COUNT } from '../config/eras';
 import type { EraWeights } from '../core/EraTransition';
-import { blendColors, blendScalar, hash, lerp, clamp } from '../core/mathUtils';
+import { blendColors, blendScalar, hash, clamp } from '../core/mathUtils';
 
 // Street lamps (with point lights), trees, and neon signs.
 // All built once per era; crossfade opacity by era weight.
@@ -207,5 +207,3 @@ export class StreetProps {
     this.lampMats = []; this.treeMats = []; this.signMats = []; this.lampLights = [];
   }
 }
-
-void lerp;

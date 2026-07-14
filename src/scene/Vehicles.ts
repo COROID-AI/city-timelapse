@@ -205,5 +205,3 @@ export class Vehicles {
     this.fleets = []; this.fleetMats = []; this.fleetGlowMats = [];
   }
 }
-
-void hash;
