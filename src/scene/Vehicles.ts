@@ -60,6 +60,7 @@ export class Vehicles {
         }
         gi++;
       }
+   group.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = true; });
       group.visible = e === 0;
       scene.add(group);
       this.fleets.push(group);

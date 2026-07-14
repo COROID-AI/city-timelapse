@@ -44,10 +44,7 @@ export class EraTransition {
     this.targetIndex = i;
     this.target = i;
     this.settled = false;
-    if (this.reduceMotion) {
-      // Shorten travel drastically; still animate so opacity blends settle.
-      this.progress = this.progress; // keep current, ease over reduceDuration
-    }
+   // Reduced-motion travel time is handled in update() via reduceDuration.
   }
 
   /** Direct continuous target (for scrubbing the slider smoothly). */

@@ -59,10 +59,12 @@ export class GroundStreet {
     const swN = new THREE.Mesh(new THREE.PlaneGeometry(BLOCK_HALF * 2 + 10, 6), this.swNMat);
     swN.rotation.x = -Math.PI / 2;
     swN.position.set(0, 0.01, ROAD_HALF + 3);
+   swN.receiveShadow = true;
     scene.add(swN);
     const swS = new THREE.Mesh(new THREE.PlaneGeometry(BLOCK_HALF * 2 + 10, 6), this.swSMat);
     swS.rotation.x = -Math.PI / 2;
     swS.position.set(0, 0.01, -(ROAD_HALF + 3));
+   swS.receiveShadow = true;
     scene.add(swS);
 
     // Center lane dashes

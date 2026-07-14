@@ -106,6 +106,8 @@ export class Buildings {
     wallMesh.instanceMatrix.needsUpdate = true;
     if (wallMesh.instanceColor) wallMesh.instanceColor.needsUpdate = true;
     wallMesh.visible = isActive;
+   wallMesh.castShadow = true;
+   wallMesh.receiveShadow = true;
     wallMesh.frustumCulled = false;
     this.scene.add(wallMesh);
     this.wallMeshes.push(wallMesh);
@@ -160,6 +162,7 @@ export class Buildings {
     }
     roofMesh.instanceMatrix.needsUpdate = true;
     roofMesh.visible = isActive;
+   roofMesh.castShadow = true;
     roofMesh.frustumCulled = false;
     this.scene.add(roofMesh);
     this.roofMeshes.push(roofMesh);
@@ -257,7 +260,7 @@ export class Buildings {
     return idx;
   }
 
-  update(weights: EraWeights): void {
+ update(weights: EraWeights, time: number): void {
     for (let e = 0; e < ERA_COUNT; e++) {
       const w = weights[e];
       const vis = w > 0.003;
@@ -269,6 +272,9 @@ export class Buildings {
       this.windowMats[e].opacity = w;
       this.roofMats[e].opacity = w;
       this.accentMats[e].opacity = w;
+     // Subtle window light flicker for liveliness
+     const flicker = 1 + Math.sin(time * 3.5 + e * 1.7) * 0.07;
+     this.windowMats[e].emissiveIntensity = ERAS[e].buildings.windowIntensity * flicker;
     }
   }
 

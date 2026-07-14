@@ -321,7 +321,7 @@ export class App {
   private applyAll(weights: Float32Array, dt: number, time: number): void {
     this.sky.update(weights, time);
     this.ground.update(weights);
-    this.buildings.update(weights);
+   this.buildings.update(weights, time);
     this.vehicles.update(weights, dt, time);
     this.props.update(weights, time);
     this.effects.update(weights, dt);

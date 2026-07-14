@@ -92,6 +92,7 @@ export class StreetProps {
     }
     lampGroup.visible = isActive;
     lampGroup.frustumCulled = false;
+   lampGroup.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = true; });
     this.scene.add(lampGroup);
     this.lampMeshes.push(lampGroup);
     this.lampMats.push([poleMat, bulbMat]);
@@ -133,6 +134,7 @@ export class StreetProps {
       }
       treeGroup.add(tree);
     }
+   treeGroup.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = true; });
     treeGroup.visible = isActive;
     treeGroup.frustumCulled = false;
     this.scene.add(treeGroup);
