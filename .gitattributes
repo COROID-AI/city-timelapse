@@ -1,0 +1,4 @@
+._* binary
+junk_files.txt binary
+node_modules/** binary
+dist/** binary
