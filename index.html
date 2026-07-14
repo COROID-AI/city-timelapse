@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230a1430'/%3E%3Crect x='6' y='14' width='5' height='12' fill='%236ad7ff'/%3E%3Crect x='13' y='8' width='6' height='18' fill='%2322e0ff'/%3E%3Crect x='21' y='11' width='5' height='15' fill='%23ffb86b'/%3E%3C/svg%3E" />
+    <title>City Timelapse · 1945–2055</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <div id="loading">
+      <div class="spinner"></div>
+      <div class="loading-text">Building the city…</div>
+    </div>
+
+    <header id="topbar">
+      <div class="title">
+        <span class="title-main">CITY TIMELAPSE</span>
+        <span class="title-sub" id="eraLabel">1945</span>
+      </div>
+      <div class="controls">
+        <button id="rotateBtn" class="toggle" title="Toggle auto-rotate camera">
+          <span class="icon">↻</span><span class="lbl">Auto-Rotate</span>
+        </button>
+        <button id="muteBtn" class="toggle" title="Toggle sound">
+          <span class="icon">♪</span><span class="lbl">Sound</span>
+        </button>
+        <button id="resetBtn" class="toggle" title="Reset camera view">
+          <span class="icon">⌖</span><span class="lbl">Reset View</span>
+        </button>
+      </div>
+    </header>
+
+    <div id="timeline">
+      <div class="timeline-inner">
+        <div class="track-wrap">
+          <input id="eraRange" type="range" min="0" max="5" step="1" value="0" aria-label="Era selector" />
+          <div class="track-fill" id="trackFill"></div>
+        </div>
+        <div class="ticks" id="ticks">
+          <button class="tick" data-i="0">1945</button>
+          <button class="tick" data-i="1">1965</button>
+          <button class="tick" data-i="2">1985</button>
+          <button class="tick" data-i="3">2005</button>
+          <button class="tick" data-i="4">2025</button>
+          <button class="tick" data-i="5">2055</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="hint">
+      <span><b>Drag</b> orbit</span><span><b>Scroll</b> zoom</span><span><b>Right-drag</b> pan</span>
+    </div>
+
+    <div id="fps"></div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
