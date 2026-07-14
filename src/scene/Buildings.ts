@@ -57,7 +57,7 @@ export class Buildings {
   private roofMats: THREE.MeshStandardMaterial[] = [];
   private accentMats: THREE.MeshStandardMaterial[] = [];
   private heights: Float32Array;
-  private dummy = new THREE.Object3D();
+  private transform = new THREE.Object3D();
   private tmpColor = new THREE.Color();
 
   constructor(scene: THREE.Scene) {
@@ -93,11 +93,11 @@ export class Buildings {
     for (let i = 0; i < PLOTS.length; i++) {
       const p = PLOTS[i];
       const h = this.heights[i * ERA_COUNT + e];
-      this.dummy.position.set(p.x, h * 0.5, p.z);
-      this.dummy.scale.set(p.w, h, p.d);
-      this.dummy.rotation.set(0, 0, 0);
-      this.dummy.updateMatrix();
-      wallMesh.setMatrixAt(i, this.dummy.matrix);
+      this.transform.position.set(p.x, h * 0.5, p.z);
+      this.transform.scale.set(p.w, h, p.d);
+      this.transform.rotation.set(0, 0, 0);
+      this.transform.updateMatrix();
+      wallMesh.setMatrixAt(i, this.transform.matrix);
       const colorIdx = i % era.buildings.wall.length;
       const v = 0.72 + hash(i * 13 + e * 7) * 0.56;
       this.tmpColor.setHex(era.buildings.wall[colorIdx]).multiplyScalar(v);
@@ -152,11 +152,11 @@ export class Buildings {
     for (let i = 0; i < PLOTS.length; i++) {
       const p = PLOTS[i];
       const h = this.heights[i * ERA_COUNT + e];
-      this.dummy.position.set(p.x, h + 0.25, p.z);
-      this.dummy.scale.set(p.w + 0.35, 1, p.d + 0.35);
-      this.dummy.rotation.set(0, 0, 0);
-      this.dummy.updateMatrix();
-      roofMesh.setMatrixAt(i, this.dummy.matrix);
+      this.transform.position.set(p.x, h + 0.25, p.z);
+      this.transform.scale.set(p.w + 0.35, 1, p.d + 0.35);
+      this.transform.rotation.set(0, 0, 0);
+      this.transform.updateMatrix();
+      roofMesh.setMatrixAt(i, this.transform.matrix);
     }
     roofMesh.instanceMatrix.needsUpdate = true;
     roofMesh.visible = isActive;
@@ -190,11 +190,11 @@ export class Buildings {
       ];
       for (let k = 0; k < 4; k++) {
         const [ex, ey, ez, elen, erot] = edges[k];
-        this.dummy.position.set(ex, ey, ez);
-        this.dummy.scale.set(elen, 1, 1);
-        this.dummy.rotation.set(0, erot, 0);
-        this.dummy.updateMatrix();
-        accentMesh.setMatrixAt(base + k, this.dummy.matrix);
+        this.transform.position.set(ex, ey, ez);
+        this.transform.scale.set(elen, 1, 1);
+        this.transform.rotation.set(0, erot, 0);
+        this.transform.updateMatrix();
+        accentMesh.setMatrixAt(base + k, this.transform.matrix);
       }
     }
     accentMesh.instanceMatrix.needsUpdate = true;
@@ -232,26 +232,26 @@ export class Buildings {
       const y = s.mY + r * rowStep;
       for (let c = 0; c < colsZ; c++) {
         const x = p.x - p.w * 0.5 + s.mX + c * colStepZ + colStepZ * 0.5;
-        this.dummy.position.set(x, y, p.z + p.d * 0.5 + 0.06);
-        this.dummy.rotation.set(0, 0, 0);
-        this.dummy.scale.set(1, 1, 1);
-        this.dummy.updateMatrix();
-        mesh.setMatrixAt(idx++, this.dummy.matrix);
-        this.dummy.position.set(x, y, p.z - p.d * 0.5 - 0.06);
-        this.dummy.rotation.set(0, Math.PI, 0);
-        this.dummy.updateMatrix();
-        mesh.setMatrixAt(idx++, this.dummy.matrix);
+        this.transform.position.set(x, y, p.z + p.d * 0.5 + 0.06);
+        this.transform.rotation.set(0, 0, 0);
+        this.transform.scale.set(1, 1, 1);
+        this.transform.updateMatrix();
+        mesh.setMatrixAt(idx++, this.transform.matrix);
+        this.transform.position.set(x, y, p.z - p.d * 0.5 - 0.06);
+        this.transform.rotation.set(0, Math.PI, 0);
+        this.transform.updateMatrix();
+        mesh.setMatrixAt(idx++, this.transform.matrix);
       }
       for (let c = 0; c < colsX; c++) {
         const z = p.z - p.d * 0.5 + s.mX + c * colStepX + colStepX * 0.5;
-        this.dummy.position.set(p.x + p.w * 0.5 + 0.06, y, z);
-        this.dummy.rotation.set(0, HALF_PI, 0);
-        this.dummy.updateMatrix();
-        mesh.setMatrixAt(idx++, this.dummy.matrix);
-        this.dummy.position.set(p.x - p.w * 0.5 - 0.06, y, z);
-        this.dummy.rotation.set(0, -HALF_PI, 0);
-        this.dummy.updateMatrix();
-        mesh.setMatrixAt(idx++, this.dummy.matrix);
+        this.transform.position.set(p.x + p.w * 0.5 + 0.06, y, z);
+        this.transform.rotation.set(0, HALF_PI, 0);
+        this.transform.updateMatrix();
+        mesh.setMatrixAt(idx++, this.transform.matrix);
+        this.transform.position.set(p.x - p.w * 0.5 - 0.06, y, z);
+        this.transform.rotation.set(0, -HALF_PI, 0);
+        this.transform.updateMatrix();
+        mesh.setMatrixAt(idx++, this.transform.matrix);
       }
     }
     return idx;
