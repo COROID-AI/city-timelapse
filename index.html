@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#0b0f14" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230b0f14'/%3E%3Crect x='3' y='7' width='2.5' height='6' fill='%234fd6ff'/%3E%3Crect x='6.5' y='4' width='2.5' height='9' fill='%23b07bff'/%3E%3Crect x='10' y='6' width='2.5' height='7' fill='%234fd6ff'/%3E%3C/svg%3E" />
+    <title>City Era Timelapse · 1945–2055</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <div id="scene" role="img" aria-label="Interactive 3D model of a city block"></div>
+      <div id="loader" class="overlay" aria-live="polite">
+        <div class="loader-card">
+          <div class="loader-spinner" aria-hidden="true"></div>
+          <p class="loader-text">Building the city…</p>
+        </div>
+      </div>
+      <div id="fallback" class="overlay fallback hidden" role="alert">
+        <div class="loader-card">
+          <h1 class="fallback-title">3D view unavailable</h1>
+          <p class="fallback-text" id="fallback-text">
+            Your browser does not support WebGL2, which is required for this
+            experience. Try a modern desktop browser with hardware acceleration
+            enabled.
+          </p>
+        </div>
+      </div>
+      <header id="timeline" class="timeline" aria-label="Era timeline"></header>
+      <footer id="hud" class="hud" aria-label="Scene controls"></footer>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
