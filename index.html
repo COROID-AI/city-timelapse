@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230a0e18'/%3E%3Crect x='3' y='6' width='3' height='10' fill='%2357e3ff'/%3E%3Crect x='7' y='3' width='3' height='13' fill='%23ff5ddb'/%3E%3Crect x='11' y='8' width='3' height='8' fill='%2357e3ff'/%3E%3C/svg%3E" />
+    <title>City Timelapse · 1945–2055</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app" aria-label="3D city timelapse viewport">
+      <canvas id="scene"></canvas>
+    </div>
+
+    <!-- Fallback panel shown when WebGL is unavailable (AC) -->
+    <div id="unsupported" class="hidden" role="alert" aria-live="assertive">
+      <div class="unsupported-card">
+        <h1>WebGL not available</h1>
+        <p>
+          Your browser or device does not support WebGL, which is required to
+          render the 3D city timelapse.
+        </p>
+        <p class="hint">
+          Try a modern desktop browser (Chrome, Firefox, Edge, or Safari) with
+          hardware acceleration enabled.
+        </p>
+      </div>
+    </div>
+
+    <!-- Loading overlay, removed after the first frame -->
+    <div id="loader" aria-hidden="true">
+      <div class="loader-inner">
+        <div class="spinner"></div>
+        <span>Building the city…</span>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
