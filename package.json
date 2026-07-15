@@ -1,0 +1,22 @@
+{
+  "name": "city-era-timelapse",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A 3D city-block timelapse that transforms between 1945 and 2055.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "0.185.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/three": "0.185.1",
+    "typescript": "~5.7.0",
+    "vite": "8.1.4"
+  }
+}

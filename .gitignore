@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.vite/
+*.local
+.DS_Store
+._*
+__MACOSX/
+coverage/
+.tmp/
+.env
+.env.*
+!.env.example
