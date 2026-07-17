@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles for the 3D scene */
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #0a0a1a;
+}
+
+canvas {
+  touch-action: none;
+}
