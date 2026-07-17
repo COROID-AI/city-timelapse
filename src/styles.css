@@ -1,0 +1,515 @@
+/* =========================================================================
+   City Era Timelapse — UI styles
+   ========================================================================= */
+
+:root {
+  --bg: #0b0f17;
+  --panel: rgba(16, 22, 34, 0.82);
+  --panel-border: rgba(120, 160, 220, 0.18);
+  --text: #e8eef6;
+  --text-dim: #9fb0c4;
+  --accent: #5acfff;
+  --accent-warm: #ffcf6a;
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --radius: 14px;
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  font-family: var(--font);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.app-root {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* Canvas wrapper — base layer; OrbitControls captures pointer events here.
+   The timeline/HUD sit in higher z-index layers so they always receive
+   clicks first. */
+.canvas-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.canvas-wrap canvas {
+  display: block;
+  touch-action: none;
+}
+
+/* ---------- Timeline (top, fixed) ---------- */
+.timeline {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  padding: 14px 20px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(
+    to bottom,
+    rgba(8, 12, 20, 0.78) 0%,
+    rgba(8, 12, 20, 0.4) 70%,
+    transparent 100%
+  );
+  pointer-events: auto;
+}
+
+.timeline-track-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 880px;
+  height: 64px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.timeline-fill {
+  position: absolute;
+  bottom: 30px;
+  left: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    var(--accent-warm),
+    var(--accent)
+  );
+  box-shadow: 0 0 12px rgba(90, 207, 255, 0.5);
+  transition: width 0.06s linear;
+  pointer-events: none;
+}
+
+.timeline-thumb {
+  position: absolute;
+  bottom: 26px;
+  width: 16px;
+  height: 16px;
+  margin-left: -8px;
+  border-radius: 50%;
+  background: var(--text);
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 14px rgba(90, 207, 255, 0.7);
+  transition: left 0.06s linear;
+  pointer-events: none;
+}
+
+.timeline-era-buttons {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.era-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: var(--font);
+  transition: color 0.2s;
+  border-top: 2px solid transparent;
+  min-width: 0;
+}
+
+.era-btn:hover {
+  color: var(--text);
+}
+
+.era-btn.active {
+  color: var(--accent);
+  border-top-color: var(--accent);
+}
+
+.era-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.era-year {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.era-name {
+  font-size: 0.66rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.timeline-range {
+  width: 100%;
+  max-width: 880px;
+  height: 28px;
+  margin: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.timeline-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.timeline-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.timeline-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.timeline-range::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+}
+
+/* keep range focus-visible even though thumb is invisible */
+.timeline-range:focus-visible {
+  outline: 2px dashed var(--accent);
+  outline-offset: -4px;
+  border-radius: 14px;
+}
+
+.timeline-status {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  min-height: 1em;
+}
+
+.timeline-status.on {
+  color: var(--accent);
+}
+
+/* ---------- HUD ---------- */
+.hud-card {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  z-index: 15;
+  width: 280px;
+  max-width: calc(100vw - 40px);
+  padding: 18px 20px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  pointer-events: auto;
+}
+
+.hud-era {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 6px;
+  letter-spacing: 0.3px;
+}
+
+.hud-blurb {
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+
+.hud-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hud-meta div {
+  display: flex;
+  gap: 8px;
+  font-size: 0.76rem;
+}
+
+.hud-meta dt {
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.66rem;
+  min-width: 56px;
+  padding-top: 2px;
+}
+
+.hud-meta dd {
+  color: var(--text);
+}
+
+.hud-controls {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.ctrl-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: background 0.2s, transform 0.15s, border-color 0.2s;
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+}
+
+.ctrl-btn:hover {
+  background: rgba(30, 42, 60, 0.9);
+  border-color: rgba(120, 160, 220, 0.35);
+  transform: translateY(-1px);
+}
+
+.ctrl-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.ctrl-btn[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.ctrl-btn span[aria-hidden] {
+  font-size: 1.05rem;
+}
+
+.hud-hint {
+  position: fixed;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  opacity: 0.55;
+  pointer-events: none;
+  text-align: center;
+  letter-spacing: 0.4px;
+}
+
+.hud-year {
+  position: fixed;
+  top: 96px;
+  right: 24px;
+  z-index: 10;
+  font-size: 3.2rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+  letter-spacing: 2px;
+  line-height: 1;
+}
+
+/* ---------- Overlays ---------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+
+.loader-overlay {
+  background: rgba(8, 12, 20, 0.92);
+  /* Non-blocking: let the timeline + HUD remain interactive while the scene
+     composes. The spinner is purely visual. */
+  pointer-events: none;
+}
+
+.loader-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.loader-spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid rgba(120, 160, 220, 0.2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loader-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.loader-sub {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+
+.error-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 420px;
+  padding: 32px;
+  text-align: center;
+}
+
+.error-content h2 {
+  font-size: 1.4rem;
+  color: var(--accent-warm);
+}
+
+.error-content p {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.error-content .ctrl-btn {
+  margin-top: 6px;
+  pointer-events: auto;
+}
+
+/* ---------- Responsive (narrow) ---------- */
+@media (max-width: 640px) {
+  .timeline {
+    padding: 10px 12px 8px;
+  }
+  .timeline-track-wrap {
+    height: 54px;
+  }
+  .era-year {
+    font-size: 0.82rem;
+  }
+  .era-name {
+    display: none;
+  }
+  .hud-card {
+    left: 12px;
+    right: 12px;
+    bottom: auto;
+    top: 120px;
+    width: auto;
+    max-width: none;
+    padding: 12px 14px;
+  }
+  .hud-era {
+    font-size: 1.05rem;
+  }
+  .hud-blurb {
+    font-size: 0.78rem;
+    margin-bottom: 8px;
+  }
+  .hud-meta {
+    display: none;
+  }
+  .hud-controls {
+    right: 12px;
+    bottom: 12px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    max-width: calc(100vw - 24px);
+  }
+  .ctrl-btn {
+    padding: 7px 10px;
+    font-size: 0.72rem;
+  }
+  .ctrl-label {
+    display: none;
+  }
+  .hud-year {
+    display: none;
+  }
+  .hud-hint {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader-spinner {
+    animation-duration: 2.5s;
+  }
+  .timeline-fill,
+  .timeline-thumb {
+    transition: none;
+  }
+}
