@@ -1,0 +1,44 @@
+.error-container {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  z-index: 1000;
+}
+
+.error-content {
+  text-align: center;
+  padding: 30px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.error-content h2 {
+  color: #ff6b6b;
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+}
+
+.error-content p {
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 20px;
+}
+
+.error-content button {
+  padding: 10px 25px;
+  background: linear-gradient(45deg, #00bfff, #ff00ff);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.error-content button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(0, 191, 255, 0.4);
+}

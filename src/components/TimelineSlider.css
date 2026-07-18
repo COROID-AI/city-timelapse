@@ -1,0 +1,150 @@
+.timeline-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding: 20px;
+  background: linear-gradient(to bottom, rgba(10, 10, 26, 0.95), transparent);
+  backdrop-filter: blur(10px);
+}
+
+.era-indicator {
+  padding: 15px 25px;
+  border-radius: 12px;
+  margin-bottom: 15px;
+  min-width: 280px;
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: all 0.5s ease;
+}
+
+.era-indicator.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.era-indicator h2 {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 5px;
+  color: #fff;
+}
+
+.era-indicator p {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
+}
+
+.slider-wrapper {
+  position: relative;
+  width: var(--slider-width, 600px);
+  max-width: 100%;
+}
+
+.timeline-slider {
+  width: 100%;
+  height: 6px;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+.timeline-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, #00bfff, #ff00ff);
+  box-shadow: 0 0 10px rgba(0, 191, 255, 0.5);
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.timeline-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.era-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding: 0 10px;
+}
+
+.era-button {
+  background: none;
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.era-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.era-button.active {
+  font-weight: bold;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  margin-top: 8px;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  transition: width 0.5s ease, background 0.5s ease;
+  border-radius: 2px;
+}
+
+@media (max-width: 768px) {
+  .timeline-container {
+    padding: 15px;
+  }
+
+  .era-indicator {
+    padding: 10px 15px;
+    min-width: auto;
+  }
+
+  .era-indicator h2 {
+    font-size: 1.2rem;
+  }
+
+  .era-indicator p {
+    font-size: 0.75rem;
+  }
+
+  .era-labels {
+    padding: 0 5px;
+  }
+
+  .era-button {
+    font-size: 0.75rem;
+    padding: 3px 5px;
+  }
+}
+
+@media (max-width: 480px) {
+  .timeline-container {
+    padding: 10px;
+  }
+
+  .slider-wrapper {
+    width: 100%;
+  }
+}

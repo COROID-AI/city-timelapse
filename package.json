@@ -1,0 +1,29 @@
+{
+  "name": "city-timelapse",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@react-three/drei": "^3.11.2",
+    "@react-three/fiber": "^8.18.0",
+    "framer-motion": "^10.18.0",
+    "postprocessing": "^6.33.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-three-fiber": "^6.0.13",
+    "three": "^0.160.0",
+    "use-asset": "^1.0.4"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^4.2.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.4.21"
+  }
+}
