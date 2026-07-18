@@ -1,0 +1,140 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body, html, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: white;
+  font-size: 1.5rem;
+}
+
+.timeline-container {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 15px 25px;
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.timeline-label {
+  color: white;
+  font-size: 1rem;
+  font-weight: 500;
+  margin-right: 10px;
+}
+
+.timeline-slider {
+  display: flex;
+  gap: 10px;
+}
+
+.era-button {
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  min-width: 70px;
+}
+
+.era-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.era-button.active {
+  background: rgba(70, 130, 180, 0.8);
+  border-color: #4682b4;
+  box-shadow: 0 0 20px rgba(70, 130, 180, 0.5);
+}
+
+.year-display {
+  color: #ffd700;
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-left: 15px;
+  min-width: 80px;
+  text-align: center;
+}
+
+.info-panel {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(10px);
+  border-radius: 10px;
+  padding: 15px;
+  color: white;
+  max-width: 300px;
+  z-index: 100;
+}
+
+.info-panel h3 {
+  margin-bottom: 10px;
+  color: #4682b4;
+}
+
+.info-panel ul {
+  list-style: none;
+  font-size: 0.85rem;
+}
+
+.info-panel li {
+  margin: 5px 0;
+}
+
+@media (max-width: 768px) {
+  .timeline-container {
+    top: 10px;
+    padding: 10px 15px;
+    gap: 8px;
+  }
+  
+  .era-button {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    min-width: 60px;
+  }
+  
+  .year-display {
+    font-size: 1rem;
+    margin-left: 10px;
+  }
+  
+  .timeline-label {
+    font-size: 0.9rem;
+  }
+  
+  .info-panel {
+    bottom: 10px;
+    left: 10px;
+    right: 10px;
+    max-width: none;
+  }
+}
