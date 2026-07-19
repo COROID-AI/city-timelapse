@@ -1,0 +1,23 @@
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #000;
+  color: #fff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --era-1945: #8b4513;
+  --era-1965: #4a6d8c;
+  --era-1985: #3a6ea5;
+  --era-2005: #2a8a2a;
+  --era-2025: #1a9fff;
+  --era-2055: #8a2be2;
+}
