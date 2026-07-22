@@ -1,0 +1,18 @@
+{
+  "name": "city-timelapse",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "3D city block timelapse 1945-2055",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --host"
+  },
+  "dependencies": {
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.8"
+  }
+}

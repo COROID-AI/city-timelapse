@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Chronopolis — City Timelapse 1945→2055</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏙️</text></svg>" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="scene"></canvas>
+
+    <!-- Loading overlay -->
+    <div id="loader">
+      <div class="loader-inner">
+        <div class="loader-skyline"></div>
+        <div class="loader-text">CONSTRUCTING CHRONOPOLIS</div>
+        <div class="loader-bar"><span id="loader-fill"></span></div>
+      </div>
+    </div>
+
+    <!-- Top timeline bar -->
+    <header id="timeline">
+      <div class="tl-brand">
+        <div class="tl-logo">◷</div>
+        <div class="tl-title">
+          <span class="tl-name">CHRONOPOLIS</span>
+          <span class="tl-sub">Temporal City Simulator</span>
+        </div>
+      </div>
+      <div class="tl-track-wrap">
+        <div class="tl-track" id="tl-track"></div>
+      </div>
+      <div class="tl-now">
+        <div class="tl-year" id="tl-year">2025</div>
+        <div class="tl-era" id="tl-era">The Connected Age</div>
+      </div>
+    </header>
+
+    <!-- Info / hint panel -->
+    <div id="hud">
+      <div class="hud-card" id="info-card">
+        <div class="hud-ic">ℹ️</div>
+        <div class="hud-body">
+          <div class="hud-title" id="era-title">The Connected Age</div>
+          <div class="hud-desc" id="era-desc">—</div>
+          <div class="hud-stats" id="era-stats"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls hint -->
+    <div id="controls-hint">
+      <div class="ch-row"><kbd>Drag</kbd> Orbit</div>
+      <div class="ch-row"><kbd>Right-Drag</kbd> Pan</div>
+      <div class="ch-row"><kbd>Scroll</kbd> Zoom</div>
+    </div>
+
+    <!-- Bottom toolbar -->
+    <footer id="toolbar">
+      <button class="tb-btn" id="btn-auto" title="Auto-advance through time">
+        <span class="tb-glyph">▶</span><span class="tb-label">Auto</span>
+      </button>
+      <button class="tb-btn" id="btn-cycle" title="Time-lapse cycle">
+        <span class="tb-glyph">⏩</span><span class="tb-label">Cycle</span>
+      </button>
+      <button class="tb-btn active" id="btn-sound" title="Toggle ambient sound">
+        <span class="tb-glyph">🔊</span><span class="tb-label">Sound</span>
+      </button>
+      <button class="tb-btn" id="btn-daynight" title="Toggle day / night">
+        <span class="tb-glyph">🌙</span><span class="tb-label">Night</span>
+      </button>
+      <button class="tb-btn active" id="btn-traffic" title="Toggle traffic">
+        <span class="tb-glyph">🚗</span><span class="tb-label">Traffic</span>
+      </button>
+      <button class="tb-btn active" id="btn-peds" title="Toggle pedestrians">
+        <span class="tb-glyph">🚶</span><span class="tb-label">People</span>
+      </button>
+      <button class="tb-btn" id="btn-reset" title="Reset camera">
+        <span class="tb-glyph">⟲</span><span class="tb-label">Reset</span>
+      </button>
+    </footer>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
