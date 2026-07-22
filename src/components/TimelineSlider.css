@@ -1,0 +1,238 @@
+.timeline-container {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  width: 100%;
+  max-width: 900px;
+  pointer-events: none;
+}
+
+.timeline-container * {
+  pointer-events: auto;
+}
+
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 0 20px;
+}
+
+.timeline-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.7);
+  letter-spacing: 1px;
+}
+
+.era-description {
+  font-size: 14px;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 500;
+}
+
+.timeline-slider-wrapper {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.timeline-track {
+  position: relative;
+  height: 60px;
+  margin: 20px 0;
+}
+
+.timeline-progress-fill {
+  position: absolute;
+  top: 28px;
+  left: 0;
+  height: 6px;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+  z-index: 1;
+}
+
+.era-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.3s ease;
+  pointer-events: auto;
+}
+
+.era-marker:hover .marker-dot {
+  transform: scale(1.3);
+}
+
+.marker-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.marker-dot.active {
+  width: 20px;
+  height: 20px;
+  border-color: #fff;
+  box-shadow: 0 0 20px var(--era-color, #fff);
+}
+
+.marker-glow {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.5);
+  }
+}
+
+.marker-label {
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.marker-label.active {
+  color: #fff;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.marker-tooltip {
+  position: absolute;
+  top: -30px;
+  background: rgba(0, 0, 0, 0.9);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 20;
+}
+
+.era-marker:hover .marker-tooltip {
+  opacity: 1;
+}
+
+.timeline-scrubber {
+  position: absolute;
+  top: 20px;
+  left: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--era-color, #fff);
+  border: 2px solid #fff;
+  cursor: pointer;
+  z-index: 5;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+  transition: all 0.3s ease;
+  pointer-events: auto;
+}
+
+.timeline-scrubber:hover {
+  width: 28px;
+  height: 28px;
+  transform: translateX(-50%) scale(1.2);
+}
+
+.timeline-scrubber.transitioning {
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: translateX(-50%) rotate(0deg); }
+  to { transform: translateX(-50%) rotate(360deg); }
+}
+
+.timeline-year-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+  padding: 0 10px;
+}
+
+.year-button {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #888;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.year-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  transform: translateY(-2px);
+}
+
+.year-button.active {
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--glow-color, #fff);
+  border-color: var(--glow-color, #fff);
+  box-shadow: 0 0 15px var(--glow-color, #fff);
+}
+
+.year-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.timeline-hints {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 11px;
+  color: #666;
+}
+
+.hint-separator {
+  color: #444;
+}

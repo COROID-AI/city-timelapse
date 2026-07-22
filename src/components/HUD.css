@@ -1,0 +1,191 @@
+.hud-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 500;
+}
+
+.hud-panel {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  pointer-events: auto;
+}
+
+.top-left {
+  top: 20px;
+  left: 20px;
+  flex-direction: row;
+}
+
+.top-right {
+  top: 20px;
+  right: 20px;
+  flex-direction: row;
+  padding: 8px 12px;
+}
+
+.bottom-left {
+  bottom: 20px;
+  left: 20px;
+  flex-direction: row;
+}
+
+.bottom-right {
+  bottom: 20px;
+  right: 20px;
+  flex-direction: row;
+}
+
+.era-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  animation: pulse-glow 2s infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+}
+
+.era-year {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.era-label {
+  font-size: 14px;
+  color: #fff;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.hud-button {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hud-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.1);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.time-display {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #aaa;
+}
+
+.time-icon {
+  font-size: 16px;
+}
+
+.music-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #aaa;
+}
+
+.music-icon {
+  font-size: 16px;
+}
+
+.info-panel, .controls-panel {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 400px;
+  pointer-events: auto;
+}
+
+.info-panel {
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.controls-panel {
+  bottom: 100px;
+  right: 20px;
+}
+
+.info-panel h3, .controls-panel h3 {
+  font-size: 18px;
+  color: #fff;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.info-panel p, .controls-panel p {
+  color: #ccc;
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.info-panel ul, .controls-panel ul {
+  list-style: none;
+  margin-bottom: 12px;
+}
+
+.info-panel li, .controls-panel li {
+  color: #aaa;
+  font-size: 13px;
+  line-height: 1.8;
+  padding-left: 8px;
+  position: relative;
+}
+
+.info-panel li:before, .controls-panel li:before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: #fff;
+}
+
+.hint {
+  font-style: italic;
+  color: #888 !important;
+  text-align: center;
+}
