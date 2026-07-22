@@ -138,8 +138,13 @@ export class CameraController {
     this.radius = 55;
   }
 
+  setReducedMotion(v) {
+    this.reducedMotion = v;
+    if (v) this.autoRotate = false;
+  }
+
   update(dt) {
-    if (this.autoRotate) {
+    if (this.autoRotate && !this.reducedMotion) {
       this.theta += this.autoRotateSpeed * dt;
     }
     // damp spherical + target

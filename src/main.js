@@ -11,6 +11,7 @@ import { CityBuilder } from './city.js';
 import { TrafficSystem } from './traffic.js';
 import { CameraController } from './controls.js';
 import { AudioEngine } from './audio.js';
+import { PostFX } from './postfx.js';
 
 // ---------------------------------------------------------
 // Renderer
@@ -27,6 +28,9 @@ renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
+// Respect reduced-motion preference
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(40, 30, 40);
@@ -40,6 +44,16 @@ const traffic = new TrafficSystem(scene);
 const controls = new CameraController(camera, canvas);
 const audio = new AudioEngine();
 
+// Post-processing (bloom + vignette + color grade)
+const postfx = new PostFX(renderer, scene, camera);
+
+// Propagate reduced-motion preference to all animated systems
+if (prefersReducedMotion) {
+  controls.setReducedMotion(true);
+  sky.setReducedMotion(true);
+  postfx.setReducedMotion(true);
+}
+
 // ---------------------------------------------------------
 // State
 // ---------------------------------------------------------
@@ -50,7 +64,7 @@ const state = {
   transitioning: false,
   autoPlay: false,
   autoTimer: 0,
-  autoInterval: 6,
+  autoInterval: prefersReducedMotion ? 9 : 6,
 };
 
 // ---------------------------------------------------------
@@ -79,6 +93,33 @@ ERAS.forEach((era) => {
 });
 
 // ---------------------------------------------------------
+// Timeline drag-to-scrub: click or drag on the rail to jump eras
+// ---------------------------------------------------------
+function eraFromPointer(clientX) {
+  const rect = tlTrack.getBoundingClientRect();
+  const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  const idx = Math.round(ratio * (ERAS.length - 1));
+  return ERAS[idx];
+}
+
+let scrubbing = false;
+tlTrack.addEventListener('pointerdown', (e) => {
+  // ignore clicks that land directly on a stop button (they handle their own click)
+  if (e.target.closest('.tl-stop')) return;
+  scrubbing = true;
+  tlTrack.setPointerCapture(e.pointerId);
+  const era = eraFromPointer(e.clientX);
+  if (era.id !== state.eraId) selectEra(era.id, true);
+});
+tlTrack.addEventListener('pointermove', (e) => {
+  if (!scrubbing) return;
+  const era = eraFromPointer(e.clientX);
+  if (era.id !== state.eraId) selectEra(era.id, true);
+});
+tlTrack.addEventListener('pointerup', () => { scrubbing = false; });
+tlTrack.addEventListener('pointercancel', () => { scrubbing = false; });
+
+// ---------------------------------------------------------
 // Era transition
 // ---------------------------------------------------------
 function selectEra(eraId, playSfx = false) {
@@ -97,10 +138,12 @@ function selectEra(eraId, playSfx = false) {
   const prog = eraIndex(eraId) / (ERAS.length - 1);
   tlRail.style.setProperty('--prog', prog);
 
-  // visual flash
-  const flash = document.getElementById('flash') || makeFlash();
-  flash.classList.add('show');
-  setTimeout(() => flash.classList.remove('show'), 260);
+  // visual flash (skip under reduced-motion)
+  if (!prefersReducedMotion) {
+    const flash = document.getElementById('flash') || makeFlash();
+    flash.classList.add('show');
+    setTimeout(() => flash.classList.remove('show'), 260);
+  }
 
   // audio cue
   if (playSfx) {
@@ -114,6 +157,7 @@ function selectEra(eraId, playSfx = false) {
   traffic.setEra(era);
   sky.setEra(era, state.isNight);
   audio.setEra(era);
+  postfx.setEra(era.id, state.isNight);
 
   // accent the UI to era
   document.documentElement.style.setProperty('--accent', era.accent);
@@ -150,9 +194,13 @@ toggleBtn('btn-daynight', (on) => {
   document.getElementById('btn-daynight').querySelector('.tb-label').textContent = on ? 'Day' : 'Night';
   sky.setEra(getEra(state.eraId), state.isNight);
   city.buildEra(getEra(state.eraId), state.isNight); // rebuild for night window emissives
+  postfx.setEra(state.eraId, state.isNight);
 });
 toggleBtn('btn-traffic', (on) => traffic.setVisible(on));
 toggleBtn('btn-peds', (on) => traffic.setPedsVisible(on));
+
+// Post-processing toggle
+toggleBtn('btn-fx', (on) => postfx.setEnabled(on));
 
 // Auto-advance
 document.getElementById('btn-auto').addEventListener('click', (e) => {
@@ -182,6 +230,7 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  postfx.setSize(window.innerWidth, window.innerHeight);
 });
 
 // ---------------------------------------------------------
@@ -191,6 +240,16 @@ window.addEventListener('keydown', (e) => {
   const num = parseInt(e.key, 10);
   if (num >= 1 && num <= 6) {
     selectEra(ERAS[num - 1].id, true);
+  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+    e.preventDefault();
+    const idx = eraIndex(state.eraId);
+    const prev = ERAS[(idx - 1 + ERAS.length) % ERAS.length];
+    selectEra(prev.id, true);
+  } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const idx = eraIndex(state.eraId);
+    const next = ERAS[(idx + 1) % ERAS.length];
+    selectEra(next.id, true);
   } else if (e.key === ' ') {
     e.preventDefault();
     document.getElementById('btn-auto').click();
@@ -227,7 +286,8 @@ function tick() {
   // occasional ambient sfx
   audio.ambientTick(getEra(state.eraId));
 
-  renderer.render(scene, camera);
+  postfx.update(dt);
+  postfx.render();
   requestAnimationFrame(tick);
 }
 

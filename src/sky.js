@@ -123,7 +123,10 @@ export class SkySystem {
 
     this._target = null;
     this._isNight = false;
+    this.reducedMotion = false;
   }
+
+  setReducedMotion(v) { this.reducedMotion = v; }
 
   _glowTexture() {
     const c = document.createElement('canvas');
@@ -202,7 +205,8 @@ export class SkySystem {
     this.skyMat.uniforms.time.value = elapsed;
     if (!this._target) return;
     const t = this._target;
-    const L = 1.8; // damping speed
+    // reduced-motion: snap instantly to target (no animated transition)
+    const L = this.reducedMotion ? 1000 : 1.8;
 
     dampColor(this.skyMat.uniforms.topColor.value, t.top, L, dt);
     dampColor(this.skyMat.uniforms.midColor.value, t.mid, L, dt);
@@ -243,10 +247,14 @@ export class SkySystem {
     dampColor(this.scene.fog.color, t.fogColor, L, dt);
     this.scene.fog.density = damp(this.scene.fog.density, t.fogDensity, L, dt);
 
-    // move clouds
-    this.clouds.forEach((c, i) => {
-      c.position.x += c.userData.speed * dt;
-      if (c.position.x > 140) c.position.x = -140;
+    // move clouds (disabled under reduced-motion)
+    if (!this.reducedMotion) {
+      this.clouds.forEach((c, i) => {
+        c.position.x += c.userData.speed * dt;
+        if (c.position.x > 140) c.position.x = -140;
+      });
+    }
+    this.clouds.forEach((c) => {
       c.material.opacity = damp(c.material.opacity, this._isNight ? 0.2 : 0.5, L, dt);
     });
   }
