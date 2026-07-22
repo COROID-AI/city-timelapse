@@ -1,0 +1,25 @@
+{
+  "name": "city-timelapse-3d",
+  "version": "1.0.0",
+  "description": "3D city block timelapse scene with timeline slider",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "node convert-three-umd.mjs",
+    "start": "node server.js",
+    "preview": "node server.js"
+  },
+  "keywords": [
+    "3d",
+    "city",
+    "timelapse",
+    "threejs",
+    "webgl"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "three": "^0.160.0"
+  },
+  "devDependencies": {}
+}
