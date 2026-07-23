@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>City Era Timelapse 1945-2055</title>
+  <link rel="stylesheet" href="style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="ui-overlay">
+    <div id="timeline-container">
+      <div id="timeline-label">Select Year:</div>
+      <input type="range" id="timeline-slider" min="0" max="5" value="0" step="1" />
+      <div id="year-display">1945</div>
+    </div>
+    <div id="instructions">
+      <p>Drag to look around | Scroll to zoom | Click slider to change era</p>
+    </div>
+  </div>
+  <canvas id="three-canvas"></canvas>
+  <audio id="ambient-sfx" loop></audio>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
