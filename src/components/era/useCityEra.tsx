@@ -13,6 +13,8 @@ type EraStore = {
   transitionVersion: number
   /** timestamp of last user interaction (for SFX gating) */
   userInteractedAt: number
+  /** programmatic setter for the current year */
+  setYear: (y: EraYear) => void
 }
 
 export const useEraStore = create<EraStore>()(
@@ -24,6 +26,7 @@ export const useEraStore = create<EraStore>()(
         targetYear: y,
         transitionVersion: s.transitionVersion + 1,
       })),
+    setYear: (y) => set((s) => ({ year: y })),
     onUserInteracted: () =>
       set({ userInteractedAt: Date.now() }),
     transitionVersion: 0,
@@ -45,6 +48,6 @@ export function useCityEra() {
 export function useCityEraInternal() {
   const targetYear = useEraStore((s) => s.targetYear)
   const transitionVersion = useEraStore((s) => s.transitionVersion)
-  const setYear = useEraStore((s) => (s.year = s.targetYear))
+  const setYear = useEraStore((s) => s.setYear)
   return { targetYear, transitionVersion, setYear }
 }

@@ -95,20 +95,16 @@ export function CityScene() {
           mipmapBlur
         />
       </EffectComposer>
-
-      {progress < 1 && (
-        <TransitionOverlay progress={progress} fromYear={targetYear === 1945 ? 1945 : targetYear - 20} toYear={targetYear} />
-      )}
     </>
   )
 }
 
-function TransitionOverlay({ progress, fromYear, toYear }: { progress: number; fromYear: number; toYear: number }) {
+export function TransitionOverlay({ progress, fromYear, toYear }: { progress: number; fromYear: number; toYear: number }) {
   const t = Math.sin(progress * Math.PI)
   const opacity = 0.15 * t
 
   return (
-    <html style={{ pointerEvents: 'none', position: 'absolute', inset: 0, zIndex: 10 }}>
+    <div style={{ pointerEvents: 'none', position: 'absolute', inset: 0, zIndex: 10 }}>
       <div
         style={{
           position: 'fixed',
@@ -129,6 +125,6 @@ function TransitionOverlay({ progress, fromYear, toYear }: { progress: number; f
           {fromYear} → {toYear}
         </div>
       </div>
-    </html>
+    </div>
   )
 }

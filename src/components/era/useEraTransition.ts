@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useEraStore, ERA_YEARS, type EraYear } from './useCityEra'
 import { ERA_THEMES, type EraTheme, lerpTheme } from './theme'
 
@@ -19,11 +19,15 @@ export const TRANSITION_DURATION = 2200
 export function useEraTransition() {
   const targetYear = useEraStore((s) => s.targetYear)
   const version = useEraStore((s) => s.transitionVersion)
-  const setYear = useEraStore((s) => {
-    return (y: EraYear) => {
-      s.year = y
-    }
-  })
+  // Use a stable reference to setYear via useSyncExternalStore to avoid
+  // the getSnapshot infinite-loop warning. The setYear action is defined
+  // once in the store, so we can safely extract it without triggering
+  // re-renders.
+  const setYear = useSyncExternalStore(
+    () => () => {},
+    () => useEraStore.getState().setYear,
+    () => useEraStore.getState().setYear
+  )
 
   const [theme, setTheme] = useState<EraTheme>(() => ERA_THEMES[ERA_YEARS[0]])
   const [progress, setProgress] = useState(0)

@@ -1,9 +1,12 @@
 import React from 'react'
 import { Canvas } from '@react-three/fiber'
-import { CityScene } from './components/CityScene/CityScene'
+import { CityScene, TransitionOverlay } from './components/CityScene/CityScene'
 import { TimelineBar } from './components/TimelineBar/TimelineBar'
+import { useEraTransition } from './components/era/useEraTransition'
 
 export default function App() {
+  const { progress, targetYear } = useEraTransition()
+
   return (
     <div className="appRoot">
       <Canvas
@@ -21,6 +24,14 @@ export default function App() {
       <div className="uiBottom">
         <div className="hint">Drag to orbit • Scroll to zoom</div>
       </div>
+
+      {progress < 1 && (
+        <TransitionOverlay
+          progress={progress}
+          fromYear={targetYear === 1945 ? 1945 : targetYear - 20}
+          toYear={targetYear}
+        />
+      )}
     </div>
   )
 }
