@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { OrbitControls, Environment, PerspectiveCamera } from '@react-three/drei'
 import { Fog, Vector3 } from 'three'
@@ -13,14 +13,56 @@ import { Sky } from '../scene/Sky'
 import { SFX } from '../scene/SFX'
 
 /**
+ * Detects device performance tier to adaptively scale post-processing
+ * intensity and object counts. Returns a multiplier (0..1) where lower
+ * values mean less demanding settings.
+ */
+function useDevicePerformance() {
+  const [tier, setTier] = useState<'high' | 'medium' | 'low'>('high')
+
+  useEffect(() => {
+    // Heuristic: mobile devices and low-end GPUs get reduced settings.
+    const isMobile = /Mobi|Android/i.test(navigator.userAgent)
+    const gl = document.createElement('canvas').getContext('webgl2') || document.createElement('canvas').getContext('webgl')
+    let gpuTier = 'high'
+    if (gl) {
+      const debugInfo = gl.getExtension('WEBGL_debug_renderer_info')
+      if (debugInfo) {
+        const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) as string
+        if (/Mali|Adreno 5|Adreno 6|PowerVR|Intel/i.test(renderer)) {
+          gpuTier = 'medium'
+        }
+        if (/Mali-.*[Ll]ow|Adreno 50|Intel.*Gen[4-7]/i.test(renderer)) {
+          gpuTier = 'low'
+        }
+      }
+    }
+    if (isMobile) gpuTier = gpuTier === 'high' ? 'medium' : 'low'
+    setTier(gpuTier as 'high' | 'medium' | 'low')
+  }, [])
+
+  const multiplier = useMemo(() => {
+    switch (tier) {
+      case 'high': return 1.0
+      case 'medium': return 0.6
+      case 'low': return 0.3
+    }
+  }, [tier])
+
+  return { tier, multiplier }
+}
+
+/**
  * Main city scene orchestrator.
  * - Driven by useEraTransition for smooth, deterministic era transitions
  * - All geometry is procedural (no external assets)
- * - Post-processing for bloom and anti-aliasing
+ * - Post-processing for bloom and anti-aliasing, scaled by device performance
  * - Camera controls for navigation
+ * - LOD culling for distant objects on lower-end devices
  */
 export function CityScene() {
   const { theme, progress, targetYear } = useEraTransition()
+  const { tier, multiplier } = useDevicePerformance()
 
   const targetPos = useMemo(() => new Vector3(0, 18, 30), [])
 
@@ -35,6 +77,18 @@ export function CityScene() {
   })
 
   const fog = useMemo(() => new Fog(theme.skyBottom, 50, 120), [theme.skyBottom])
+
+  // Adaptive building count based on device performance (LOD culling).
+  const buildingCount = useMemo(() => {
+    const base = 48
+    return Math.round(base * multiplier)
+  }, [multiplier])
+
+  // Adaptive post-processing intensity.
+  const bloomIntensity = useMemo(() => {
+    const base = theme.year >= 1985 ? 0.35 : 0.15
+    return base * multiplier
+  }, [theme.year, multiplier])
 
   return (
     <>
@@ -72,7 +126,7 @@ export function CityScene() {
       />
 
       <Ground theme={theme} />
-      <Buildings theme={theme} count={48} />
+      <Buildings theme={theme} count={buildingCount} />
       <Vehicles theme={theme} />
       <Pedestrians theme={theme} />
       <Storefronts theme={theme} />
@@ -88,7 +142,7 @@ export function CityScene() {
       <EffectComposer multisampling={4}>
         <SMAA />
         <Bloom
-          intensity={theme.year >= 1985 ? 0.35 : 0.15}
+          intensity={bloomIntensity}
           kernelSize={256}
           luminanceThreshold={0.85}
           luminanceSmoothing={0.025}
