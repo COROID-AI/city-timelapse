@@ -1,0 +1,125 @@
+/* ===== Reset & Base ===== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #000;
+  color: #fff;
+}
+
+/* ===== Timeline Header ===== */
+.timeline-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.timeline-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #e0e0e0;
+  white-space: nowrap;
+}
+
+#timeline-slider {
+  flex: 1;
+  max-width: 420px;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+#timeline-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #4fc3f7;
+  border: 2px solid #fff;
+  box-shadow: 0 0 8px rgba(79, 195, 247, 0.8);
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+#timeline-slider::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #4fc3f7;
+  border: 2px solid #fff;
+  box-shadow: 0 0 8px rgba(79, 195, 247, 0.8);
+  cursor: pointer;
+}
+
+#timeline-slider:hover::-webkit-slider-thumb {
+  background: #81d4fa;
+  box-shadow: 0 0 12px rgba(79, 195, 247, 0.9);
+}
+
+.timeline-labels {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 420px;
+  font-size: 0.75rem;
+  color: #a0a0a0;
+  margin-top: 0.25rem;
+}
+
+.timeline-labels span {
+  text-align: center;
+}
+
+.timeline-labels span.active {
+  color: #4fc3f7;
+  font-weight: 700;
+}
+
+.current-year {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #4fc3f7;
+  min-width: 60px;
+  text-align: center;
+}
+
+/* ===== Scene Container ===== */
+.scene-container {
+  position: absolute;
+  top: 56px;
+  left: 0;
+  width: 100%;
+  height: calc(100% - 56px);
+}
+
+#three-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}

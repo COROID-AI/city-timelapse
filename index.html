@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>City Timelapse 1945-2055</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header class="timeline-header">
+      <label for="timeline-slider" class="timeline-label">Select Year:</label>
+      <input
+        id="timeline-slider"
+        type="range"
+        min="0"
+        max="5"
+        step="1"
+        value="4"
+        aria-label="Timeline slider for city era"
+      />
+      <div class="timeline-labels">
+        <span data-year="1945">1945</span>
+        <span data-year="1965">1965</span>
+        <span data-year="1985">1985</span>
+        <span data-year="2005">2005</span>
+        <span data-year="2025">2025</span>
+        <span data-year="2055">2055</span>
+      </div>
+      <span id="current-year" class="current-year">2025</span>
+    </header>
+
+    <main class="scene-container">
+      <canvas id="three-canvas"></canvas>
+    </main>
+
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>
