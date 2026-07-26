@@ -1,5 +1,8 @@
 export default [
   {
+    ignores: ["dist/**", "node_modules/**"],
+  },
+  {
     files: ["**/*.js"],
     languageOptions: {
       ecmaVersion: 2022,
@@ -11,6 +14,7 @@ export default [
         requestAnimationFrame: "readonly",
         navigator: "readonly",
         performance: "readonly",
+        fetch: "readonly",
       },
     },
     rules: {

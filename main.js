@@ -2,6 +2,10 @@
 // Imports
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { 
+  switchEra, 
+  initializeAssetManagement
+} from "./asset-management.js";
 
 // ===== Globals =====
 let scene, camera, renderer, controls;
@@ -53,9 +57,11 @@ function init() {
   directionalLight.shadow.camera.far = 100;
   scene.add(directionalLight);
 
-  // Build the placeholder city block
+  // Build the ground (persistent across eras)
   createGround();
-  createBuildings();
+
+  // Initialize asset management system
+  initializeAssetManagement(scene);
 
   // Event listeners
   window.addEventListener("resize", onWindowResize);
@@ -91,52 +97,13 @@ function createGround() {
   scene.add(streetLine);
 }
 
-// ===== Placeholder Buildings =====
-function createBuildings() {
-  // Clear any existing buildings
-  buildings.forEach((b) => scene.remove(b));
-  buildings = [];
-
-  // Building definitions: [x, z, width, depth, height, color]
-  const buildingDefs = [
-    [-18, -8, 6, 6, 12, 0x8d6e63],
-    [-10, -12, 4, 4, 8, 0x795548],
-    [-2, -10, 8, 8, 16, 0x6d4c41],
-    [8, -8, 5, 5, 10, 0xa1887f],
-    [16, -6, 7, 7, 14, 0x8d6e63],
-    [-18, 4, 6, 6, 9, 0x795548],
-    [-8, 2, 5, 5, 11, 0x6d4c41],
-    [2, 0, 9, 9, 18, 0x8d6e63],
-    [14, 4, 6, 6, 7, 0xa1887f],
-    [-4, 10, 7, 7, 13, 0x795548],
-    [10, 8, 5, 5, 9, 0x6d4c41],
-    [18, 10, 8, 8, 15, 0x8d6e63],
-  ];
-
-  buildingDefs.forEach((def) => {
-    const [x, z, w, d, h, color] = def;
-    const geometry = new THREE.BoxGeometry(w, h, d);
-    const material = new THREE.MeshStandardMaterial({
-      color: color,
-      roughness: 0.8,
-      metalness: 0.1,
-    });
-    const building = new THREE.Mesh(geometry, material);
-    building.position.set(x, h / 2, z);
-    building.castShadow = true;
-    building.receiveShadow = true;
-    scene.add(building);
-    buildings.push(building);
-  });
-}
-
 // ===== Timeline Logic =====
 function onTimelineChange() {
   const value = parseInt(slider.value, 10);
   updateTimeline(value);
 }
 
-function updateTimeline(value) {
+async function updateTimeline(value) {
   const year = YEARS[value];
 
   // Update current year label
@@ -151,9 +118,14 @@ function updateTimeline(value) {
   const percent = (value / 5) * 100;
   slider.style.background = `linear-gradient(to right, #4fc3f7 0%, #4fc3f7 ${percent}%, rgba(255,255,255,0.25) ${percent}%, rgba(255,255,255,0.25) 100%)`;
 
-  // TODO: Swap assets based on era
-  // For now, placeholder buildings remain constant
-  console.log(`Selected era: ${year}`);
+  // Load assets for the selected era
+  try {
+    console.log(`Loading assets for era: ${year}`);
+    await switchEra(year);
+    console.log(`Finished loading assets for era: ${year}`);
+  } catch (error) {
+    console.error(`Failed to load assets for era ${year}:`, error);
+  }
 }
 
 // ===== Resize Handler =====
@@ -167,7 +139,7 @@ function onWindowResize() {
 function animate() {
   requestAnimationFrame(animate);
 
-  // Gentle idle rotation on buildings for visual interest (placeholder)
+  // Gentle idle rotation on placeholder buildings (if any exist)
   const elapsed = timer.getElapsed();
   buildings.forEach((b, i) => {
     b.rotation.y = Math.sin(elapsed * 0.3 + i) * 0.01;
