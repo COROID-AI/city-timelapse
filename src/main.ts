@@ -8,6 +8,7 @@ import { createTransitionManager } from './eras/TransitionManager.js';
 import { applyNavigationBounds } from './navigation.js';
 import { createPostProcessing } from './postprocessing.js';
 import { createTimeline } from './timeline.js';
+import { createStorefrontModule } from './storefronts/StorefrontModule.js';
 import { createGround, createLighting } from './world.js';
 
 /**
@@ -88,6 +89,16 @@ function bootstrap(): void {
   const debugCube = createDebugCube();
   scene.add(debugCube);
   transitionManager.registerDomain('debug-cube', createDebugCubeApplyEra(debugCube));
+
+  // ---- Ground-floor storefronts -------------------------------------------
+  // Fills reserved ground-floor slots with era-appropriate shops and exterior
+  // signs (painted → neon → backlit → LED → holographic). Signs use canvas
+  // textures and emissive materials so the bloom pipeline makes neon/LED/
+  // holographic signage glow. Registered with TransitionManager so storefronts
+  // transform style, signage, and lighting on era change.
+  const storefronts = createStorefrontModule();
+  scene.add(storefronts.group);
+  transitionManager.registerDomain('storefronts', storefronts.applyEra);
 
   // ---- Timeline + HUD ------------------------------------------------------
   const timeline = createTimeline();
