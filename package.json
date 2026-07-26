@@ -1,0 +1,30 @@
+{
+  "name": "city-era-timelapse",
+  "version": "1.0.0",
+  "private": true,
+  "description": "3D city block timelapse 1945-2055 with timeline slider",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^6.25.2",
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.4",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.3.0",
+    "eslint-plugin-react": "^7.35.2",
+    "typescript": "^5.5.2",
+    "vite": "^8.1.5"
+  }
+}
