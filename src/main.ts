@@ -8,6 +8,7 @@ import { createTransitionManager } from './eras/TransitionManager.js';
 import { applyNavigationBounds } from './navigation.js';
 import { createPostProcessing } from './postprocessing.js';
 import { createTimeline } from './timeline.js';
+import { createBlock } from './world/BlockLayout.js';
 import { createGround, createLighting } from './world.js';
 
 /**
@@ -90,6 +91,14 @@ function bootstrap(): void {
   scene.add(buildings.group);
   transitionManager.registerDomain('buildings', buildings.applyEra);
 
+  // ---- City block: lots, road network, lanes, parking, signals -------------
+  // The block emits a consumable RoadNetwork (for later vehicle/pedestrian
+  // tasks) plus its visual geometry, and registers an era domain so road
+  // markings, surface, and signal brightness cross-fade between eras.
+  const block = createBlock(INITIAL_ERA);
+  scene.add(block.group);
+  transitionManager.registerDomain('block', block.applyEra);
+
   // ---- Timeline + HUD ------------------------------------------------------
   const timeline = createTimeline();
   // Selecting an era on the top slider drives a cross-fade transition and
@@ -123,6 +132,8 @@ function bootstrap(): void {
     // Advance any in-flight era cross-fade by the frame delta. The manager
     // mutates registered domain objects only — never rebuilds the scene graph.
     transitionManager.update(delta * 1000);
+    // Step the traffic-light controllers (phases red/yellow/green).
+    block.update(delta * 1000);
     controls.update();
     applyNavigationBounds(controls);
     composer.render(delta);

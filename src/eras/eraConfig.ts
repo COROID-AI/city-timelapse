@@ -105,6 +105,29 @@ export interface SfxBed {
 }
 
 /**
+ * Per-era streetscape / road appearance, driven through the transition engine
+ * so lane markings, signal brightness, and the road surface cross-fade between
+ * eras (older eras use simpler, dimmer markings; 2025+ use high-contrast "smart"
+ * markings). Owned by the BlockLayout domain.
+ */
+export interface RoadAppearance {
+  /**
+   * Lane-marking vocabulary. `simple` = a single faded dashed centerline;
+   * `standard` = centerline + solid edge lines + basic zebra crosswalks;
+   * `smart` = high-contrast markings, bike-lane symbology, decorative crosswalks.
+   */
+  markingStyle: 'simple' | 'standard' | 'smart';
+  /** Traffic-signal emissive intensity multiplier (older eras are dimmer). */
+  signalIntensity: number;
+  /** Road surface base color (hex token). */
+  surfaceColor: string;
+  /** Lane-marking paint color (hex token). */
+  markingColor: string;
+  /** Road surface PBR roughness [0,1]; older eras are rougher. */
+  surfaceRoughness: number;
+}
+
+/**
  * Complete per-era configuration. One of these exists for every `EraKey` in
  * `DEFAULT_ERA_CONFIG`; together they define the entire transformable scene.
  */
@@ -118,6 +141,7 @@ export interface EraConfig {
   pedestrians: PedestrianOutfitSet;
   atmosphere: Atmosphere;
   sfx: SfxBed;
+  road: RoadAppearance;
 }
 
 // ---------------------------------------------------------------------------
@@ -161,6 +185,13 @@ export const DEFAULT_ERA_CONFIG: Record<EraKey, EraConfig> = {
       ambientTrack: 'ambient_1945_city',
       accents: ['streetcar_bell', 'footstep_gravel'],
     },
+    road: {
+      markingStyle: 'simple',
+      signalIntensity: 0.5,
+      surfaceColor: '#3a3a3e',
+      markingColor: '#b8b0a0',
+      surfaceRoughness: 0.92,
+    },
   },
   '1965': {
     label: '1965 · Mid-century boom',
@@ -192,6 +223,13 @@ export const DEFAULT_ERA_CONFIG: Record<EraKey, EraConfig> = {
       description: 'Busier traffic, gasoline engines, pop radio bleed',
       ambientTrack: 'ambient_1965_city',
       accents: ['engine_v8', 'radio_pop'],
+    },
+    road: {
+      markingStyle: 'simple',
+      signalIntensity: 0.6,
+      surfaceColor: '#34343a',
+      markingColor: '#cfcab8',
+      surfaceRoughness: 0.88,
     },
   },
   '1985': {
@@ -225,6 +263,13 @@ export const DEFAULT_ERA_CONFIG: Record<EraKey, EraConfig> = {
       ambientTrack: 'ambient_1985_neon',
       accents: ['arcade_bleed', 'synth_pad'],
     },
+    road: {
+      markingStyle: 'standard',
+      signalIntensity: 0.85,
+      surfaceColor: '#2e2e34',
+      markingColor: '#e8e4d6',
+      surfaceRoughness: 0.82,
+    },
   },
   '2005': {
     label: '2005 · Digital metropolis',
@@ -256,6 +301,13 @@ export const DEFAULT_ERA_CONFIG: Record<EraKey, EraConfig> = {
       description: 'Dense traffic, HVAC drone, digital chimes',
       ambientTrack: 'ambient_2005_digital',
       accents: ['ev_chime', 'hvac_drone'],
+    },
+    road: {
+      markingStyle: 'standard',
+      signalIntensity: 1.0,
+      surfaceColor: '#2a2a30',
+      markingColor: '#f2f0e4',
+      surfaceRoughness: 0.78,
     },
   },
   '2025': {
@@ -289,6 +341,13 @@ export const DEFAULT_ERA_CONFIG: Record<EraKey, EraConfig> = {
       ambientTrack: 'ambient_2025_present',
       accents: ['ev_whir', 'construction_drill'],
     },
+    road: {
+      markingStyle: 'smart',
+      signalIntensity: 1.3,
+      surfaceColor: '#26262c',
+      markingColor: '#f6f6ee',
+      surfaceRoughness: 0.72,
+    },
   },
   '2055': {
     label: '2055 · Future vision',
@@ -320,6 +379,13 @@ export const DEFAULT_ERA_CONFIG: Record<EraKey, EraConfig> = {
       description: 'Hushed magnetic transit, ambient data hum, drone buzz',
       ambientTrack: 'ambient_2055_future',
       accents: ['drone_buzz', 'maglev_whoosh'],
+    },
+    road: {
+      markingStyle: 'smart',
+      signalIntensity: 1.6,
+      surfaceColor: '#1f242b',
+      markingColor: '#8fffe0',
+      surfaceRoughness: 0.6,
     },
   },
 };
