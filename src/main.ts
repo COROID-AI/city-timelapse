@@ -7,6 +7,7 @@ import { createBuildings, createDefaultLots } from './buildings/BuildingGenerato
 import { ERA_LABELS, type EraKey } from './eras/eraConfig.js';
 import { createTransitionManager } from './eras/TransitionManager.js';
 import { applyNavigationBounds } from './navigation.js';
+import { createPedestrianSystem } from './peds/PedestrianSystem.js';
 import { createPostProcessing } from './postprocessing.js';
 import { createTimeline } from './timeline.js';
 import { createBlock } from './world/BlockLayout.js';
@@ -122,6 +123,17 @@ function bootstrap(): void {
   scene.add(billboards.group);
   transitionManager.registerDomain('ads', billboards.applyEra);
 
+  // ---- Pedestrians --------------------------------------------------------
+  // Low-poly humanoids walk the shared RoadNetwork sidewalk + crosswalk lanes,
+  // wearing era-correct outfits (suits/hats → mod → sportswear →
+  // low-rise/athleisure → futuristic). They animate a simple walk cycle, wait
+  // at crosswalks when vehicles have right-of-way, avoid clipping each other,
+  // and are capped to a small concurrent population. The population cross-fades
+  // its outfit colours + silhouettes on era change via the TransitionManager.
+  const pedestrians = createPedestrianSystem(block.network, block.controller, INITIAL_ERA);
+  scene.add(pedestrians.group);
+  transitionManager.registerDomain('pedestrians', pedestrians.applyEra);
+
   // ---- Timeline + HUD ------------------------------------------------------
   const timeline = createTimeline();
   // Selecting an era on the top slider drives a cross-fade transition and
@@ -157,6 +169,8 @@ function bootstrap(): void {
     transitionManager.update(delta * 1000);
     // Step the traffic-light controllers (phases red/yellow/green).
     block.update(delta * 1000);
+    // Step the pedestrian population along sidewalks/crosswalks.
+    pedestrians.update(delta * 1000);
     // Cycle LED / holographic billboard frames for motion while settled.
     billboards.update(delta * 1000);
     controls.update();
