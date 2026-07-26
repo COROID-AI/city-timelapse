@@ -1,0 +1,200 @@
+:root {
+  --hud-fg: rgba(226, 232, 240, 0.92);
+  --hud-dim: rgba(148, 163, 184, 0.7);
+  --accent: #38e1ff;
+  --bg: #05070d;
+  --panel: rgba(10, 14, 24, 0.55);
+  --panel-border: rgba(148, 163, 184, 0.18);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--hud-fg);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+}
+
+#scene {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+/* ---------------------------------------------------------------- HUD ---- */
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.hud-corner {
+  position: absolute;
+  top: 1.1rem;
+  padding: 0.9rem 1.1rem;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.hud-corner--left {
+  left: 1.1rem;
+}
+
+.hud-corner--right {
+  right: 1.1rem;
+}
+
+.hud-eyebrow {
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+
+.hud-era {
+  font-size: 1.02rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.hud-hints {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  color: var(--hud-dim);
+  text-align: right;
+}
+
+.hud-hints kbd {
+  display: inline-block;
+  min-width: 1.1rem;
+  padding: 0.05rem 0.4rem;
+  margin-right: 0.35rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--hud-fg);
+  font-family: inherit;
+  font-size: 0.74rem;
+  text-align: center;
+}
+
+/* ------------------------------------------------------- Timeline bar ---- */
+.timeline {
+  position: absolute;
+  left: 50%;
+  bottom: 1.6rem;
+  transform: translateX(-50%);
+  z-index: 20;
+  pointer-events: auto;
+  padding: 0.55rem 0.7rem;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.timeline-track {
+  position: absolute;
+  left: 1.4rem;
+  right: 1.4rem;
+  top: 50%;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.15),
+    var(--accent),
+    rgba(148, 163, 184, 0.15)
+  );
+  opacity: 0.5;
+  transform: translateY(-50%);
+}
+
+.timeline-buttons {
+  position: relative;
+  display: flex;
+  gap: 0.35rem;
+}
+
+.era-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  background: rgba(148, 163, 184, 0.08);
+  color: var(--hud-fg);
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.55rem 0.95rem;
+  min-width: 3.6rem;
+  border-radius: 12px;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.1s ease;
+}
+
+.era-btn:hover:not(:disabled) {
+  background: rgba(56, 225, 255, 0.16);
+  border-color: rgba(56, 225, 255, 0.5);
+}
+
+.era-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.era-btn.is-active {
+  background: rgba(56, 225, 255, 0.22);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 14px rgba(56, 225, 255, 0.35);
+}
+
+.era-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* "Locked" treatment while era transforms are pending. */
+.timeline[data-state='disabled'] .timeline-track {
+  background: rgba(148, 163, 184, 0.18);
+}
+
+@media (max-width: 640px) {
+  .hud-corner--right {
+    display: none;
+  }
+  .era-btn {
+    min-width: 2.8rem;
+    padding: 0.45rem 0.55rem;
+    font-size: 0.82rem;
+  }
+}

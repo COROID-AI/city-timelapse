@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="data:," />
+    <meta
+      name="description"
+      content="A 3D city block that transforms across eras from 1945 to 2055."
+    />
+    <title>City Era Timelapse · 1945–2055</title>
+  </head>
+  <body>
+    <div id="app">
+      <!-- WebGL canvas; the renderer mounts here -->
+      <canvas id="scene"></canvas>
+
+      <!-- Heads-up display: era label + control hints -->
+      <div id="hud" class="hud">
+        <div class="hud-corner hud-corner--left">
+          <div class="hud-eyebrow">City Era Timelapse</div>
+          <div id="era-label" class="hud-era">Timeline locked · eras pending</div>
+        </div>
+        <div class="hud-corner hud-corner--right">
+          <div class="hud-hints">
+            <span><kbd>Drag</kbd> orbit</span>
+            <span><kbd>Right-drag</kbd> pan</span>
+            <span><kbd>Scroll</kbd> zoom</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top timeline shell with the six eras.
+           Disabled until era transforms are wired in downstream tasks. -->
+      <nav id="timeline" class="timeline" aria-label="Era timeline" data-state="disabled">
+        <div class="timeline-track" aria-hidden="true"></div>
+        <div id="era-buttons" class="timeline-buttons" role="group" aria-label="Select era"></div>
+      </nav>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

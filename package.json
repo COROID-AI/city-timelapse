@@ -1,0 +1,21 @@
+{
+  "name": "city-era-timelapse",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "3D city block timelapse across eras 1945-2055",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.185.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.5"
+  }
+}
