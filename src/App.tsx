@@ -19,8 +19,11 @@ function App() {
   const [performance, setPerformance] = useState<PerformanceSettings | null>(null);
   const [audioManager, setAudioManager] = useState<AudioManager | null>(null);
   const [webglManager, setWebGLContextManager] = useState<WebGLContextManager | null>(null);
+  const [canvasKey, setCanvasKey] = useState(0);
   const [sceneReady, setSceneReady] = useState(false);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
+
+  const recoveryInProgressRef = useRef(false);
 
   const transitionManagerRef = useRef<EraTransitionManager | null>(null);
   const performanceManagerRef = useRef<PerformanceManager | null>(null);
@@ -124,13 +127,23 @@ function App() {
     canvasRef.current = canvas;
 
     // Initialize WebGL context manager
+    // Dispose previous manager (if any)
+    webglManagerRef.current?.dispose();
     const webglMgr = new WebGLContextManager(canvas);
     webglMgr.setGLContext(gl.getContext());
     webglMgr.onContextLost(() => {
       console.warn('[App] WebGL context lost — disposing resources');
+      recoveryInProgressRef.current = true;
+      setSceneReady(false);
     });
     webglMgr.onContextRestored(() => {
       console.log('[App] WebGL context restored — re-initializing');
+      if (!recoveryInProgressRef.current) return;
+      recoveryInProgressRef.current = false;
+      // Force a full Canvas remount to recreate all GPU resources.
+      // This is more robust than partial disposal/reinit for complex
+      // R3F scenes.
+      setCanvasKey((k) => k + 1);
     });
     webglManagerRef.current = webglMgr;
     setWebGLContextManager(webglMgr);
@@ -221,6 +234,7 @@ function App() {
 
       {/* 3D Scene */}
       <Canvas
+        key={canvasKey}
         camera={{ position: [30, 20, 30], fov: 60 }}
         gl={{
           antialias: true,

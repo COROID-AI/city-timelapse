@@ -43,6 +43,22 @@ export function CityScene({
   const [streetDetails, setStreetDetails] = useState<any>(null);
   const sceneReadyRef = useRef(false);
 
+  // Snap the interpolated year to the closest era boundary so we don't
+  // regenerate geometry/instances on every animation frame.
+  const snappedEra = useMemo(() => {
+    const target = era.year;
+    let best = ERAS[0];
+    let bestDist = Math.abs(target - best.year);
+    for (const e of ERAS) {
+      const d = Math.abs(target - e.year);
+      if (d < bestDist) {
+        best = e;
+        bestDist = d;
+      }
+    }
+    return best;
+  }, [era.year]);
+
   // Initialize CityBlock
   useEffect(() => {
     const block = new CityBlock({
@@ -57,36 +73,37 @@ export function CityScene({
     });
     cityBlockRef.current = block;
 
-    // Generate initial entities
+    // Generate initial entities once
     const buildingCount = performance.maxBuildings;
     const vehicleCount = Math.floor(performance.maxVehicles * era.trafficDensity);
     const pedestrianCount = Math.floor(performance.maxPedestrians * era.pedestrianDensity);
 
-    const newBuildings = Array.from({ length: buildingCount }, (_, i) => block.getBuildingParams(i));
-    const newVehicles = Array.from({ length: vehicleCount }, (_, i) => block.getVehicleParams(i));
-    const newPedestrians = Array.from({ length: pedestrianCount }, (_, i) => block.getPedestrianParams(i));
-    const newStreetDetails = block.getStreetDetails();
+    setBuildings(Array.from({ length: buildingCount }, (_, i) => block.getBuildingParams(i)));
+    setVehicles(Array.from({ length: vehicleCount }, (_, i) => block.getVehicleParams(i)));
+    setPedestrians(Array.from({ length: pedestrianCount }, (_, i) => block.getPedestrianParams(i)));
+    setStreetDetails(block.getStreetDetails());
 
-    setBuildings(newBuildings);
-    setVehicles(newVehicles);
-    setPedestrians(newPedestrians);
-    setStreetDetails(newStreetDetails);
     block.markReady();
   }, []);
 
-  // Update era on the CityBlock when it changes
+  // Re-derive era-dependent parameters during transitions.
+  // This avoids stale cached params (buildings/vehicles/pedestrians/street furniture
+  // are re-computed from the snapped era) while keeping transitions performant.
   useEffect(() => {
-    if (cityBlockRef.current) {
-      cityBlockRef.current.updateEra(era);
-    }
-  }, [era]);
+    if (!cityBlockRef.current) return;
 
-  // Update performance settings
-  useEffect(() => {
-    if (cityBlockRef.current) {
-      cityBlockRef.current.updatePerformance(performance);
-    }
-  }, [performance]);
+    cityBlockRef.current.updateEra(snappedEra);
+    cityBlockRef.current.updatePerformance(performance);
+
+    const buildingCount = performance.maxBuildings;
+    const vehicleCount = Math.floor(performance.maxVehicles * snappedEra.trafficDensity);
+    const pedestrianCount = Math.floor(performance.maxPedestrians * snappedEra.pedestrianDensity);
+
+    setBuildings(Array.from({ length: buildingCount }, (_, i) => cityBlockRef.current!.getBuildingParams(i)));
+    setVehicles(Array.from({ length: vehicleCount }, (_, i) => cityBlockRef.current!.getVehicleParams(i)));
+    setPedestrians(Array.from({ length: pedestrianCount }, (_, i) => cityBlockRef.current!.getPedestrianParams(i)));
+    setStreetDetails(cityBlockRef.current.getStreetDetails());
+  }, [snappedEra, performance]);
 
   // Play ambient sound based on era
   useEffect(() => {
@@ -222,13 +239,13 @@ export function CityScene({
         trashCans.push([offset, 0.2, -(gridSize * spacing) / 2 - 1.5]);
         trashCans.push([offset, 0.2, (gridSize * spacing) / 2 + 1.5]);
       }
-      if (streetDetails.hasPhoneBoxes && era.year <= 2005 && i % 5 === 0) {
+      if (streetDetails.hasPhoneBoxes && snappedEra.year <= 2005 && i % 5 === 0) {
         phoneBoxes.push([offset, 0.2, -(gridSize * spacing) / 2 - 1]);
       }
-      if (streetDetails.hasDigitalDisplays && era.year >= 2025 && i % 4 === 0) {
+      if (streetDetails.hasDigitalDisplays && snappedEra.year >= 2025 && i % 4 === 0) {
         digitalDisplays.push([offset, 2.5, (gridSize * spacing) / 2 + 1]);
       }
-      if (streetDetails.hasEVChargers && era.year >= 2025 && i % 3 === 0) {
+      if (streetDetails.hasEVChargers && snappedEra.year >= 2025 && i % 3 === 0) {
         evChargers.push([offset, 0.2, -(gridSize * spacing) / 2 - 1.5]);
       }
 
@@ -249,13 +266,13 @@ export function CityScene({
         trashCans.push([-(gridSize * spacing) / 2 - 1.5, 0.2, offset]);
         trashCans.push([(gridSize * spacing) / 2 + 1.5, 0.2, offset]);
       }
-      if (streetDetails.hasPhoneBoxes && era.year <= 2005 && i % 5 === 0) {
+      if (streetDetails.hasPhoneBoxes && snappedEra.year <= 2005 && i % 5 === 0) {
         phoneBoxes.push([-(gridSize * spacing) / 2 - 1, 0.2, offset]);
       }
-      if (streetDetails.hasDigitalDisplays && era.year >= 2025 && i % 4 === 0) {
+      if (streetDetails.hasDigitalDisplays && snappedEra.year >= 2025 && i % 4 === 0) {
         digitalDisplays.push([-(gridSize * spacing) / 2 - 1, 2.5, offset]);
       }
-      if (streetDetails.hasEVChargers && era.year >= 2025 && i % 3 === 0) {
+      if (streetDetails.hasEVChargers && snappedEra.year >= 2025 && i % 3 === 0) {
         evChargers.push([-(gridSize * spacing) / 2 - 1.5, 0.2, offset]);
       }
 
@@ -264,7 +281,7 @@ export function CityScene({
     }
 
     return { benches, trashCans, phoneBoxes, digitalDisplays, evChargers, lights };
-  }, [streetDetails, buildings.length, era.year]);
+  }, [streetDetails, buildings.length, snappedEra.year]);
 
   // Ground plane
   const groundSize = Math.ceil(Math.sqrt(buildings.length)) * 15 + 20;

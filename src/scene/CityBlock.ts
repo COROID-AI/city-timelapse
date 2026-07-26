@@ -54,7 +54,8 @@ export class CityBlock {
    */
   getBuildingParams(index: number): BuildingParams {
     const era = this.era;
-    const baseSeed = index * 73856093; // Prime-based seed for deterministic variation
+    const seed = index * 73856093; // Prime-based seed for deterministic variation
+    const baseSeed = seed;
 
     // Building height varies by era — post-war buildings are shorter,
     // modern/glass towers are taller
@@ -100,6 +101,7 @@ export class CityBlock {
 
     return {
       position: [0, 0, 0] as [number, number, number],
+      seed,
       width,
       depth,
       height,
@@ -204,6 +206,7 @@ function pseudoRandom(seed: number): number {
 
 export interface BuildingParams {
   position: [number, number, number];
+  seed: number;
   width: number;
   depth: number;
   height: number;
@@ -260,41 +263,24 @@ function getFacadeColor(era: Era, seed: number): string {
 }
 
 function getWindowColor(era: Era): string {
-  switch (era.year) {
-    case 1945:
-      return '#fff9c4'; // Warm yellow (incandescent)
-    case 1965:
-      return '#fff59d'; // Yellow
-    case 1985:
-      return '#ffff8b'; // Brighter yellow
-    case 2005:
-      return '#bbdefb'; // Blue-white LED
-    case 2025:
-      return '#90caf9'; // Cool blue
-    case 2055:
-      return '#ce93d8'; // Purple holographic
-    default:
-      return '#ffffff';
-  }
+  // Use ranges rather than exact years so transitions (intermediate
+  // interpolated years) still yield stable, era-appropriate colors.
+  if (era.year <= 1945) return '#fff9c4'; // Warm yellow (incandescent)
+  if (era.year <= 1965) return '#fff59d'; // Yellow
+  if (era.year <= 1985) return '#ffff8b'; // Brighter yellow
+  if (era.year <= 2005) return '#bbdefb'; // Blue-white LED
+  if (era.year <= 2025) return '#90caf9'; // Cool blue
+  return '#ce93d8'; // Purple holographic
 }
 
 function getVehicleTypesForEra(era: Era): VehicleParams['type'][] {
-  switch (era.year) {
-    case 1945:
-      return ['sedan', 'truck', 'motorcycle'];
-    case 1965:
-      return ['sedan', 'truck', 'motorcycle', 'suv'];
-    case 1985:
-      return ['sedan', 'truck', 'motorcycle', 'suv', 'van'];
-    case 2005:
-      return ['sedan', 'truck', 'motorcycle', 'suv', 'van', 'electric'];
-    case 2025:
-      return ['sedan', 'truck', 'motorcycle', 'suv', 'van', 'electric', 'autonomous'];
-    case 2055:
-      return ['electric', 'autonomous', 'hover', 'sedan'];
-    default:
-      return ['sedan', 'truck'];
-  }
+  if (era.year <= 1945) return ['sedan', 'truck', 'motorcycle'];
+  if (era.year <= 1965) return ['sedan', 'truck', 'motorcycle', 'suv'];
+  if (era.year <= 1985) return ['sedan', 'truck', 'motorcycle', 'suv', 'van'];
+  if (era.year <= 2005) return ['sedan', 'truck', 'motorcycle', 'suv', 'van', 'electric'];
+  if (era.year <= 2025)
+    return ['sedan', 'truck', 'motorcycle', 'suv', 'van', 'electric', 'autonomous'];
+  return ['electric', 'autonomous', 'hover', 'sedan'];
 }
 
 function getVehicleLength(type: string, era: Era): number {
@@ -358,15 +344,17 @@ function getVehicleColor(era: Era, seed: number): string {
 }
 
 function getOutfitForEra(era: Era, seed: number): string {
-  const outfits: Record<number, string[]> = {
-    1945: ['suit', 'dress', 'overalls', 'coat', 'hat'],
-    1965: ['suit', 'minidress', 'turtleneck', 'bellbottoms', 'mod'],
-    1985: ['suit', 'business', 'jeans', 'jacket', 'aerobics'],
-    2005: ['business', 'casual', 'jeans', 'hoodie', 'business-casual'],
-    2025: ['business', 'casual', 'athleisure', 'hoodie', 'smart-casual'],
-    2055: ['smart-casual', 'tech-wear', 'holographic', 'adaptive', 'neon'],
-  };
-  const palette = outfits[era.year] || outfits[2025];
+  // Range-based palettes so transitions still look consistent.
+  let palette: string[];
+  if (era.year <= 1945) palette = ['suit', 'dress', 'overalls', 'coat', 'hat'];
+  else if (era.year <= 1965) palette = ['suit', 'minidress', 'turtleneck', 'bellbottoms', 'mod'];
+  else if (era.year <= 1985) palette = ['suit', 'business', 'jeans', 'jacket', 'aerobics'];
+  else if (era.year <= 2005)
+    palette = ['business', 'casual', 'jeans', 'hoodie', 'business-casual'];
+  else if (era.year <= 2025)
+    palette = ['business', 'casual', 'athleisure', 'hoodie', 'smart-casual'];
+  else palette = ['smart-casual', 'tech-wear', 'holographic', 'adaptive', 'neon'];
+
   return palette[Math.floor(pseudoRandom(seed + 30) * palette.length)];
 }
 

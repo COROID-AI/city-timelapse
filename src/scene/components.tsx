@@ -19,7 +19,9 @@ export function BuildingInstance({ params, era, progress }: BuildingInstanceProp
 
   // Animate window lighting based on era transition
   const windowEmissive = useMemo(() => {
-    const baseIntensity = params.era === 1945 ? 0.3 : params.era === 1965 ? 0.5 : 0.8;
+    // Use era ranges so intermediate interpolated years still look stable.
+    const y = params.era;
+    const baseIntensity = y <= 1945 ? 0.3 : y <= 1965 ? 0.5 : 0.8;
     return new THREE.Color(params.windowColor).multiplyScalar(baseIntensity * (0.5 + progress * 0.5));
   }, [params.windowColor, params.era, progress]);
 
@@ -84,7 +86,12 @@ export function BuildingInstance({ params, era, progress }: BuildingInstanceProp
 
       {/* Roof garden (2005+) */}
       {params.hasRoofGarden && (
-        <RoofGarden height={params.height} width={params.width} depth={params.depth} />
+        <RoofGarden
+          seed={params.seed}
+          height={params.height}
+          width={params.width}
+          depth={params.depth}
+        />
       )}
 
       {/* LED strips (2025+) */}
@@ -145,29 +152,52 @@ function Antenna({ height }: { height: number }) {
   );
 }
 
-function RoofGarden({ height, width, depth }: { height: number; width: number; depth: number }) {
+function RoofGarden({
+  seed,
+  height,
+  width,
+  depth,
+}: {
+  seed: number;
+  height: number;
+  width: number;
+  depth: number;
+}) {
+  // Deterministic plant positions (stable across re-renders/transitions)
+  const plants = useMemo(() => {
+    const count = 20;
+    const arr: { x: number; z: number }[] = [];
+    for (let i = 0; i < count; i++) {
+      const r1 = seededRandom(seed + i * 1013);
+      const r2 = seededRandom(seed + i * 1319);
+      arr.push({
+        x: (r1 - 0.5) * width * 0.7,
+        z: (r2 - 0.5) * depth * 0.7,
+      });
+    }
+    return arr;
+  }, [seed, width, depth]);
+
   return (
     <group position={[0, height + 0.1, 0]}>
       <mesh receiveShadow>
         <boxGeometry args={[width * 0.8, 0.3, depth * 0.8]} />
         <meshStandardMaterial color="#2e7d32" />
       </mesh>
-      {Array.from({ length: 20 }).map((_, i) => (
-        <mesh
-          key={i}
-          position={[
-            (Math.random() - 0.5) * width * 0.7,
-            0.2,
-            (Math.random() - 0.5) * depth * 0.7,
-          ]}
-          castShadow
-        >
+      {plants.map((p, i) => (
+        <mesh key={i} position={[p.x, 0.2, p.z]} castShadow>
           <sphereGeometry args={[0.15, 8, 8]} />
           <meshStandardMaterial color="#1b5e20" />
         </mesh>
       ))}
     </group>
   );
+}
+
+function seededRandom(seed: number): number {
+  // Simple deterministic hash -> [0,1)
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
 }
 
 function LedStrips({ height, width, depth, era }: { height: number; width: number; depth: number; era: Era }) {
@@ -221,22 +251,32 @@ export function VehicleInstance({ params, path, progress }: VehicleInstanceProps
   const groupRef = useRef<THREE.Group>(null);
   const elapsed = useRef(0);
 
+  const startRef = useRef(new THREE.Vector3());
+  const endRef = useRef(new THREE.Vector3());
+  const dirRef = useRef(new THREE.Vector3());
+  const tmpPosRef = useRef(new THREE.Vector3());
+  const lookAtRef = useRef(new THREE.Vector3());
+
+  useEffect(() => {
+    startRef.current.set(path.start[0], path.start[1], path.start[2]);
+    endRef.current.set(path.end[0], path.end[1], path.end[2]);
+  }, [path.start, path.end]);
+
   useFrame((state, delta) => {
     elapsed.current += delta * params.speed * 0.05;
     const t = elapsed.current % 1;
-    const pos = new THREE.Vector3().lerpVectors(
-      new THREE.Vector3(...path.start),
-      new THREE.Vector3(...path.end),
-      t
-    );
+
+    const start = startRef.current;
+    const end = endRef.current;
+    tmpPosRef.current.lerpVectors(start, end, t);
+
     if (groupRef.current) {
-      groupRef.current.position.copy(pos);
+      groupRef.current.position.copy(tmpPosRef.current);
+
       // Face direction of travel
-      const dir = new THREE.Vector3().subVectors(
-        new THREE.Vector3(...path.end),
-        new THREE.Vector3(...path.start)
-      ).normalize();
-      groupRef.current.lookAt(groupRef.current.position.clone().add(dir));
+      dirRef.current.subVectors(end, start).normalize();
+      lookAtRef.current.copy(groupRef.current.position).add(dirRef.current);
+      groupRef.current.lookAt(lookAtRef.current);
     }
   });
 
@@ -327,16 +367,21 @@ export function PedestrianInstance({ params, path }: PedestrianInstanceProps) {
   const groupRef = useRef<THREE.Group>(null);
   const elapsed = useRef(0);
 
+  const startRef = useRef(new THREE.Vector3());
+  const endRef = useRef(new THREE.Vector3());
+  const tmpPosRef = useRef(new THREE.Vector3());
+
+  useEffect(() => {
+    startRef.current.set(path.start[0], path.start[1], path.start[2]);
+    endRef.current.set(path.end[0], path.end[1], path.end[2]);
+  }, [path.start, path.end]);
+
   useFrame((state, delta) => {
     elapsed.current += delta * params.walkSpeed * 0.3;
     const t = elapsed.current % 1;
-    const pos = new THREE.Vector3().lerpVectors(
-      new THREE.Vector3(...path.start),
-      new THREE.Vector3(...path.end),
-      t
-    );
     if (groupRef.current) {
-      groupRef.current.position.copy(pos);
+      tmpPosRef.current.lerpVectors(startRef.current, endRef.current, t);
+      groupRef.current.position.copy(tmpPosRef.current);
       // Gentle bobbing animation
       groupRef.current.position.y += Math.sin(t * Math.PI * 2) * 0.05;
     }
