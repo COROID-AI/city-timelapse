@@ -11,6 +11,8 @@ import { createPostProcessing } from './postprocessing.js';
 import { createTimeline } from './timeline.js';
 import { createBlock } from './world/BlockLayout.js';
 import { createStorefrontModule } from './storefronts/StorefrontModule.js';
+import { createCyclistSystem } from './agents/CyclistSystem.js';
+import { createDogSystem } from './agents/DogSystem.js';
 import { createGround, createLighting } from './world.js';
 
 /**
@@ -122,6 +124,28 @@ function bootstrap(): void {
   scene.add(billboards.group);
   transitionManager.registerDomain('ads', billboards.applyEra);
 
+  // ---- Cyclists / two-wheelers on cycle lanes -----------------------------
+  // Era-correct bikes, e-bikes, e-scooters, and hover-boards travel the shared
+  // RoadNetwork cycle lanes. Conveyances are parametric geometry baked into a
+  // single vertex-colored BufferGeometry per variant and driven by InstancedMesh
+  // (capped population). They obey the traffic signal where a cycle lane crosses
+  // the driving conflict zone. Registered with TransitionManager so the model
+  // cross-fades per era without a scene rebuild.
+  const cyclists = createCyclistSystem(block.network, block.controller, INITIAL_ERA);
+  scene.add(cyclists.group);
+  transitionManager.registerDomain('cyclists', cyclists.applyEra);
+
+  // ---- Dogs on sidewalks ---------------------------------------------------
+  // Era-neutral dogs walk/trot the shared sidewalk lanes and cross at marked
+  // crosswalks (respecting the signal). Simple quadruped trot gait is animated
+  // via per-gait-phase InstancedMeshes; a leashed subset ties to a walking owner
+  // with an instanced leash. Registered with TransitionManager (era-neutral
+  // model; the domain is driven each transition frame and keeps population
+  // rhythm aligned to the destination era).
+  const dogs = createDogSystem(block.network, block.controller, INITIAL_ERA);
+  scene.add(dogs.group);
+  transitionManager.registerDomain('dogs', dogs.applyEra);
+
   // ---- Timeline + HUD ------------------------------------------------------
   const timeline = createTimeline();
   // Selecting an era on the top slider drives a cross-fade transition and
@@ -157,6 +181,9 @@ function bootstrap(): void {
     transitionManager.update(delta * 1000);
     // Step the traffic-light controllers (phases red/yellow/green).
     block.update(delta * 1000);
+    // Advance cyclists and dogs along the shared cycle/walk lanes.
+    cyclists.update(delta * 1000);
+    dogs.update(delta * 1000);
     // Cycle LED / holographic billboard frames for motion while settled.
     billboards.update(delta * 1000);
     controls.update();
