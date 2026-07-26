@@ -16,6 +16,8 @@ import { createStorefrontModule } from './storefronts/StorefrontModule.js';
 import { createCyclistSystem } from './agents/CyclistSystem.js';
 import { createDogSystem } from './agents/DogSystem.js';
 import { createGround, createLighting } from './world.js';
+import { createAtmosphereSystem } from './atmosphere/AtmosphereSystem.js';
+import { createSfxSystem } from './audio/SfxSystem.js';
 
 /**
  * Update the HUD era label (`#era-label`) to the readable label for `era`,
@@ -84,11 +86,19 @@ function bootstrap(): void {
   controls.update();
 
   // ---- Post-processing (EffectComposer + bloom) ---------------------------
-  const { composer } = createPostProcessing(renderer, scene, camera);
+  const { composer, bloom } = createPostProcessing(renderer, scene, camera);
 
   // ---- Era transition engine + buildings ----------------------------------
   const INITIAL_ERA: EraKey = '1945';
   const transitionManager = createTransitionManager(INITIAL_ERA);
+
+  // ---- Atmosphere: per-era sky, fog, sun, ambient, bloom ------------------
+  // Drives scene.background, scene.fog, the sun/ambient lights, and the bloom
+  // pass strength/radius/threshold from the era config. Cross-fades smoothly
+  // via the TransitionManager. The 2055 era leverages heavy bloom for its
+  // neon/holographic dusk ambiance.
+  const atmosphere = createAtmosphereSystem(scene, ambient, sun, bloom);
+  transitionManager.registerDomain('atmosphere', atmosphere.applyEra);
 
   // Parametric era-detailed buildings placed on BlockLayout lots. Each building
   // morphs / scales / re-skins per era via the TransitionManager — never
@@ -168,13 +178,34 @@ function bootstrap(): void {
   scene.add(dogs.group);
   transitionManager.registerDomain('dogs', dogs.applyEra);
 
+  // ---- SFX: generated ambient beds + cues (muted by default) ---------------
+  // Created before the timeline wiring so the era-change handler can safely
+  // reference it. The AudioContext is created lazily on the first user gesture
+  // (the audio toggle button), complying with browser autoplay policies. Era
+  // beds and accents are synthesized from oscillators + filtered noise —
+  // license-free.
+  const sfx = createSfxSystem({ startMuted: true });
+
+  // Wire the HUD audio toggle button.
+  const audioToggle = document.getElementById('audio-toggle');
+  if (audioToggle) {
+    audioToggle.setAttribute('aria-pressed', 'false');
+    audioToggle.addEventListener('click', () => {
+      const muted = sfx.toggleMute();
+      audioToggle.setAttribute('aria-pressed', muted ? 'false' : 'true');
+      audioToggle.classList.toggle('is-active', !muted);
+    });
+  }
+
   // ---- Timeline + HUD ------------------------------------------------------
   const timeline = createTimeline();
   // Selecting an era on the top slider drives a cross-fade transition and
-  // updates the HUD era label.
+  // updates the HUD era label. The SFX bed also cross-fades and a whoosh cue
+  // plays on era change (only audible if audio has been unmuted).
   timeline.onChange((era) => {
     transitionManager.setActiveEra(era);
     updateHudEraLabel(era);
+    sfx.setEra(era);
   });
   // Snap the HUD label and button state to the initial era on load.
   timeline.setActive(INITIAL_ERA);
@@ -195,6 +226,8 @@ function bootstrap(): void {
   // ---- Delta-driven render loop -------------------------------------------
   const timer = new Timer();
   timer.connect(document);
+  // Track the traffic-light phase so we can trigger a cue only on actual change.
+  let lastSignalPhase = block.controller.getPhase();
   function render(): void {
     timer.update();
     const delta = timer.getDelta();
@@ -203,6 +236,12 @@ function bootstrap(): void {
     transitionManager.update(delta * 1000);
     // Step the traffic-light controllers (phases red/yellow/green).
     block.update(delta * 1000);
+    // Trigger the light-change cue when the signal phase actually changes.
+    const phase = block.controller.getPhase();
+    if (phase !== lastSignalPhase) {
+      lastSignalPhase = phase;
+      sfx.playLightChange();
+    }
     // Step the pedestrian population along sidewalks/crosswalks.
     pedestrians.update(delta * 1000);
     // Advance vehicle traffic: move along lanes, obey signals, follow/queue.
@@ -212,6 +251,8 @@ function bootstrap(): void {
     dogs.update(delta * 1000);
     // Cycle LED / holographic billboard frames for motion while settled.
     billboards.update(delta * 1000);
+    // Advance the ambient SFX scheduler (era accents + bed modulation).
+    sfx.update(delta * 1000);
     controls.update();
     applyNavigationBounds(controls);
     composer.render(delta);
