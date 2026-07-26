@@ -2,7 +2,7 @@ import './style.css';
 import { ACESFilmicToneMapping, Color, PCFShadowMap, PerspectiveCamera, Scene, SRGBColorSpace, Timer, WebGLRenderer } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { NAV_BOUNDS } from './constants.js';
-import { createDebugCube, createDebugCubeApplyEra } from './eras/debugCubeDomain.js';
+import { createBuildings, createDefaultLots } from './buildings/BuildingGenerator.js';
 import { ERA_LABELS, type EraKey } from './eras/eraConfig.js';
 import { createTransitionManager } from './eras/TransitionManager.js';
 import { applyNavigationBounds } from './navigation.js';
@@ -79,15 +79,16 @@ function bootstrap(): void {
   // ---- Post-processing (EffectComposer + bloom) ---------------------------
   const { composer } = createPostProcessing(renderer, scene, camera);
 
-  // ---- Era transition engine + debug cube ---------------------------------
+  // ---- Era transition engine + buildings ----------------------------------
   const INITIAL_ERA: EraKey = '1945';
   const transitionManager = createTransitionManager(INITIAL_ERA);
 
-  // Debug placeholder cube — scales and color-changes per era, proving the
-  // era → TransitionManager → domain pipeline end-to-end.
-  const debugCube = createDebugCube();
-  scene.add(debugCube);
-  transitionManager.registerDomain('debug-cube', createDebugCubeApplyEra(debugCube));
+  // Parametric era-detailed buildings placed on BlockLayout lots. Each building
+  // morphs / scales / re-skins per era via the TransitionManager — never
+  // rebuilding the scene graph. A storefront slot is reserved on each building.
+  const buildings = createBuildings(createDefaultLots());
+  scene.add(buildings.group);
+  transitionManager.registerDomain('buildings', buildings.applyEra);
 
   // ---- Timeline + HUD ------------------------------------------------------
   const timeline = createTimeline();
