@@ -2,10 +2,25 @@ import './style.css';
 import { ACESFilmicToneMapping, Color, PCFShadowMap, PerspectiveCamera, Scene, SRGBColorSpace, Timer, WebGLRenderer } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { NAV_BOUNDS } from './constants.js';
+import { createDebugCube, createDebugCubeApplyEra } from './eras/debugCubeDomain.js';
+import { ERA_LABELS, type EraKey } from './eras/eraConfig.js';
+import { createTransitionManager } from './eras/TransitionManager.js';
 import { applyNavigationBounds } from './navigation.js';
 import { createPostProcessing } from './postprocessing.js';
 import { createTimeline } from './timeline.js';
 import { createGround, createLighting } from './world.js';
+
+/**
+ * Update the HUD era label (`#era-label`) to the readable label for `era`,
+ * sourced from the era config so the HUD never drifts from the single source of
+ * truth.
+ */
+function updateHudEraLabel(era: EraKey): void {
+  const eraLabelEl = document.getElementById('era-label');
+  if (eraLabelEl) {
+    eraLabelEl.textContent = ERA_LABELS[era];
+  }
+}
 
 /**
  * Application entry point.
@@ -34,7 +49,7 @@ function bootstrap(): void {
   // ---- Scene + camera ------------------------------------------------------
   const scene = new Scene();
   // Explicit background guarantees a visible, non-transparent canvas rather than
-  // relying on CSS bleed-through; eras will theme this in downstream tasks.
+  // relying on CSS bleed-through; the era config drives this on init + change.
   scene.background = new Color(0x05070d);
 
   const camera = new PerspectiveCamera(
@@ -64,10 +79,29 @@ function bootstrap(): void {
   // ---- Post-processing (EffectComposer + bloom) ---------------------------
   const { composer } = createPostProcessing(renderer, scene, camera);
 
-  // ---- Timeline + HUD shell ------------------------------------------------
+  // ---- Era transition engine + debug cube ---------------------------------
+  const INITIAL_ERA: EraKey = '1945';
+  const transitionManager = createTransitionManager(INITIAL_ERA);
+
+  // Debug placeholder cube — scales and color-changes per era, proving the
+  // era → TransitionManager → domain pipeline end-to-end.
+  const debugCube = createDebugCube();
+  scene.add(debugCube);
+  transitionManager.registerDomain('debug-cube', createDebugCubeApplyEra(debugCube));
+
+  // ---- Timeline + HUD ------------------------------------------------------
   const timeline = createTimeline();
-  // Era transforms arrive in downstream tasks; keep the timeline locked for now.
-  void timeline;
+  // Selecting an era on the top slider drives a cross-fade transition and
+  // updates the HUD era label.
+  timeline.onChange((era) => {
+    transitionManager.setActiveEra(era);
+    updateHudEraLabel(era);
+  });
+  // Snap the HUD label and button state to the initial era on load.
+  timeline.setActive(INITIAL_ERA);
+  updateHudEraLabel(INITIAL_ERA);
+  // Era transforms are now wired — make the timeline interactive.
+  timeline.enable();
 
   // ---- Resize handling -----------------------------------------------------
   window.addEventListener('resize', () => {
@@ -85,6 +119,9 @@ function bootstrap(): void {
   function render(): void {
     timer.update();
     const delta = timer.getDelta();
+    // Advance any in-flight era cross-fade by the frame delta. The manager
+    // mutates registered domain objects only — never rebuilds the scene graph.
+    transitionManager.update(delta * 1000);
     controls.update();
     applyNavigationBounds(controls);
     composer.render(delta);

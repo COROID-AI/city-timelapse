@@ -1,22 +1,10 @@
 import { Vector3 } from 'three';
 
 /**
- * The six eras the city block can transform between.
- * Kept here as the single source of truth so the timeline UI and any future
- * era-aware module stay in sync.
+ * Era identity and per-era configuration live in `./eras/eraConfig.ts`, which is
+ * the single source of era truth. This file now holds only the non-era spatial
+ * constants (block footprint, navigation framing bounds).
  */
-export const ERAS = [1945, 1965, 1985, 2005, 2025, 2055] as const;
-export type Era = (typeof ERAS)[number];
-
-/** Human-readable labels shown in the HUD for each era. */
-export const ERA_LABELS: Record<Era, string> = {
-  1945: '1945 · Postwar rebuild',
-  1965: '1965 · Mid-century boom',
-  1985: '1985 · Neon dawn',
-  2005: '2005 · Digital metropolis',
-  2025: '2025 · Present day',
-  2055: '2055 · Future vision',
-};
 
 /** The city block fits roughly within this footprint (world units). */
 export const BLOCK_SIZE = 50;
