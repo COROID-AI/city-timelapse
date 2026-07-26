@@ -41,8 +41,8 @@ export function TimelineSlider({ eras, selectedIndex, onSelect }: Props) {
             type="range"
             min={0}
             max={eras.length - 1}
-            step={1}
-            value={Math.round(selectedIndex)}
+            step={0.05}
+            value={selectedIndex}
             aria-label="Select year"
             onChange={(e) => onSelect(Number(e.target.value))}
           />

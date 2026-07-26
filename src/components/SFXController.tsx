@@ -15,11 +15,16 @@ type Voice = {
   gain: GainNode
 }
 
+type NoiseVoice = {
+  source: AudioBufferSourceNode
+  gain: GainNode
+}
+
 export function SFXController({ effectiveIndex, isTransitioning, reducedMotion }: Props) {
   const [enabled, setEnabled] = useState(false)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const ambRef = useRef<Voice | null>(null)
-  const noiseRef = useRef<Voice | null>(null)
+  const noiseRef = useRef<NoiseVoice | null>(null)
   const lastEraRef = useRef<number>(Math.round(effectiveIndex))
 
   const target = useMemo(() => clamp(effectiveIndex, 0, 5), [effectiveIndex])
@@ -61,7 +66,7 @@ export function SFXController({ effectiveIndex, isTransitioning, reducedMotion }
     noise.start()
 
     ambRef.current = { osc: ambOsc, gain: ambGain }
-    noiseRef.current = { osc: ambOsc, gain: noiseGain } // placeholder osc, gain is real
+    noiseRef.current = { source: noise, gain: noiseGain }
 
     const resume = async () => {
       if (ctx.state !== 'running') await ctx.resume()
@@ -102,7 +107,7 @@ export function SFXController({ effectiveIndex, isTransitioning, reducedMotion }
     const transitionBoost = isTransitioning ? 0.35 : 1
 
     amb.gain.gain.setTargetAtTime(baseAmbVol * transitionBoost, now, 0.2)
-    ;(noise.gain as GainNode).gain.setTargetAtTime(baseNoiseVol * noiseAmt * transitionBoost, now, 0.2)
+    noise.gain.gain.setTargetAtTime(baseNoiseVol * noiseAmt * transitionBoost, now, 0.2)
 
     const last = lastEraRef.current
     if (last !== era) {

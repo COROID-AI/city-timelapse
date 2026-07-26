@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useMemo, useState } from 'react'
+import React, { Suspense, useEffect, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { LoadingScreen } from './components/LoadingScreen'
@@ -21,7 +21,7 @@ function FakeAsyncAssets({ children }: { children: React.ReactNode }) {
 }
 
 function AppInner() {
-  const { isTransitioning, reducedMotion, effectiveIndex, setTargetEraIndex } = useEraTransition()
+  const { isTransitioning, reducedMotion, effectiveIndex, setTargetEraIndex, setScrubIndex } = useEraTransition()
   const { toIndex } = useEraStore()
   const [canvasKey, setCanvasKey] = useState(0)
 
@@ -31,7 +31,7 @@ function AppInner() {
         eras={eraConfig.eras}
         selectedIndex={toIndex}
         onSelect={(idx) => {
-          setTargetEraIndex(idx)
+          setScrubIndex(idx)
         }}
       />
 
@@ -85,6 +85,5 @@ function AppInner() {
 }
 
 export default function App() {
-  useMemo(() => null, [])
   return <AppInner />
 }

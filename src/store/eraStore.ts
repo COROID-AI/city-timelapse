@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { eraConfig } from '../utils/eraConfig'
 
 export type EraIndex = number
 
@@ -10,6 +11,7 @@ export type EraStoreState = {
   isTransitioning: boolean
   setTargetEraIndex: (index: number, opts?: { reducedMotion?: boolean }) => void
   setProgress: (progress: number) => void
+  setScrubIndex: (index: number) => void
 }
 
 export const useEraStore = create<EraStoreState>((set, get) => ({
@@ -40,5 +42,9 @@ export const useEraStore = create<EraStoreState>((set, get) => ({
       isTransitioning: progress < 1,
       fromIndex: s.fromIndex,
     }))
+  },
+  setScrubIndex: (index: number) => {
+    const clamped = Math.max(0, Math.min(eraConfig.eras.length - 1, index))
+    set({ fromIndex: clamped, toIndex: clamped, progress: 1, isTransitioning: false })
   },
 }))

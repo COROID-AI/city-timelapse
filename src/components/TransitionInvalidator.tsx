@@ -6,14 +6,18 @@ import { useEraStore } from '../store/eraStore'
 export function TransitionInvalidator() {
   const { invalidate } = useThree()
   const isTransitioning = useEraStore((s) => s.isTransitioning)
-  const progress = useEraStore((s) => s.progress)
 
   useEffect(() => {
     if (!isTransitioning) return
-    const id = setInterval(() => invalidate(), 16)
+    let raf = 0
+    const tick = () => {
+      invalidate()
+      raf = requestAnimationFrame(tick)
+    }
     invalidate()
-    return () => clearInterval(id)
-  }, [isTransitioning, invalidate, progress])
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [isTransitioning, invalidate])
 
   return null
 }

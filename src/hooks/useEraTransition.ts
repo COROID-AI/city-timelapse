@@ -20,6 +20,7 @@ export function useEraTransition() {
 
   const setTargetEraIndex = useEraStore((s) => s.setTargetEraIndex)
   const setProgress = useEraStore((s) => s.setProgress)
+  const setScrubIndex = useEraStore((s) => s.setScrubIndex)
 
   // Drive the transition progress via rAF. Invalidation of the R3F canvas is
   // handled inside the Canvas tree by TransitionInvalidator (which has access
@@ -64,6 +65,9 @@ export function useEraTransition() {
     effectiveIndex: safeEffectiveIndex,
     setTargetEraIndex: (index: number) => {
       setTargetEraIndex(Math.max(0, Math.min(eraConfig.eras.length - 1, index)), { reducedMotion })
+    },
+    setScrubIndex: (index: number) => {
+      setScrubIndex(Math.max(0, Math.min(eraConfig.eras.length - 1, index)))
     },
   }
 }
