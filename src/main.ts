@@ -2,6 +2,7 @@ import './style.css';
 import { ACESFilmicToneMapping, Color, PCFShadowMap, PerspectiveCamera, Scene, SRGBColorSpace, Timer, WebGLRenderer } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { NAV_BOUNDS } from './constants.js';
+import { createBillboards } from './ads/BillboardModule.js';
 import { createBuildings, createDefaultLots } from './buildings/BuildingGenerator.js';
 import { ERA_LABELS, type EraKey } from './eras/eraConfig.js';
 import { createTransitionManager } from './eras/TransitionManager.js';
@@ -110,6 +111,17 @@ function bootstrap(): void {
   scene.add(storefronts.group);
   transitionManager.registerDomain('storefronts', storefronts.applyEra);
 
+  // ---- Era-specific billboards / advertisements ---------------------------
+  // Placed wall-mounted, freestanding, and rooftop — coordinated against the
+  // building lots and storefront signage slots so they never overlap windows,
+  // entrances, or storefronts. Ad content + medium (painted → printed → LED →
+  // holographic) is read from EraConfig.ads and transforms per era via the
+  // TransitionManager. LED / holographic ads use emissive materials (glowing
+  // via the active bloom pass) and cycle canvas frames for motion.
+  const billboards = createBillboards(createDefaultLots(), buildings.storefrontSlots, INITIAL_ERA);
+  scene.add(billboards.group);
+  transitionManager.registerDomain('ads', billboards.applyEra);
+
   // ---- Timeline + HUD ------------------------------------------------------
   const timeline = createTimeline();
   // Selecting an era on the top slider drives a cross-fade transition and
@@ -145,6 +157,8 @@ function bootstrap(): void {
     transitionManager.update(delta * 1000);
     // Step the traffic-light controllers (phases red/yellow/green).
     block.update(delta * 1000);
+    // Cycle LED / holographic billboard frames for motion while settled.
+    billboards.update(delta * 1000);
     controls.update();
     applyNavigationBounds(controls);
     composer.render(delta);
