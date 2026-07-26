@@ -1,0 +1,143 @@
+:root {
+  --ui-bg: rgba(10, 12, 20, 0.62);
+  --ui-border: rgba(255, 255, 255, 0.12);
+  --ui-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  --ui-text: rgba(255,255,255,0.92);
+  --ui-muted: rgba(255,255,255,0.6);
+}
+
+.timelineWrap {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  width: min(980px, calc(100% - 24px));
+  pointer-events: none;
+}
+
+.timelinePanel {
+  pointer-events: auto;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  box-shadow: var(--ui-shadow);
+  border-radius: 16px;
+  padding: 10px 12px 12px;
+  backdrop-filter: blur(10px);
+}
+
+.timelineTitle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.timelineTitle h1 {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--ui-text);
+  margin: 0;
+}
+
+.timelineTitle .subtitle {
+  font-size: 12px;
+  color: var(--ui-muted);
+}
+
+.timelineMarkers {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  padding: 0 2px;
+  margin-bottom: 6px;
+}
+
+.markerBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: rgba(255,255,255,0.04);
+  color: var(--ui-muted);
+  padding: 6px 0;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+}
+
+.markerBtn:focus-visible {
+  border-color: rgba(125, 247, 255, 0.65);
+  box-shadow: 0 0 0 3px rgba(125, 247, 255, 0.18);
+  color: rgba(255,255,255,0.92);
+}
+
+.markerBtnActive {
+  background: rgba(125, 247, 255, 0.12);
+  border-color: rgba(125, 247, 255, 0.45);
+  color: rgba(255,255,255,0.95);
+}
+
+.timelineRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.timelineSlider {
+  width: 100%;
+}
+
+.timelineSlider input[type='range'] {
+  width: 100%;
+}
+
+.timelineSlider input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 12px;
+  background: linear-gradient(90deg, rgba(125,247,255,0.55), rgba(196,163,255,0.55));
+  border-radius: 999px;
+  outline: none;
+}
+
+.timelineSlider input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.92);
+  border: 1px solid rgba(0,0,0,0.35);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.35);
+}
+
+.resetBtn {
+  pointer-events: auto;
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 25;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  box-shadow: var(--ui-shadow);
+  color: var(--ui-text);
+  border-radius: 999px;
+  padding: 10px 12px;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+}
+
+.resetBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(125, 247, 255, 0.2), var(--ui-shadow);
+}
+
+@media (max-width: 720px) {
+  .timelineMarkers { gap: 6px; }
+  .markerBtn { padding: 5px 0; font-size: 11px; border-radius: 9px; }
+  .resetBtn { right: 12px; bottom: 12px; }
+}
+

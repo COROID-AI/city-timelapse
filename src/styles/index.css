@@ -1,0 +1,32 @@
+@import './ui.css';
+
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: #05060a;
+  overflow: hidden;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+.appRoot {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  border: 0;
+}
