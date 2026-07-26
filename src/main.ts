@@ -9,6 +9,7 @@ import { createTransitionManager } from './eras/TransitionManager.js';
 import { applyNavigationBounds } from './navigation.js';
 import { createPostProcessing } from './postprocessing.js';
 import { createTimeline } from './timeline.js';
+import { createVehicleSystem } from './vehicles/VehicleSystem.js';
 import { createBlock } from './world/BlockLayout.js';
 import { createStorefrontModule } from './storefronts/StorefrontModule.js';
 import { createGround, createLighting } from './world.js';
@@ -101,6 +102,15 @@ function bootstrap(): void {
   scene.add(block.group);
   transitionManager.registerDomain('block', block.applyEra);
 
+  // ---- Vehicle traffic ----------------------------------------------------
+  // Era-correct vehicles that drive along the block's driving lanes, obey the
+  // traffic-light controller (stop at red, resume on green), queue without
+  // overlap, and swap their population on era change via the TransitionManager.
+  // Consumes the shared RoadNetwork + TrafficLightController from the block.
+  const vehicles = createVehicleSystem(block.network, block.controller, INITIAL_ERA);
+  scene.add(vehicles.group);
+  transitionManager.registerDomain('vehicles', vehicles.applyEra);
+
   // ---- Ground-floor storefronts -------------------------------------------
   // Fills reserved ground-floor slots with era-appropriate shops and exterior
   // signs (painted → neon → backlit → LED → holographic). Signs use canvas
@@ -157,6 +167,8 @@ function bootstrap(): void {
     transitionManager.update(delta * 1000);
     // Step the traffic-light controllers (phases red/yellow/green).
     block.update(delta * 1000);
+    // Advance vehicle traffic: move along lanes, obey signals, follow/queue.
+    vehicles.update(delta * 1000);
     // Cycle LED / holographic billboard frames for motion while settled.
     billboards.update(delta * 1000);
     controls.update();
