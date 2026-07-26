@@ -49,7 +49,7 @@ export class PerformanceManager {
   }
 
   private detectDeviceTier(): PerformanceSettings {
-    const nav = navigator as any;
+    const nav = navigator as unknown as { hardwareConcurrency: number; deviceMemory: number };
     const hardwareConcurrency = nav.hardwareConcurrency || 4;
     const deviceMemory = nav.deviceMemory || 4;
     const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -139,7 +139,7 @@ export class PerformanceManager {
    * Call once per frame to monitor performance.
    * If FPS is consistently low, degrade settings.
    */
-  update(deltaTime: number): void {
+  update(_deltaTime: number): void {
     this.frameCount++;
     const now = performance.now();
 

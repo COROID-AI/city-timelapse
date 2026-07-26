@@ -1,9 +1,8 @@
-import { useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef, useEffect, useCallback } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Instance, Instances } from '@react-three/drei';
 import * as THREE from 'three';
 import { Era } from '../eras';
-import { PerformanceSettings } from '../performance/PerformanceManager';
 import { BuildingParams, VehicleParams, PedestrianParams } from './CityBlock';
 
 // --- Building Component ---

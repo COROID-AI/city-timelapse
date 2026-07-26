@@ -28,7 +28,7 @@ export class AudioManager {
 
   private init() {
     try {
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      this.audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
       this.masterGain = this.audioContext.createGain();
       this.masterGain.connect(this.audioContext.destination);
       this.masterGain.gain.value = 0.7;
@@ -130,7 +130,7 @@ export class AudioManager {
   /**
    * Play a procedural sound effect.
    */
-  playSFX(name: string, volume: number = 0.5, detune: number = 0): void {
+  playSFX(name: string, _volume: number = 0.5, detune: number = 0): void {
     if (!this.audioContext || !this.unlocked) return;
     if (this.audioContext.state !== 'running') return;
 

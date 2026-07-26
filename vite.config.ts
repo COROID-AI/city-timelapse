@@ -15,10 +15,16 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          three: ['three'],
-          fiber: ['@react-three/fiber', '@react-three/drei'],
-          react: ['react', 'react-dom'],
+        manualChunks: (id) => {
+          if (id.includes('three')) {
+            return 'three';
+          }
+          if (id.includes('@react-three/fiber') || id.includes('@react-three/drei')) {
+            return 'fiber';
+          }
+          if (id.includes('react') && !id.includes('@types/react')) {
+            return 'react';
+          }
         },
       },
     },
