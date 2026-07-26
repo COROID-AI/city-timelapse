@@ -1,5 +1,8 @@
 export default [
   {
+    ignores: ["dist/", "node_modules/", "*.local"],
+  },
+  {
     files: ["**/*.js"],
     languageOptions: {
       ecmaVersion: 2022,
