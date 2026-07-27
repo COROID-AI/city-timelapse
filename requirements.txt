@@ -1,0 +1,7 @@
+# City Era Timelapse 1945-2055 — runtime dependencies
+#
+# Install with:  pip install -r requirements.txt
+# Requires Python 3.11+  (Ursina 6.1.2 is the last release supporting 3.11)
+ursina==6.1.2
+numpy>=1.24
+pillow>=10.0
