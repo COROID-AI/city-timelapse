@@ -447,6 +447,11 @@ export function createBlock(initialEra: EraKey = '1945'): BlockLayout {
     transparent: true,
     roughness: 0.6,
     metalness: 0.0,
+    // polygonOffset prevents z-fighting between the markings decal and the
+    // asphalt surface beneath (they are separated by only ~0.01 world units).
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
   });
   markingMat.map = markingTextures[initialRoad.markingStyle];
   const crosswalkMat = new MeshStandardMaterial({
@@ -454,6 +459,9 @@ export function createBlock(initialEra: EraKey = '1945'): BlockLayout {
     map: createCrosswalkTexture(),
     transparent: true,
     roughness: 0.6,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
   });
   const curbMat = new MeshStandardMaterial({ color: 0x9a9a96, roughness: 0.9 });
   const sidewalkMat = new MeshStandardMaterial({ color: 0xb8b4ac, roughness: 0.95 });

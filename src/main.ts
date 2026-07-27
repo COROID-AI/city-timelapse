@@ -18,6 +18,18 @@ import { createDogSystem } from './agents/DogSystem.js';
 import { createGround, createLighting } from './world.js';
 import { createAtmosphereSystem } from './atmosphere/AtmosphereSystem.js';
 import { createSfxSystem } from './audio/SfxSystem.js';
+import {
+  CAMERA_PRESET_DESCRIPTIONS,
+  CAMERA_PRESET_KEYS,
+  CAMERA_PRESET_LABELS,
+  createCameraPresetController,
+} from './camera/CameraPresets.js';
+import { createMinimap } from './hud/Minimap.js';
+import {
+  createPerformanceProfiler,
+  ERA_AGENT_CAPS,
+  type PerformanceProfiler as PerformanceProfilerType,
+} from './hud/PerformanceProfiler.js';
 
 /**
  * Update the HUD era label (`#era-label`) to the readable label for `era`,
@@ -84,6 +96,11 @@ function bootstrap(): void {
   controls.maxDistance = NAV_BOUNDS.maxDistance;
   controls.maxPolarAngle = NAV_BOUNDS.maxPolarAngle;
   controls.update();
+
+  // ---- Camera presets (overview / street-level / rooftop) -----------------
+  // Animated tween controller for the three HUD-selectable viewpoints. The
+  // controller owns the camera during a tween; user input cancels it.
+  const cameraPresets = createCameraPresetController(camera, controls);
 
   // ---- Post-processing (EffectComposer + bloom) ---------------------------
   const { composer, bloom } = createPostProcessing(renderer, scene, camera);
@@ -197,6 +214,74 @@ function bootstrap(): void {
     });
   }
 
+  // ---- Camera preset buttons (HUD) ----------------------------------------
+  // Builds the three viewpoint buttons in #camera-presets. Clicking a preset
+  // animates the camera to that position; user interaction with the orbit
+  // controls cancels any active tween.
+  const presetContainer = document.getElementById('camera-presets');
+  const presetButtons = new Map<string, HTMLButtonElement>();
+  if (presetContainer) {
+    for (const key of CAMERA_PRESET_KEYS) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'preset-btn';
+      btn.textContent = CAMERA_PRESET_LABELS[key];
+      btn.setAttribute('aria-label', CAMERA_PRESET_DESCRIPTIONS[key]);
+      btn.setAttribute('aria-pressed', 'false');
+      btn.addEventListener('click', () => {
+        // Clear active state on all preset buttons, then highlight this one.
+        for (const b of presetButtons.values()) {
+          b.setAttribute('aria-pressed', 'false');
+          b.classList.remove('is-active');
+        }
+        btn.setAttribute('aria-pressed', 'true');
+        btn.classList.add('is-active');
+        cameraPresets.applyPreset(key);
+      });
+      presetContainer.appendChild(btn);
+      presetButtons.set(key, btn);
+    }
+  }
+  // Cancel any active preset tween when the user grabs the camera, so manual
+  // navigation always wins over an in-flight animation.
+  renderer.domElement.addEventListener('pointerdown', () => {
+    if (cameraPresets.isAnimating()) {
+      cameraPresets.cancel();
+      for (const b of presetButtons.values()) {
+        b.setAttribute('aria-pressed', 'false');
+        b.classList.remove('is-active');
+      }
+    }
+  });
+
+  // ---- Performance profiler (renderer.info → FPS / draw calls / tris) ------
+  // Samples renderer.info every frame and surfaces a color-coded FPS badge +
+  // draw-call/triangle counts in the HUD. Registers the agent-population caps
+  // so the performance budget is auditable.
+  const profiler = createPerformanceProfiler(renderer);
+  const perfHud = (profiler as PerformanceProfilerType & { hudElement?: HTMLDivElement }).hudElement;
+  if (perfHud) {
+    document.getElementById('app')?.appendChild(perfHud);
+  }
+  for (const [name, cap] of Object.entries(ERA_AGENT_CAPS)) {
+    profiler.registerAgentCap(name, cap);
+  }
+
+  // ---- Optional minimap (top-down block radar) ----------------------------
+  // Plots the static block/road/lot geometry and polls active agent positions
+  // from the agent system groups. Mounted in #minimap-container.
+  const minimapContainer = document.getElementById('minimap-container');
+  let minimap: ReturnType<typeof createMinimap> | null = null;
+  if (minimapContainer) {
+    minimap = createMinimap(block.network, {
+      vehicles: vehicles.group,
+      pedestrians: pedestrians.group,
+      cyclists: cyclists.group,
+      dogs: dogs.group,
+    });
+    minimapContainer.appendChild(minimap.canvas);
+  }
+
   // ---- Timeline + HUD ------------------------------------------------------
   const timeline = createTimeline();
   // Selecting an era on the top slider drives a cross-fade transition and
@@ -255,7 +340,16 @@ function bootstrap(): void {
     sfx.update(delta * 1000);
     controls.update();
     applyNavigationBounds(controls);
+    // Advance any active camera-preset tween (smoothstep-eased move to the
+    // selected viewpoint). No-op when idle.
+    cameraPresets.update(delta * 1000);
+    // Render the composed frame (scene → bloom → output).
     composer.render(delta);
+    // Sample renderer.info for the performance overlay (after the render so the
+    // counts reflect the just-drawn frame).
+    profiler.update(delta * 1000);
+    // Refresh the minimap agent positions at a throttled interval.
+    minimap?.update(delta * 1000);
     requestAnimationFrame(render);
   }
 

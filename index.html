@@ -21,6 +21,11 @@
         <div class="hud-corner hud-corner--left">
           <div class="hud-eyebrow">City Era Timelapse</div>
           <div id="era-label" class="hud-era">Timeline locked · eras pending</div>
+          <!-- Camera preset selector -->
+          <div class="hud-presets" role="group" aria-label="Camera viewpoint presets">
+            <span class="hud-presets__label">View</span>
+            <div id="camera-presets" class="hud-presets__buttons"></div>
+          </div>
         </div>
         <div class="hud-corner hud-corner--right">
           <div class="hud-hints">
@@ -35,6 +40,9 @@
           </button>
         </div>
       </div>
+
+      <!-- Optional minimap (mounted by JS into this container) -->
+      <div id="minimap-container" class="minimap-container" aria-hidden="true"></div>
 
       <!-- Top timeline shell with the six eras.
            Disabled until era transforms are wired in downstream tasks. -->
