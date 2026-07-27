@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>City Time-Lapse Timelapse 1945-2055</title>
+  <link rel="icon" href="/favicon.ico" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; }
+    body {
+      background: radial-gradient(ellipse at center, #1a1a2e 0%, #000 100%);
+      color: #fff;
+    }
+    #ui {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      z-index: 100;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+      pointer-events: none;
+    }
+    #ui > * { pointer-events: auto; }
+    #eraSelect {
+      padding: 8px 18px;
+      font-size: 16px;
+      font-weight: 600;
+      border-radius: 6px;
+      border: 2px solid #fff;
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.2s;
+      outline: none;
+      min-width: 120px;
+    }
+    #eraSelect:hover { background: rgba(255,255,255,0.3); border-color: #ffd700; }
+    #eraSelect option { background: #222; color: #fff; }
+    #sliderContainer {
+      flex: 1;
+      max-width: 500px;
+      height: 6px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 3px;
+      cursor: pointer;
+      position: relative;
+      transition: background 0.2s;
+    }
+    #sliderContainer:hover { background: rgba(255,255,255,0.35); }
+    #sliderKnob {
+      position: absolute;
+      top: -6px;
+      left: 0;
+      width: 22px;
+      height: 22px;
+      background: linear-gradient(135deg, #ffd700, #ff8c00);
+      border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 0 12px rgba(255,215,0,0.7);
+      transition: left 0.3s ease;
+    }
+    #eraLabel {
+      font-size: 18px;
+      font-weight: 700;
+      min-width: 60px;
+      text-align: center;
+      color: #ffd700;
+      text-shadow: 0 0 8px rgba(0,0,0,0.7);
+    }
+    #instructions {
+      position: absolute;
+      bottom: 16px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 13px;
+      color: rgba(255,255,255,0.7);
+      z-index: 100;
+    }
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 18px;
+      z-index: 200;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">Loading City Timelapse...</div>
+  <div id="ui">
+    <span id="eraLabel">1945</span>
+    <div id="sliderContainer">
+      <div id="sliderKnob"></div>
+    </div>
+    <select id="eraSelect">
+      <option value="1945">1945</option>
+      <option value="1965">1965</option>
+      <option value="1985">1985</option>
+      <option value="2005">2005</option>
+      <option value="2025">2025</option>
+      <option value="2055">2055</option>
+    </select>
+  </div>
+  <div id="instructions">Drag to rotate view | Scroll to zoom | Click slider to change era</div>
+
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+
+    // ============================================================
+    // ERA DEFINITIONS
+    // ============================================================
+    const ERAS = [1945, 1965, 1985, 2005, 2025, 2055];
+
+    const ERA_DATA = {
+      1945: {
+        name: "Post-War",
+        sky: 0x87ceeb,
+        fog: 0xd2b48c,
+        ground: 0x8b7d6b,
+        buildingColors: [0x8b7355, 0xa0522d, 0xcd853f, 0xd2b48c],
+        windowColor: 0x443311,
+        windowGlow: 0x332200,
+        storefrontColor: 0x654321,
+        storefrontTrim: 0x8b4513,
+        adColor: 0xc04000,
+        roadColor: 0x333333,
+        roadLine: 0xffffff,
+        signColor: 0x8b4513,
+        vehicleColor: 0x333333,
+        vehicleStyle: "vintage",
+        pedestrianColor: 0x2c2c2c,
+        pedestrianStyle: "1940s",
+        neon: false,
+        ads: ["DR PEPPER", "COCA-COLA", "PABST BLUE RIBBON"],
+        musicFreq: 220,
+        musicType: "warble"
+      },
+      1965: {
+        name: "Swinging Sixties",
+        sky: 0x87ceeb,
+        fog: 0xe6e6fa,
+        ground: 0x908070,
+        buildingColors: [0xa0522d, 0xcd853f, 0xd2b48c, 0xf4a460],
+        windowColor: 0x554422,
+        windowGlow: 0x554411,
+        storefrontColor: 0x8b4513,
+        storefrontTrim: 0xa0522d,
+        adColor: 0xff6b35,
+        roadColor: 0x444444,
+        roadLine: 0xffff00,
+        signColor: 0xa0522d,
+        vehicleColor: 0x222222,
+        vehicleStyle: "classic",
+        pedestrianColor: 0x4a4a4a,
+        pedestrianStyle: "1960s",
+        neon: true,
+        ads: ["THE BEATLES", "CIGARETTES", "MOTOWN RECORDS"],
+        musicFreq: 330,
+        musicType: "beat"
+      },
+      1985: {
+        name: "Neon Eighties",
+        sky: 0x4682b4,
+        fog: 0x000080,
+        ground: 0x555555,
+        buildingColors: [0x000080, 0x4169e1, 0x191970, 0x0000cd],
+        windowColor: 0x112244,
+        windowGlow: 0x3366ff,
+        storefrontColor: 0x222244,
+        storefrontTrim: 0x4444aa,
+        adColor: 0x00ffff,
+        roadColor: 0x222222,
+        roadLine: 0xff1493,
+        signColor: 0x00ffff,
+        vehicleColor: 0x1a1a1a,
+        vehicleStyle: "80s",
+        pedestrianColor: 0x666666,
+        pedestrianStyle: "1980s",
+        neon: true,
+        ads: ["ARCADE", "VIDEO RENTAL", "MTV"],
+        musicFreq: 440,
+        musicType: "synth"
+      },
+      2005: {
+        name: "Digital Dawn",
+        sky: 0x87ceeb,
+        fog: 0xe0e0e0,
+        ground: 0x444444,
+        buildingColors: [0x333333, 0x555555, 0x777777, 0x999999],
+        windowColor: 0x223355,
+        windowGlow: 0x44aaff,
+        storefrontColor: 0x333333,
+        storefrontTrim: 0x666666,
+        adColor: 0x00aaff,
+        roadColor: 0x333333,
+        roadLine: 0xffffff,
+        signColor: 0x00aaff,
+        vehicleColor: 0x222222,
+        vehicleStyle: "modern",
+        pedestrianColor: 0x777777,
+        pedestrianStyle: "2000s",
+        neon: true,
+        ads: ["WI-FI", "STARBUCKS", "APPLE STORE"],
+        musicFreq: 523,
+        musicType: "digital"
+      },
+      2025: {
+        name: "Modern Era",
+        sky: 0x87ceeb,
+        fog: 0xffffff,
+        ground: 0x333333,
+        buildingColors: [0x222222, 0x333333, 0x444444, 0x555555],
+        windowColor: 0x113366,
+        windowGlow: 0x3399ff,
+        storefrontColor: 0x1a1a1a,
+        storefrontTrim: 0x444444,
+        adColor: 0x00d4ff,
+        roadColor: 0x222222,
+        roadLine: 0x00d4ff,
+        signColor: 0x00d4ff,
+        vehicleColor: 0x000000,
+        vehicleStyle: "electric",
+        pedestrianColor: 0x888888,
+        pedestrianStyle: "modern",
+        neon: true,
+        ads: ["TESLA", "NETFLIX", "CRYPTO"],
+        musicFreq: 660,
+        musicType: "ambient"
+      },
+      2055: {
+        name: "Future",
+        sky: 0x0a0a2a,
+        fog: 0x1a0033,
+        ground: 0x111111,
+        buildingColors: [0x00ffff, 0x0088ff, 0x8800ff, 0xff00ff],
+        windowColor: 0x001133,
+        windowGlow: 0x00ffff,
+        storefrontColor: 0x0a0a2a,
+        storefrontTrim: 0x00ffff,
+        adColor: 0xff00ff,
+        roadColor: 0x0a0a2a,
+        roadLine: 0x00ffff,
+        signColor: 0x00ffff,
+        vehicleColor: 0x00ffff,
+        vehicleStyle: "flying",
+        pedestrianColor: 0xaaaaaa,
+        pedestrianStyle: "cyber",
+        neon: true,
+        ads: ["NEURAL LINK", "QUANTUM", "MARS COLONY"],
+        musicFreq: 880,
+        musicType: "future"
+      }
+    };
+
+    // ============================================================
+    // THREE.JS SETUP
+    // ============================================================
+    const scene = new THREE.Scene();
+
+    const camera = new THREE.PerspectiveCamera(
+      60, window.innerWidth / window.innerHeight, 0.1, 500
+    );
+    camera.position.set(25, 18, 35);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI / 2 - 0.05;
+    controls.minDistance = 10;
+    controls.maxDistance = 120;
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    dirLight.position.set(15, 30, 15);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 1024;
+    dirLight.shadow.mapSize.height = 1024;
+    dirLight.shadow.camera.near = 0.5;
+    dirLight.shadow.camera.far = 100;
+    dirLight.shadow.camera.left = -40;
+    dirLight.shadow.camera.right = 40;
+    dirLight.shadow.camera.top = 40;
+    dirLight.shadow.camera.bottom = -40;
+    scene.add(dirLight);
+
+    const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
+    dirLight2.position.set(-15, 20, -15);
+    scene.add(dirLight2);
+
+    // ============================================================
+    // AUDIO (SFX)
+    // ============================================================
+    const audioListener = new THREE.AudioListener();
+    camera.add(audioListener);
+
+    const audioContext = audioListener.context;
+    let audioEnabled = false;
+    const sfxObjects = [];
+    let currentEraMusic = null;
+
+    // Ambient city SFX
+    const cityAmbience = new THREE.Audio(audioListener);
+    let cityAmbienceBuffer = null;
+    let footstepBuffer = null;
+    let hoverBuffer = null;
+    let digitalBuffer = null;
+
+    function loadAudioBuffer(type) {
+      return new Promise((resolve) => {
+        const ctx = audioContext;
+        const sampleRate = ctx.sampleRate;
+        const duration = 8;
+        const numSamples = sampleRate * duration;
+        const buffer = ctx.createBuffer(2, numSamples, sampleRate);
+
+        for (let ch = 0; ch < 2; ch++) {
+          const data = buffer.getChannelData(ch);
+          for (let i = 0; i < numSamples; i++) {
+            const t = i / sampleRate;
+            let noise = 0;
+            if (type === "city") {
+              // Low rumble + traffic
+              noise = (Math.random() * 2 - 1) * 0.3;
+              noise += Math.sin(t * 220 * Math.PI * 2) * 0.1 * Math.exp(-t * 0.5);
+              noise += Math.sin(t * 440 * Math.PI * 2) * 0.05 * Math.exp(-t * 0.3);
+            } else if (type === "footsteps") {
+              noise = (Math.random() * 2 - 1) * 0.4;
+              noise += Math.sin(t * 880 * Math.PI * 2) * 0.2 * Math.exp(-t * 2);
+            } else if (type === "hover") {
+              noise = (Math.random() * 2 - 1) * 0.2;
+              noise += Math.sin(t * 220 * Math.PI * 2) * 0.15;
+              noise += Math.sin(t * 330 * Math.PI * 2) * 0.1;
+            } else if (type === "digital") {
+              noise = (Math.random() * 2 - 1) * 0.15;
+              noise += Math.sin(t * 660 * Math.PI * 2) * 0.1;
+            }
+            data[i] = noise * Math.exp(-t * 0.1);
+          }
+        }
+        resolve(buffer);
+      });
+    }
+
+    async function initAudioBuffers() {
+      cityAmbienceBuffer = await loadAudioBuffer("city");
+      footstepBuffer = await loadAudioBuffer("footsteps");
+      hoverBuffer = await loadAudioBuffer("hover");
+      digitalBuffer = await loadAudioBuffer("digital");
+    }
+
+    function playSound(buffer, loop = false, volume = 0.5) {
+      if (!audioEnabled || !buffer) return;
+      const sound = new THREE.Audio(audioListener);
+      sound.setBuffer(buffer);
+      sound.setLoop(loop);
+      sound.setVolume(volume);
+      sound.play();
+      sfxObjects.push(sound);
+      return sound;
+    }
+
+    function stopAllSFX() {
+      sfxObjects.forEach(s => s.stop());
+      sfxObjects.length = 0;
+      if (currentEraMusic) {
+        currentEraMusic.stop();
+        currentEraMusic = null;
+      }
+    }
+
+    function playEraMusic(eraData) {
+      stopAllSFX();
+      playSound(cityAmbienceBuffer, true, 0.3);
+
+      // Era-specific music using oscillator
+      if (audioEnabled) {
+        const ctx = audioContext;
+        const master = ctx.createGain();
+        master.gain.value = 0.15;
+        master.connect(ctx.destination);
+
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const osc3 = ctx.createOscillator();
+
+        osc1.type = "sine";
+        osc2.type = "sawtooth";
+        osc3.type = "square";
+
+        osc1.frequency.value = eraData.musicFreq;
+        osc2.frequency.value = eraData.musicFreq * 1.5;
+        osc3.frequency.value = eraData.musicFreq * 2;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = "lowpass";
+
+        if (eraData.musicType === "warble") {
+          filter.frequency.value = 800;
+          osc2.type = "triangle";
+          osc3.type = "triangle";
+        } else if (eraData.musicType === "beat") {
+          filter.frequency.value = 2000;
+        } else if (eraData.musicType === "synth") {
+          filter.frequency.value = 3000;
+        } else if (eraData.musicType === "digital") {
+          filter.frequency.value = 4000;
+        } else if (eraData.musicType === "ambient") {
+          filter.frequency.value = 2000;
+          osc2.type = "sine";
+          osc3.type = "sine";
+        } else if (eraData.musicType === "future") {
+          filter.frequency.value = 6000;
+          osc1.type = "sawtooth";
+          osc2.type = "sawtooth";
+        }
+
+        const lfo = ctx.createOscillator();
+        lfo.type = "sine";
+        lfo.frequency.value = 5;
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.value = 200;
+        lfo.connect(lfoGain);
+        lfoGain.connect(filter.frequency);
+
+        osc1.connect(filter);
+        osc2.connect(filter);
+        osc3.connect(filter);
+        filter.connect(master);
+
+        lfo.start();
+        osc1.start();
+        osc2.start();
+        osc3.start();
+
+        currentEraMusic = {
+          stop: () => {
+            osc1.stop();
+            osc2.stop();
+            osc3.stop();
+            lfo.stop();
+            master.disconnect();
+          }
+        };
+      }
+    }
+
+    // ============================================================
+    // GROUND / ROAD / SIDEWALK
+    // ============================================================
+    const groundGroup = new THREE.Group();
+    scene.add(groundGroup);
+
+    const groundGeom = new THREE.PlaneGeometry(120, 120);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x8b7d6b });
+    const ground = new THREE.Mesh(groundGeom, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    groundGroup.add(ground);
+
+    // Road (center strip)
+    const roadGeom = new THREE.PlaneGeometry(20, 120);
+    const roadMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+    const road = new THREE.Mesh(roadGeom, roadMat);
+    road.rotation.x = -Math.PI / 2;
+    road.position.y = 0.01;
+    road.receiveShadow = true;
+    groundGroup.add(road);
+
+    // Sidewalks
+    function createSidewalk(x, z, w, h) {
+      const geom = new THREE.PlaneGeometry(w, h);
+      const mat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.position.set(x, 0.02, z);
+      mesh.receiveShadow = true;
+      groundGroup.add(mesh);
+    }
+    createSidewalk(-15, 0, 10, 120);
+    createSidewalk(15, 0, 10, 120);
+
+    // Road lines
+    const lineGroup = new THREE.Group();
+    scene.add(lineGroup);
+
+    // ============================================================
+    // BUILDINGS
+    // ============================================================
+    const buildingGroup = new THREE.Group();
+    scene.add(buildingGroup);
+
+    const buildingDefs = [
+      // x, z, width, depth, height
+      { x: -22, z: -30, w: 12, d: 12, h: 25 },
+      { x: -22, z: 0, w: 12, d: 12, h: 20 },
+      { x: -22, z: 30, w: 12, d: 12, h: 18 },
+      { x: -8, z: -30, w: 10, d: 10, h: 15 },
+      { x: -8, z: 0, w: 10, d: 10, h: 12 },
+      { x: -8, z: 30, w: 10, d: 10, h: 16 },
+      { x: 8, z: -30, w: 10, d: 10, h: 14 },
+      { x: 8, z: 0, w: 10, d: 10, h: 10 },
+      { x: 8, z: 30, w: 10, d: 10, h: 17 },
+      { x: 22, z: -30, w: 12, d: 12, h: 22 },
+      { x: 22, z: 0, w: 12, d: 12, h: 19 },
+      { x: 22, z: 30, w: 12, d: 12, h: 21 },
+    ];
+
+    const buildingMeshes = [];
+
+    function createBuilding(def) {
+      const group = new THREE.Group();
+
+      // Main building body
+      const geom = new THREE.BoxGeometry(def.w, def.h, def.d);
+      const mat = new THREE.MeshStandardMaterial({ color: 0x8b7355 });
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.position.y = def.h / 2;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      group.add(mesh);
+
+      // Windows
+      const windowGroup = new THREE.Group();
+      const windowMat = new THREE.MeshStandardMaterial({
+        color: 0x443311,
+        emissive: 0x332200,
+        emissiveIntensity: 0.5
+      });
+      const windowGeom = new THREE.PlaneGeometry(0.8, 0.8);
+
+      const cols = Math.floor(def.w / 1.2);
+      const rows = Math.floor(def.h / 1.2);
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (Math.random() > 0.15) {
+            const wx = -def.w / 2 + 1 + c * 1.2;
+            const wy = 1 + r * 1.2;
+            const w1 = new THREE.Mesh(windowGeom, windowMat);
+            w1.position.set(wx, wy, def.d / 2 + 0.01);
+            windowGroup.add(w1);
+
+            const w2 = w1.clone();
+            w2.rotation.y = Math.PI;
+            w2.position.set(-wx, wy, -def.d / 2 - 0.01);
+            windowGroup.add(w2);
+          }
+        }
+      }
+      group.add(windowGroup);
+
+      // Roof
+      const roofGeom = new THREE.BoxGeometry(def.w + 0.5, 1, def.d + 0.5);
+      const roofMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
+      const roof = new THREE.Mesh(roofGeom, roofMat);
+      roof.position.y = def.h + 0.5;
+      roof.castShadow = true;
+      group.add(roof);
+
+      group.userData = {
+        def,
+        mesh,
+        windowGroup,
+        roof,
+        windowMat
+      };
+
+      buildingGroup.add(group);
+      buildingMeshes.push(group);
+      return group;
+    }
+
+    for (const def of buildingDefs) {
+      createBuilding(def);
+    }
+
+    // ============================================================
+    // STOREFRONTS & ADVERTISEMENTS
+    // ============================================================
+    const storefrontGroup = new THREE.Group();
+    scene.add(storefrontGroup);
+
+    const storefrontDefs = [
+      { x: -22, z: -36, w: 12, d: 2, h: 5, text: "DR PEPPER" },
+      { x: -22, z: -18, w: 12, d: 2, h: 5, text: "COCA-COLA" },
+      { x: -22, z: -6, w: 12, d: 2, h: 5, text: "PABST BLUE RIBBON" },
+      { x: -22, z: 6, w: 12, d: 2, h: 5, text: "WOOLEN MILLS" },
+      { x: -22, z: 18, w: 12, d: 2, h: 5, text: "ARMY NAVY" },
+      { x: -22, z: 30, w: 12, d: 2, h: 5, text: "GENERAL STORE" },
+      { x: 22, z: -36, w: 12, d: 2, h: 5, text: "DINER" },
+      { x: 22, z: -18, w: 12, d: 2, h: 5, text: "GAS STATION" },
+      { x: 22, z: -6, w: 12, d: 2, h: 5, text: "MOTEL" },
+      { x: 22, z: 6, w: 12, d: 2, h: 5, text: "BARBER SHOP" },
+      { x: 22, z: 18, w: 12, d: 2, h: 5, text: "PHARMACY" },
+      { x: 22, z: 30, w: 12, d: 2, h: 5, text: "5&10 CENT" },
+    ];
+
+    const storefrontMeshes = [];
+
+    function createStorefront(def) {
+      const group = new THREE.Group();
+
+      const geom = new THREE.BoxGeometry(def.w, def.h, def.d);
+      const mat = new THREE.MeshStandardMaterial({ color: 0x654321 });
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.position.y = def.h / 2;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      group.add(mesh);
+
+      // Sign
+      const signGeom = new THREE.PlaneGeometry(def.w * 0.8, 1);
+      const signMat = new THREE.MeshStandardMaterial({
+        color: 0x8b4513,
+        emissive: 0x332200,
+        emissiveIntensity: 0.3,
+        side: THREE.DoubleSide
+      });
+      const sign = new THREE.Mesh(signGeom, signMat);
+      sign.position.y = def.h + 1;
+      sign.rotation.y = Math.PI;
+      group.add(sign);
+
+      // Neon/LED strip
+      const neonGeom = new THREE.PlaneGeometry(def.w * 0.9, 0.3);
+      const neonMat = new THREE.MeshStandardMaterial({
+        color: 0xff6b35,
+        emissive: 0xff6b35,
+        emissiveIntensity: 0.8
+      });
+      const neon = new THREE.Mesh(neonGeom, neonMat);
+      neon.position.y = 1;
+      neon.position.z = def.d / 2 + 0.01;
+      group.add(neon);
+
+      group.userData = { def, mesh, sign, signMat, neon, neonMat };
+      group.position.set(def.x, 0, def.z);
+      storefrontGroup.add(group);
+      storefrontMeshes.push(group);
+      return group;
+    }
+
+    for (const def of storefrontDefs) {
+      createStorefront(def);
+    }
+
+    // ============================================================
+    // VEHICLES
+    // ============================================================
+    const vehicleGroup = new THREE.Group();
+    scene.add(vehicleGroup);
+
+    const vehicleDefs = [
+      { x: -10, z: 0, lane: 0 },
+      { x: -4, z: 0, lane: 0 },
+      { x: 2, z: 0, lane: 0 },
+      { x: 8, z: 0, lane: 0 },
+      { x: 16, z: 0, lane: 0 },
+      { x: -10, z: 2, lane: 1 },
+      { x: 4, z: 2, lane: 1 },
+      { x: 12, z: 2, lane: 1 },
+    ];
+
+    const vehicleMeshes = [];
+
+    function createVehicle(def) {
+      const group = new THREE.Group();
+
+      const bodyGeom = new THREE.BoxGeometry(3, 1.5, 1.5);
+      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+      const body = new THREE.Mesh(bodyGeom, bodyMat);
+      body.position.y = 1.5;
+      body.castShadow = true;
+      body.receiveShadow = true;
+      group.add(body);
+
+      // Wheels
+      const wheelGeom = new THREE.CylinderGeometry(0.4, 0.4, 0.5, 16);
+      const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+      for (let i = 0; i < 4; i++) {
+        const wheel = new THREE.Mesh(wheelGeom, wheelMat);
+        wheel.position.set(
+          -1.2 + i * 0.8,
+          0.5,
+          def.lane === 0 ? 0 : (i < 2 ? 0.8 : -0.8)
+        );
+        wheel.rotation.z = Math.PI / 2;
+        wheel.castShadow = true;
+        group.add(wheel);
+      }
+
+      // Windshield
+      const windGeom = new THREE.PlaneGeometry(2.5, 1);
+      const windMat = new THREE.MeshStandardMaterial({
+        color: 0x88ccff,
+        transparent: true,
+        opacity: 0.5
+      });
+      const windshield = new THREE.Mesh(windGeom, windMat);
+      windshield.position.y = 2.5;
+      windshield.rotation.x = -0.3;
+      group.add(windshield);
+
+      // Headlights
+      const headGeom = new THREE.SphereGeometry(0.2, 8, 8);
+      const headMat = new THREE.MeshStandardMaterial({
+        color: 0xffffcc,
+        emissive: 0xffffcc,
+        emissiveIntensity: 0.5
+      });
+      const head1 = new THREE.Mesh(headGeom, headMat);
+      head1.position.set(-1.5, 1.5, 0.8);
+      group.add(head1);
+      const head2 = head1.clone();
+      head2.position.set(-1.5, 1.5, -0.8);
+      group.add(head2);
+
+      group.userData = {
+        def,
+        body,
+        bodyMat,
+        wheels: group.children.filter(c => c.geometry === wheelGeom),
+        headlights: [head1, head2],
+        headMat,
+        windshield,
+        windMat,
+        offset: Math.random() * Math.PI * 2,
+        speed: 0.5 + Math.random() * 0.5
+      };
+
+      vehicleGroup.add(group);
+      vehicleMeshes.push(group);
+      return group;
+    }
+
+    for (const def of vehicleDefs) {
+      createVehicle(def);
+    }
+
+    // ============================================================
+    // PEDESTRIANS
+    // ============================================================
+    const pedestrianGroup = new THREE.Group();
+    scene.add(pedestrianGroup);
+
+    const pedestrianDefs = [
+      { x: -18, z: 2, dir: 1 },
+      { x: -12, z: 2, dir: 1 },
+      { x: -6, z: 2, dir: 1 },
+      { x: 0, z: 2, dir: 1 },
+      { x: 6, z: 2, dir: 1 },
+      { x: 12, z: 2, dir: 1 },
+      { x: 18, z: 2, dir: 1 },
+      { x: -18, z: -2, dir: -1 },
+      { x: -12, z: -2, dir: -1 },
+      { x: -6, z: -2, dir: -1 },
+      { x: 0, z: -2, dir: -1 },
+      { x: 6, z: -2, dir: -1 },
+      { x: 12, z: -2, dir: -1 },
+      { x: 18, z: -2, dir: -1 },
+    ];
+
+    const pedestrianMeshes = [];
+
+    function createPedestrian(def) {
+      const group = new THREE.Group();
+
+      // Body
+      const bodyGeom = new THREE.CylinderGeometry(0.3, 0.3, 3, 8);
+      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x4a4a4a });
+      const body = new THREE.Mesh(bodyGeom, bodyMat);
+      body.position.y = 2.5;
+      body.castShadow = true;
+      group.add(body);
+
+      // Head
+      const headGeom = new THREE.SphereGeometry(0.4, 8, 8);
+      const headMat = new THREE.MeshStandardMaterial({ color: 0x886644 });
+      const head = new THREE.Mesh(headGeom, headMat);
+      head.position.y = 4.2;
+      head.castShadow = true;
+      group.add(head);
+
+      // Arms
+      const armGeom = new THREE.CylinderGeometry(0.15, 0.15, 2.5, 6);
+      const armMat = new THREE.MeshStandardMaterial({ color: 0x4a4a4a });
+      const arm1 = new THREE.Mesh(armGeom, armMat);
+      arm1.position.set(-0.5, 2.5, 0);
+      arm1.rotation.z = 0.3;
+      group.add(arm1);
+      const arm2 = arm1.clone();
+      arm2.position.set(0.5, 2.5, 0);
+      arm2.rotation.z = -0.3;
+      group.add(arm2);
+
+      group.userData = {
+        def,
+        body,
+        bodyMat,
+        head,
+        headMat,
+        arms: [arm1, arm2],
+        armMat,
+        offset: Math.random() * Math.PI * 2,
+        speed: 0.3 + Math.random() * 0.2
+      };
+
+      pedestrianGroup.add(group);
+      pedestrianMeshes.push(group);
+      return group;
+    }
+
+    for (const def of pedestrianDefs) {
+      createPedestrian(def);
+    }
+
+    // ============================================================
+    // STREETLIGHTS
+    // ============================================================
+    const streetlightGroup = new THREE.Group();
+    scene.add(streetlightGroup);
+
+    function createStreetlight(x, z) {
+      const group = new THREE.Group();
+
+      const poleGeom = new THREE.CylinderGeometry(0.2, 0.2, 8, 8);
+      const poleMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+      const pole = new THREE.Mesh(poleGeom, poleMat);
+      pole.position.y = 4;
+      pole.castShadow = true;
+      group.add(pole);
+
+      const armGeom = new THREE.CylinderGeometry(0.15, 0.15, 3, 6);
+      const arm = new THREE.Mesh(armGeom, poleMat);
+      arm.position.set(1.5, 7, 0);
+      arm.rotation.z = Math.PI / 2;
+      group.add(arm);
+
+      const lightGeom = new THREE.SphereGeometry(0.5, 8, 8);
+      const lightMat = new THREE.MeshStandardMaterial({
+        color: 0xffeeaa,
+        emissive: 0xffeeaa,
+        emissiveIntensity: 0.8
+      });
+      const lightBulb = new THREE.Mesh(lightGeom, lightMat);
+      lightBulb.position.set(3, 7, 0);
+      group.add(lightBulb);
+
+      const pointLight = new THREE.PointLight(0xffeeaa, 0.8, 15);
+      pointLight.position.set(3, 7, 0);
+      pointLight.castShadow = true;
+      group.add(pointLight);
+
+      group.userData = { poleMat, lightMat, pointLight };
+      group.position.set(x, 0, z);
+      streetlightGroup.add(group);
+      return group;
+    }
+
+    createStreetlight(-18, 0);
+    createStreetlight(18, 0);
+    createStreetlight(0, -18);
+    createStreetlight(0, 18);
+
+    // ============================================================
+    // TREES / VEGETATION
+    // ============================================================
+    const treeGroup = new THREE.Group();
+    scene.add(treeGroup);
+
+    function createTree(x, z) {
+      const group = new THREE.Group();
+
+      const trunkGeom = new THREE.CylinderGeometry(0.3, 0.5, 3, 8);
+      const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5d4037 });
+      const trunk = new THREE.Mesh(trunkGeom, trunkMat);
+      trunk.position.y = 1.5;
+      trunk.castShadow = true;
+      group.add(trunk);
+
+      const leafGeom = new THREE.SphereGeometry(2, 8, 8);
+      const leafMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32 });
+      const leaves = new THREE.Mesh(leafGeom, leafMat);
+      leaves.position.y = 3.5;
+      leaves.castShadow = true;
+      group.add(leaves);
+
+      group.userData = { trunkMat, leafMat };
+      group.position.set(x, 0, z);
+      treeGroup.add(group);
+      return group;
+    }
+
+    createTree(-28, -10);
+    createTree(-28, 10);
+    createTree(28, -10);
+    createTree(28, 10);
+    createTree(0, -28);
+    createTree(0, 28);
+
+    // ============================================================
+    // PARTICLES / NEON EFFECTS
+    // ============================================================
+    const particleGroup = new THREE.Group();
+    scene.add(particleGroup);
+
+    const particleGeom = new THREE.BufferGeometry();
+    const particleCount = 200;
+    const particlePositions = new Float32Array(particleCount * 3);
+    const particleVelocities = [];
+
+    for (let i = 0; i < particleCount; i++) {
+      particlePositions[i * 3] = (Math.random() - 0.5) * 80;
+      particlePositions[i * 3 + 1] = Math.random() * 30;
+      particlePositions[i * 3 + 2] = (Math.random() - 0.5) * 80;
+      particleVelocities.push({
+        x: (Math.random() - 0.5) * 0.02,
+        y: (Math.random() - 0.5) * 0.01,
+        z: (Math.random() - 0.5) * 0.02
+      });
+    }
+
+    particleGeom.setAttribute("position", new THREE.BufferAttribute(particlePositions, 3));
+    const particleMat = new THREE.PointsMaterial({
+      color: 0xffffff,
+      size: 0.3,
+      transparent: true,
+      opacity: 0.3,
+      sizeAttenuation: true
+    });
+    const particles = new THREE.Points(particleGeom, particleMat);
+    particleGroup.add(particles);
+
+    // ============================================================
+    // TRANSITION SYSTEM
+    // ============================================================
+    let currentEraIndex = 0;
+    let targetEraIndex = 0;
+    let transitionProgress = 0; // 0 = current, 1 = target
+    const transitionSpeed = 0.015;
+
+    const eraSelect = document.getElementById("eraSelect");
+    const eraLabel = document.getElementById("eraLabel");
+    const sliderContainer = document.getElementById("sliderContainer");
+    const sliderKnob = document.getElementById("sliderKnob");
+    const loadingEl = document.getElementById("loading");
+
+    function updateSliderPosition() {
+      const percent = targetEraIndex / (ERAS.length - 1);
+      sliderKnob.style.left = `calc(${(sliderContainer.clientWidth - 22)}px * ${percent})`;
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function lerpColor(c1, c2, t) {
+      const r = Math.round(lerp((c1 >> 16) & 0xff, (c2 >> 16) & 0xff, t));
+      const g = Math.round(lerp((c1 >> 8) & 0xff, (c2 >> 8) & 0xff, t));
+      const b = Math.round(lerp(c1 & 0xff, c2 & 0xff, t));
+      return (r << 16) | (g << 8) | b;
+    }
+
+    function getEraAt(index) {
+      return ERA_DATA[ERAS[index]];
+    }
+
+    function applyEraToScene(eraData, intensity = 1) {
+      // Sky / fog
+      scene.background = new THREE.Color(eraData.sky);
+      scene.fog = new THREE.FogExp2(eraData.fog, 0.002 * intensity);
+
+      // Ground
+      groundMat.color.set(eraData.ground);
+
+      // Road
+      roadMat.color.set(eraData.roadColor);
+
+      // Road lines
+      lineGroup.clear();
+      const lineColor = new THREE.Color(eraData.roadLine);
+      const lineMat = new THREE.LineBasicMaterial({ color: lineColor });
+      for (let i = -55; i <= 55; i += 10) {
+        const geom = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(-10, 0.02, i),
+          new THREE.Vector3(10, 0.02, i)
+        ]);
+        const line = new THREE.Line(geom, lineMat);
+        lineGroup.add(line);
+      }
+
+      // Buildings
+      buildingMeshes.forEach((building, i) => {
+        const def = building.userData.def;
+        const eraColors = eraData.buildingColors;
+        const color = eraColors[i % eraColors.length];
+        building.userData.mesh.material.color.set(color);
+
+        // Windows
+        building.userData.windowMat.color.set(eraData.windowColor);
+        building.userData.windowMat.emissive.set(eraData.windowGlow);
+        building.userData.windowMat.emissiveIntensity = eraData.neon ? 0.8 : 0.3;
+
+        // Roof
+        building.userData.roof.material.color.set(
+          lerpColor(0x555555, eraData.signColor, 0.5)
+        );
+      });
+
+      // Storefronts
+      storefrontMeshes.forEach((sf, i) => {
+        sf.userData.mesh.material.color.set(eraData.storefrontColor);
+        sf.userData.signMat.color.set(eraData.adColor);
+        sf.userData.signMat.emissive.set(eraData.windowGlow);
+        sf.userData.signMat.emissiveIntensity = eraData.neon ? 0.6 : 0.2;
+        sf.userData.neonMat.color.set(eraData.adColor);
+        sf.userData.neonMat.emissive.set(eraData.adColor);
+        sf.userData.neonMat.emissiveIntensity = eraData.neon ? 1.0 : 0.3;
+
+        // Update ad text
+        const adText = eraData.ads[i % eraData.ads.length];
+        // (Text rendering handled by sprite if needed)
+      });
+
+      // Vehicles
+      vehicleMeshes.forEach((v, i) => {
+        const eraVehicles = ["vintage", "classic", "80s", "modern", "electric", "flying"];
+        v.userData.bodyMat.color.set(eraData.vehicleColor);
+        v.userData.headMat.emissiveIntensity = eraData.neon ? 0.8 : 0.2;
+        v.userData.windMat.opacity = eraData.neon ? 0.6 : 0.4;
+
+        // Vehicle style changes
+        const targetStyle = eraVehicles[targetEraIndex];
+        const currentStyle = eraVehicles[currentEraIndex];
+        if (targetStyle === "flying") {
+          v.position.y = lerp(0, 8, intensity);
+        } else {
+          v.position.y = 0;
+        }
+      });
+
+      // Pedestrians
+      pedestrianMeshes.forEach((p, i) => {
+        p.userData.bodyMat.color.set(eraData.pedestrianColor);
+        p.userData.headMat.color.set(
+          lerpColor(0x886644, 0xaaaaaa, targetEraIndex / (ERAS.length - 1))
+        );
+      });
+
+      // Streetlights
+      streetlightGroup.children.forEach((sl) => {
+        sl.userData.lightMat.emissiveIntensity = eraData.neon ? 1.0 : 0.5;
+        sl.userData.pointLight.color.set(eraData.roadLine === 0x00ffff ? 0x00ffff : 0xffeeaa);
+        sl.userData.pointLight.intensity = eraData.neon ? 1.0 : 0.5;
+      });
+
+      // Trees
+      treeGroup.children.forEach((t) => {
+        t.userData.leafMat.color.set(
+          lerpColor(0x2e7d32, eraData.sky === 0x0a0a2a ? 0x00ff88 : 0x2e7d32, intensity)
+        );
+      });
+
+      // Particles
+      particleMat.color.set(eraData.neon ? 0xffffff : 0xaaaaaa);
+      particleMat.opacity = eraData.neon ? 0.4 : 0.1;
+
+      // Ambient light
+      ambientLight.intensity = lerp(0.4, eraData.neon ? 0.6 : 0.4, intensity);
+      dirLight.intensity = lerp(1.2, eraData.neon ? 1.5 : 1.2, intensity);
+    }
+
+    function updateTransition() {
+      if (targetEraIndex === currentEraIndex) return;
+
+      if (transitionProgress < 1) {
+        transitionProgress += transitionSpeed;
+      } else {
+        transitionProgress = 1;
+        currentEraIndex = targetEraIndex;
+      }
+
+      // Interpolate between eras
+      const eraFrom = getEraAt(currentEraIndex);
+      const eraTo = getEraAt(targetEraIndex);
+      const t = transitionProgress;
+
+      // Sky
+      const skyFrom = new THREE.Color(eraFrom.sky);
+      const skyTo = new THREE.Color(eraTo.sky);
+      scene.background = skyFrom.clone().lerp(skyTo, t);
+
+      // Fog
+      const fogFrom = new THREE.Color(eraFrom.fog);
+      const fogTo = new THREE.Color(eraTo.fog);
+      scene.fog = new THREE.FogExp2(fogFrom.clone().lerp(fogTo, t), 0.002);
+
+      // Ground
+      groundMat.color.set(lerpColor(eraFrom.ground, eraTo.ground, t));
+
+      // Road
+      roadMat.color.set(lerpColor(eraFrom.roadColor, eraTo.roadColor, t));
+
+      // Road lines
+      lineGroup.clear();
+      const lineColor = new THREE.Color(lerpColor(eraFrom.roadLine, eraTo.roadLine, t));
+      const lineMat = new THREE.LineBasicMaterial({ color: lineColor });
+      for (let i = -55; i <= 55; i += 10) {
+        const geom = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(-10, 0.02, i),
+          new THREE.Vector3(10, 0.02, i)
+        ]);
+        const line = new THREE.Line(geom, lineMat);
+        lineGroup.add(line);
+      }
+
+      // Buildings
+      buildingMeshes.forEach((building, i) => {
+        const eraColorsFrom = eraFrom.buildingColors;
+        const eraColorsTo = eraTo.buildingColors;
+        const colorFrom = eraColorsFrom[i % eraColorsFrom.length];
+        const colorTo = eraColorsTo[i % eraColorsTo.length];
+        building.userData.mesh.material.color.set(lerpColor(colorFrom, colorTo, t));
+
+        building.userData.windowMat.color.set(
+          lerpColor(eraFrom.windowColor, eraTo.windowColor, t)
+        );
+        building.userData.windowMat.emissive.set(
+          lerpColor(eraFrom.windowGlow, eraTo.windowGlow, t)
+        );
+        building.userData.windowMat.emissiveIntensity = lerp(
+          eraFrom.neon ? 0.8 : 0.3,
+          eraTo.neon ? 0.8 : 0.3,
+          t
+        );
+      });
+
+      // Storefronts
+      storefrontMeshes.forEach((sf, i) => {
+        sf.userData.mesh.material.color.set(
+          lerpColor(eraFrom.storefrontColor, eraTo.storefrontColor, t)
+        );
+        sf.userData.signMat.color.set(
+          lerpColor(eraFrom.adColor, eraTo.adColor, t)
+        );
+        sf.userData.signMat.emissive.set(
+          lerpColor(eraFrom.windowGlow, eraTo.windowGlow, t)
+        );
+        sf.userData.neonMat.color.set(
+          lerpColor(eraFrom.adColor, eraTo.adColor, t)
+        );
+        sf.userData.neonMat.emissiveIntensity = lerp(
+          eraFrom.neon ? 1.0 : 0.3,
+          eraTo.neon ? 1.0 : 0.3,
+          t
+        );
+      });
+
+      // Vehicles
+      const eraVehicles = ["vintage", "classic", "80s", "modern", "electric", "flying"];
+      vehicleMeshes.forEach((v, i) => {
+        v.userData.bodyMat.color.set(
+          lerpColor(eraFrom.vehicleColor, eraTo.vehicleColor, t)
+        );
+        v.userData.headMat.emissiveIntensity = lerp(
+          eraFrom.neon ? 0.8 : 0.2,
+          eraTo.neon ? 0.8 : 0.2,
+          t
+        );
+
+        // Flying vehicles in 2055
+        if (eraTo.vehicleStyle === "flying" && eraFrom.vehicleStyle !== "flying") {
+          v.position.y = lerp(0, 8, t);
+        } else if (eraFrom.vehicleStyle === "flying" && eraTo.vehicleStyle !== "flying") {
+          v.position.y = lerp(8, 0, t);
+        } else if (eraTo.vehicleStyle === "flying") {
+          v.position.y = 8;
+        } else {
+          v.position.y = 0;
+        }
+      });
+
+      // Pedestrians
+      pedestrianMeshes.forEach((p, i) => {
+        p.userData.bodyMat.color.set(
+          lerpColor(eraFrom.pedestrianColor, eraTo.pedestrianColor, t)
+        );
+        p.userData.headMat.color.set(
+          lerpColor(0x886644, 0xaaaaaa, lerp(0, 1, t))
+        );
+      });
+
+      // Streetlights
+      streetlightGroup.children.forEach((sl) => {
+        sl.userData.lightMat.emissiveIntensity = lerp(
+          eraFrom.neon ? 1.0 : 0.5,
+          eraTo.neon ? 1.0 : 0.5,
+          t
+        );
+        sl.userData.pointLight.intensity = lerp(
+          eraFrom.neon ? 1.0 : 0.5,
+          eraTo.neon ? 1.0 : 0.5,
+          t
+        );
+      });
+
+      // Trees
+      treeGroup.children.forEach((tr) => {
+        const leafFrom = new THREE.Color(0x2e7d32);
+        const leafTo = eraTo.sky === 0x0a0a2a
+          ? new THREE.Color(0x00ff88)
+          : new THREE.Color(0x2e7d32);
+        tr.userData.leafMat.color.set(leafFrom.clone().lerp(leafTo, t));
+      });
+
+      // Particles
+      particleMat.color.set(
+        t > 0.5 ? new THREE.Color(0xffffff) : new THREE.Color(0xaaaaaa)
+      );
+      particleMat.opacity = lerp(0.1, eraTo.neon ? 0.4 : 0.1, t);
+
+      // Ambient
+      ambientLight.intensity = lerp(0.4, eraTo.neon ? 0.6 : 0.4, t);
+      dirLight.intensity = lerp(1.2, eraTo.neon ? 1.5 : 1.2, t);
+    }
+
+    function setEra(index) {
+      if (index < 0) index = 0;
+      if (index >= ERAS.length) index = ERAS.length - 1;
+
+      targetEraIndex = index;
+      transitionProgress = 0;
+      currentEraIndex = index;
+
+      // Apply immediately for direct era selection
+      const eraData = getEraAt(index);
+      applyEraToScene(eraData, 1);
+      eraLabel.textContent = String(ERAS[index]);
+
+      // Update select
+      eraSelect.value = String(ERAS[index]);
+
+      // Play SFX
+      playEraMusic(eraData);
+
+      updateSliderPosition();
+    }
+
+    // ============================================================
+    // EVENT LISTENERS
+    // ============================================================
+    eraSelect.addEventListener("change", (e) => {
+      const idx = ERAS.indexOf(parseInt(e.target.value));
+      setEra(idx);
+    });
+
+    // Slider drag
+    let isDragging = false;
+    sliderContainer.addEventListener("mousedown", (e) => {
+      isDragging = true;
+      e.preventDefault();
+    });
+    document.addEventListener("mousemove", (e) => {
+      if (!isDragging) return;
+      const rect = sliderContainer.getBoundingClientRect();
+      const percent = (e.clientX - rect.left) / rect.width;
+      const idx = Math.round(percent * (ERAS.length - 1));
+      setEra(idx);
+    });
+    document.addEventListener("mouseup", () => {
+      isDragging = false;
+    });
+
+    // Touch support
+    sliderContainer.addEventListener("touchstart", (e) => {
+      isDragging = true;
+    });
+    document.addEventListener("touchmove", (e) => {
+      if (!isDragging) return;
+      const touch = e.touches[0];
+      const rect = sliderContainer.getBoundingClientRect();
+      const percent = (touch.clientX - rect.left) / rect.width;
+      const idx = Math.round(percent * (ERAS.length - 1));
+      setEra(idx);
+    });
+    document.addEventListener("touchend", () => {
+      isDragging = false;
+    });
+
+    // Click on slider
+    sliderContainer.addEventListener("click", (e) => {
+      const rect = sliderContainer.getBoundingClientRect();
+      const percent = (e.clientX - rect.left) / rect.width;
+      const idx = Math.round(percent * (ERAS.length - 1));
+      setEra(idx);
+    });
+
+    // ============================================================
+    // ANIMATION LOOP
+    // ============================================================
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // Update transition
+      updateTransition();
+
+      // Animate vehicles
+      vehicleMeshes.forEach((v) => {
+        const ud = v.userData;
+        ud.offset += 0.02 * ud.speed;
+
+        // Move vehicles along road
+        if (ud.def.lane === 0) {
+          v.position.x = ud.def.x + Math.sin(ud.offset) * 0.5;
+        } else {
+          v.position.x = ud.def.x + Math.sin(ud.offset) * 0.5;
+          v.position.z = ud.def.z + Math.cos(ud.offset) * 0.3;
+        }
+
+        // Rotate wheels
+        const wheels = v.children.filter(c => c.geometry.type === "CylinderGeometry");
+        wheels.forEach(w => {
+          w.rotation.y += 0.05 * ud.speed;
+        });
+
+        // Flying vehicles hover
+        if (targetEraIndex === ERAS.length - 1) {
+          v.position.y = 8 + Math.sin(ud.offset) * 0.5;
+        }
+      });
+
+      // Animate pedestrians
+      pedestrianMeshes.forEach((p) => {
+        const ud = p.userData;
+        ud.offset += 0.03 * ud.speed;
+
+        // Walk cycle
+        ud.arms.forEach((arm, i) => {
+          arm.rotation.z = (i === 0 ? 0.3 : -0.3) + Math.sin(ud.offset) * 0.2;
+        });
+        ud.body.rotation.z = Math.sin(ud.offset) * 0.05;
+
+        // Move along sidewalk
+        p.position.x = ud.def.x + Math.sin(ud.offset) * 2;
+        p.position.z = ud.def.z;
+      });
+
+      // Animate particles
+      const positions = particleGeom.attributes.position.array;
+      for (let i = 0; i < particleCount; i++) {
+        positions[i * 3] += particleVelocities[i].x;
+        positions[i * 3 + 1] += particleVelocities[i].y;
+        positions[i * 3 + 2] += particleVelocities[i].z;
+
+        // Wrap around
+        if (positions[i * 3] > 40) positions[i * 3] = -40;
+        if (positions[i * 3] < -40) positions[i * 3] = 40;
+        if (positions[i * 3 + 1] > 30) positions[i * 3 + 1] = 0;
+        if (positions[i * 3 + 1] < 0) positions[i * 3 + 1] = 30;
+        if (positions[i * 3 + 2] > 40) positions[i * 3 + 2] = -40;
+        if (positions[i * 3 + 2] < -40) positions[i * 3 + 2] = 40;
+      }
+      particleGeom.attributes.position.needsUpdate = true;
+
+      // Animate neon flicker
+      if (getEraAt(targetEraIndex).neon) {
+        const flicker = 0.9 + Math.random() * 0.1;
+        streetlightGroup.children.forEach((sl) => {
+          sl.userData.lightMat.emissiveIntensity *= flicker;
+        });
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    // ============================================================
+    // INITIALIZATION
+    // ============================================================
+    // Enable audio on first interaction
+    function enableAudio() {
+      if (!audioEnabled) {
+        audioEnabled = true;
+        audioListener.setMediaElementSource;
+        const ctx = audioContext;
+        if (ctx.state === "suspended") {
+          ctx.resume();
+        }
+        playEraMusic(getEraAt(0));
+        loadingEl.style.display = "none";
+      }
+    }
+
+    document.addEventListener("click", enableAudio, { once: true });
+    document.addEventListener("touchstart", enableAudio, { once: true });
+
+    // Initial setup
+    initAudioBuffers();
+    setEra(0);
+    updateSliderPosition();
+
+    // Handle resize
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      updateSliderPosition();
+    });
+
+    animate();
+  </script>
+</body>
+</html>
