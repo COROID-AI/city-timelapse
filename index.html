@@ -115,6 +115,9 @@
   <script type="module">
     import * as THREE from "three";
     import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+    import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+    import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+    import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 
     // ============================================================
     // ERA DEFINITIONS
@@ -278,6 +281,18 @@
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     document.body.appendChild(renderer.domElement);
+
+    // Post-processing (bloom for neon eras)
+    const composer = new EffectComposer(renderer);
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      0.7, // strength
+      0.6, // radius
+      0.15 // threshold
+    );
+    composer.addPass(bloomPass);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -617,6 +632,33 @@
 
     const storefrontMeshes = [];
 
+    // Create a text sprite for storefront signage
+    function createTextSprite(text, color) {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      const fontSize = 96;
+      ctx.font = `bold ${fontSize}px 'Segoe UI', Arial, sans-serif`;
+      const metrics = ctx.measureText(text);
+      const padding = 16;
+      canvas.width = Math.ceil(metrics.width + padding * 2);
+      canvas.height = Math.ceil(fontSize + padding * 2);
+
+      ctx.font = `bold ${fontSize}px 'Segoe UI', Arial, sans-serif`;
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#" + color.toString(16).padStart(6, "0");
+      ctx.shadowColor = "rgba(0,0,0,0.8)";
+      ctx.shadowBlur = 4;
+      ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.minFilter = THREE.LinearFilter;
+      const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true });
+      const sprite = new THREE.Sprite(spriteMat);
+      sprite.scale.set(8, 2, 1);
+      return sprite;
+    }
+
     function createStorefront(def) {
       const group = new THREE.Group();
 
@@ -641,6 +683,12 @@
       sign.rotation.y = Math.PI;
       group.add(sign);
 
+      // Ad text sprite on the sign
+      const textSprite = createTextSprite(def.text, 0x8b4513);
+      textSprite.position.y = def.h + 1.1;
+      textSprite.position.z = -0.05;
+      group.add(textSprite);
+
       // Neon/LED strip
       const neonGeom = new THREE.PlaneGeometry(def.w * 0.9, 0.3);
       const neonMat = new THREE.MeshStandardMaterial({
@@ -653,7 +701,7 @@
       neon.position.z = def.d / 2 + 0.01;
       group.add(neon);
 
-      group.userData = { def, mesh, sign, signMat, neon, neonMat };
+      group.userData = { def, mesh, sign, signMat, neon, neonMat, textSprite };
       group.position.set(def.x, 0, def.z);
       storefrontGroup.add(group);
       storefrontMeshes.push(group);
@@ -967,7 +1015,8 @@
 
     function updateSliderPosition() {
       const percent = targetEraIndex / (ERAS.length - 1);
-      sliderKnob.style.left = `calc(${(sliderContainer.clientWidth - 22)}px * ${percent})`;
+      const maxLeft = sliderContainer.clientWidth - sliderKnob.offsetWidth;
+      sliderKnob.style.left = `${maxLeft * percent}px`;
     }
 
     function lerp(a, b, t) {
@@ -1037,9 +1086,23 @@
         sf.userData.neonMat.emissive.set(eraData.adColor);
         sf.userData.neonMat.emissiveIntensity = eraData.neon ? 1.0 : 0.3;
 
-        // Update ad text
+        // Update ad text sprite
         const adText = eraData.ads[i % eraData.ads.length];
-        // (Text rendering handled by sprite if needed)
+        const hex = "#" + eraData.adColor.toString(16).padStart(6, "0");
+        const sprite = sf.userData.textSprite;
+        if (sprite && sprite.material.map) {
+          const canvas = sprite.material.map.image;
+          const ctx = canvas.getContext("2d");
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.font = `bold 96px 'Segoe UI', Arial, sans-serif`;
+          ctx.textBaseline = "middle";
+          ctx.textAlign = "center";
+          ctx.fillStyle = hex;
+          ctx.shadowColor = "rgba(0,0,0,0.8)";
+          ctx.shadowBlur = 4;
+          ctx.fillText(adText, canvas.width / 2, canvas.height / 2);
+          sprite.material.map.needsUpdate = true;
+        }
       });
 
       // Vehicles
@@ -1088,6 +1151,9 @@
       // Ambient light
       ambientLight.intensity = lerp(0.4, eraData.neon ? 0.6 : 0.4, intensity);
       dirLight.intensity = lerp(1.2, eraData.neon ? 1.5 : 1.2, intensity);
+
+      // Bloom strength based on neon
+      bloomPass.strength = eraData.neon ? 0.7 : 0.2;
     }
 
     function updateTransition() {
@@ -1098,6 +1164,7 @@
       } else {
         transitionProgress = 1;
         currentEraIndex = targetEraIndex;
+        transitionProgress = 0;
       }
 
       // Interpolate between eras
@@ -1112,6 +1179,155 @@
 
       // Fog
       const fogFrom = new THREE.Color(eraFrom.fog);
+      const fogTo = new THREE.Color(eraTo.fog);
+      scene.fog = new THREE.FogExp2(fogFrom.clone().lerp(fogTo, t), 0.002);
+
+      // Ground
+      groundMat.color.set(lerpColor(eraFrom.ground, eraTo.ground, t));
+
+      // Road
+      roadMat.color.set(lerpColor(eraFrom.roadColor, eraTo.roadColor, t));
+
+      // Road lines
+      lineGroup.clear();
+      const lineColor = new THREE.Color(lerpColor(eraFrom.roadLine, eraTo.roadLine, t));
+      const lineMat = new THREE.LineBasicMaterial({ color: lineColor });
+      for (let i = -55; i <= 55; i += 10) {
+        const geom = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(-10, 0.02, i),
+          new THREE.Vector3(10, 0.02, i)
+        ]);
+        const line = new THREE.Line(geom, lineMat);
+        lineGroup.add(line);
+      }
+
+      // Buildings
+      buildingMeshes.forEach((building, i) => {
+        const eraColorsFrom = eraFrom.buildingColors;
+        const eraColorsTo = eraTo.buildingColors;
+        const colorFrom = eraColorsFrom[i % eraColorsFrom.length];
+        const colorTo = eraColorsTo[i % eraColorsTo.length];
+        building.userData.mesh.material.color.set(lerpColor(colorFrom, colorTo, t));
+
+        building.userData.windowMat.color.set(
+          lerpColor(eraFrom.windowColor, eraTo.windowColor, t)
+        );
+        building.userData.windowMat.emissive.set(
+          lerpColor(eraFrom.windowGlow, eraTo.windowGlow, t)
+        );
+        building.userData.windowMat.emissiveIntensity = lerp(
+          eraFrom.neon ? 0.8 : 0.3,
+          eraTo.neon ? 0.8 : 0.3,
+          t
+        );
+      });
+
+      // Storefronts
+      storefrontMeshes.forEach((sf, i) => {
+        sf.userData.mesh.material.color.set(
+          lerpColor(eraFrom.storefrontColor, eraTo.storefrontColor, t)
+        );
+        sf.userData.signMat.color.set(
+          lerpColor(eraFrom.adColor, eraTo.adColor, t)
+        );
+        sf.userData.signMat.emissive.set(
+          lerpColor(eraFrom.windowGlow, eraTo.windowGlow, t)
+        );
+        sf.userData.neonMat.color.set(
+          lerpColor(eraFrom.adColor, eraTo.adColor, t)
+        );
+        sf.userData.neonMat.emissiveIntensity = lerp(
+          eraFrom.neon ? 1.0 : 0.3,
+          eraTo.neon ? 1.0 : 0.3,
+          t
+        );
+
+        // Update ad text
+        const adText = eraTo.ads[i % eraTo.ads.length];
+        const hex = "#" + eraTo.adColor.toString(16).padStart(6, "0");
+        const sprite = sf.userData.textSprite;
+        if (sprite && sprite.material.map) {
+          const canvas = sprite.material.map.image;
+          const ctx = canvas.getContext("2d");
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.font = `bold 96px 'Segoe UI', Arial, sans-serif`;
+          ctx.textBaseline = "middle";
+          ctx.textAlign = "center";
+          ctx.fillStyle = hex;
+          ctx.shadowColor = "rgba(0,0,0,0.8)";
+          ctx.shadowBlur = 4;
+          ctx.fillText(adText, canvas.width / 2, canvas.height / 2);
+          sprite.material.map.needsUpdate = true;
+        }
+      });
+
+      // Vehicles
+      const eraVehicles = ["vintage", "classic", "80s", "modern", "electric", "flying"];
+      vehicleMeshes.forEach((v, i) => {
+        v.userData.bodyMat.color.set(
+          lerpColor(eraFrom.vehicleColor, eraTo.vehicleColor, t)
+        );
+        v.userData.headMat.emissiveIntensity = lerp(
+          eraFrom.neon ? 0.8 : 0.2,
+          eraTo.neon ? 0.8 : 0.2,
+          t
+        );
+
+        // Flying vehicles in 2055
+        if (eraTo.vehicleStyle === "flying" && eraFrom.vehicleStyle !== "flying") {
+          v.position.y = lerp(0, 8, t);
+        } else if (eraFrom.vehicleStyle === "flying" && eraTo.vehicleStyle !== "flying") {
+          v.position.y = lerp(8, 0, t);
+        } else if (eraTo.vehicleStyle === "flying") {
+          v.position.y = 8;
+        } else {
+          v.position.y = 0;
+        }
+      });
+
+      // Pedestrians
+      pedestrianMeshes.forEach((p, i) => {
+        p.userData.bodyMat.color.set(
+          lerpColor(eraFrom.pedestrianColor, eraTo.pedestrianColor, t)
+        );
+        p.userData.headMat.color.set(
+          lerpColor(0x886644, 0xaaaaaa, t)
+        );
+      });
+
+      // Streetlights
+      streetlightGroup.children.forEach((sl) => {
+        sl.userData.lightMat.emissiveIntensity = lerp(
+          eraFrom.neon ? 1.0 : 0.5,
+          eraTo.neon ? 1.0 : 0.5,
+          t
+        );
+        sl.userData.pointLight.intensity = lerp(
+          eraFrom.neon ? 1.0 : 0.5,
+          eraTo.neon ? 1.0 : 0.5,
+          t
+        );
+      });
+
+      // Trees
+      treeGroup.children.forEach((tr) => {
+        const leafFrom = new THREE.Color(0x2e7d32);
+        const leafTo = eraTo.sky === 0x0a0a2a
+          ? new THREE.Color(0x00ff88)
+          : new THREE.Color(0x2e7d32);
+        tr.userData.leafMat.color.set(leafFrom.clone().lerp(leafTo, t));
+      });
+
+      // Particles
+      particleMat.color.set(
+        t > 0.5 ? new THREE.Color(0xffffff) : new THREE.Color(0xaaaaaa)
+      );
+      particleMat.opacity = lerp(0.1, eraTo.neon ? 0.4 : 0.1, t);
+
+      // Ambient
+      ambientLight.intensity = lerp(0.4, eraTo.neon ? 0.6 : 0.4, t);
+      dirLight.intensity = lerp(1.2, eraTo.neon ? 1.5 : 1.2, t);
+    }
       const fogTo = new THREE.Color(eraTo.fog);
       scene.fog = new THREE.FogExp2(fogFrom.clone().lerp(fogTo, t), 0.002);
 
@@ -1250,11 +1466,11 @@
 
       targetEraIndex = index;
       transitionProgress = 0;
-      currentEraIndex = index;
 
-      // Apply immediately for direct era selection
+      // Apply immediately for direct era selection (no smooth transition)
       const eraData = getEraAt(index);
       applyEraToScene(eraData, 1);
+      currentEraIndex = index;
       eraLabel.textContent = String(ERAS[index]);
 
       // Update select
@@ -1337,10 +1553,10 @@
           v.position.z = ud.def.z + Math.cos(ud.offset) * 0.3;
         }
 
-        // Rotate wheels
+      // Rotate wheels
         const wheels = v.children.filter(c => c.geometry.type === "CylinderGeometry");
         wheels.forEach(w => {
-          w.rotation.y += 0.05 * ud.speed;
+          w.rotation.x += 0.05 * ud.speed;
         });
 
         // Flying vehicles hover
@@ -1391,7 +1607,7 @@
       }
 
       controls.update();
-      renderer.render(scene, camera);
+      composer.render();
     }
 
     // ============================================================
@@ -1401,7 +1617,6 @@
     function enableAudio() {
       if (!audioEnabled) {
         audioEnabled = true;
-        audioListener.setMediaElementSource;
         const ctx = audioContext;
         if (ctx.state === "suspended") {
           ctx.resume();
@@ -1424,6 +1639,7 @@
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
+      composer.setSize(window.innerWidth, window.innerHeight);
       updateSliderPosition();
     });
 
