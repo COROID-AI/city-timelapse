@@ -22,7 +22,7 @@ export class CityApp {
   private scene: THREE.Scene;
   private controls: OrbitControls;
   private canvas: HTMLCanvasElement;
-  private clock: THREE.Clock;
+  private timer: THREE.Timer;
 
   // Scene modules
   private sky!: SkyModule;
@@ -94,7 +94,7 @@ export class CityApp {
     this.controls.maxDistance = 150;
 
     // Initialize clock
-    this.clock = new THREE.Clock();
+    this.timer = new THREE.Timer();
 
     // Initialize resize observer
     this.resizeObserver = new ResizeObserver(() => {
@@ -172,14 +172,15 @@ export class CityApp {
 
   private start(): void {
     this.isRunning = true;
-    this.clock.start();
+    this.timer.connect(document);
     this.animate();
   }
 
   private animate = (): void => {
     if (!this.isRunning) return;
 
-    const dt = this.clock.getDelta();
+    this.timer.update();
+    const dt = this.timer.getDelta();
     const state = this.currentState;
 
     // Update state store (advances era transitions)
