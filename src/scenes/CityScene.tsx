@@ -67,9 +67,9 @@ export default function CityScene({ onLoaded }: { onLoaded: () => void }) {
   // Update ambient sound when era changes
   useEffect(() => {
     if (audioContextRef.current && gainNodeRef.current) {
-      // Stop existing oscillators
+      // Stop and disconnect existing oscillators
       oscillatorsRef.current.forEach(osc => {
-        try { osc.stop(); } catch { /* already stopped */ }
+        try { osc.stop(); osc.disconnect(); } catch { /* already stopped */ }
       });
       oscillatorsRef.current = [];
       
@@ -81,9 +81,9 @@ export default function CityScene({ onLoaded }: { onLoaded: () => void }) {
   // Cleanup audio on unmount
   useEffect(() => {
     return () => {
-      // Stop all oscillators
+      // Stop and disconnect all oscillators
       oscillatorsRef.current.forEach(osc => {
-        try { osc.stop(); } catch { /* already stopped */ }
+        try { osc.stop(); osc.disconnect(); } catch { /* already stopped */ }
       });
       oscillatorsRef.current = [];
 

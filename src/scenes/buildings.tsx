@@ -169,47 +169,51 @@ function Building({ position, width, depth, era, index }: {
 }
 
 function Windows({ count, width, depth, era }: { count: number; width: number; depth: number; era: any }) {
-  const windows: JSX.Element[] = [];
-  const rows = Math.min(count, 8);
-  const cols = Math.floor(width / 1.2);
-  const windowSpacing = width / (cols + 1);
+  const windowElements = useMemo(() => {
+    const windows: JSX.Element[] = [];
+    const rows = Math.min(count, 8);
+    const cols = Math.floor(width / 1.2);
+    const windowSpacing = width / (cols + 1);
 
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      const x = -width / 2 + windowSpacing * (col + 1);
-      const y = 1.5 + row * 1.5;
-      const isLit = Math.random() > 0.3;
-      const windowColor = era.buildingStyle === 'ww2'
-        ? (isLit ? [0.9, 0.8, 0.5] : [0.3, 0.3, 0.3])
-        : era.buildingStyle === 'neon'
-        ? (isLit ? [0.8, 0.4, 1.0] : [0.1, 0.1, 0.2])
-        : era.buildingStyle === 'futuristic'
-        ? (isLit ? [0.3, 0.8, 1.0] : [0.1, 0.15, 0.25])
-        : era.buildingStyle === 'modern'
-        ? (isLit ? [0.9, 0.95, 1.0] : [0.5, 0.55, 0.6])
-        : (isLit ? [0.85, 0.85, 0.7] : [0.4, 0.4, 0.35]);
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const x = -width / 2 + windowSpacing * (col + 1);
+        const y = 1.5 + row * 1.5;
+        const isLit = Math.random() > 0.3;
+        const windowColor = era.buildingStyle === 'ww2'
+          ? (isLit ? [0.9, 0.8, 0.5] : [0.3, 0.3, 0.3])
+          : era.buildingStyle === 'neon'
+          ? (isLit ? [0.8, 0.4, 1.0] : [0.1, 0.1, 0.2])
+          : era.buildingStyle === 'futuristic'
+          ? (isLit ? [0.3, 0.8, 1.0] : [0.1, 0.15, 0.25])
+          : era.buildingStyle === 'modern'
+          ? (isLit ? [0.9, 0.95, 1.0] : [0.5, 0.55, 0.6])
+          : (isLit ? [0.85, 0.85, 0.7] : [0.4, 0.4, 0.35]);
 
-      windows.push(
-        <group key={`w-${row}-${col}`} position={[x, y, depth / 2 + 0.02]}>
-          <mesh>
-            <planeGeometry args={[0.6, 0.9]} />
-            <meshStandardMaterial
-              color={new THREE.Color(windowColor[0], windowColor[1], windowColor[2])}
-              emissive={isLit ? new THREE.Color(windowColor[0], windowColor[1], windowColor[2]) : new THREE.Color(0, 0, 0)}
-              emissiveIntensity={isLit ? 0.3 : 0}
-              roughness={0.3}
-              metalness={era.buildingStyle === 'futuristic' ? 0.5 : 0.1}
-            />
-          </mesh>
-          {/* Window frame */}
-          <mesh position={[0, 0, 0.01]}>
-            <planeGeometry args={[0.65, 0.95]} />
-            <meshStandardMaterial color={new THREE.Color(0.2, 0.2, 0.2)} roughness={0.8} />
-          </mesh>
-        </group>
-      );
+        windows.push(
+          <group key={`w-${row}-${col}`} position={[x, y, depth / 2 + 0.02]}>
+            <mesh>
+              <planeGeometry args={[0.6, 0.9]} />
+              <meshStandardMaterial
+                color={new THREE.Color(windowColor[0], windowColor[1], windowColor[2])}
+                emissive={isLit ? new THREE.Color(windowColor[0], windowColor[1], windowColor[2]) : new THREE.Color(0, 0, 0)}
+                emissiveIntensity={isLit ? 0.3 : 0}
+                roughness={0.3}
+                metalness={era.buildingStyle === 'futuristic' ? 0.5 : 0.1}
+              />
+            </mesh>
+            {/* Window frame */}
+            <mesh position={[0, 0, 0.01]}>
+              <planeGeometry args={[0.65, 0.95]} />
+              <meshStandardMaterial color={new THREE.Color(0.2, 0.2, 0.2)} roughness={0.8} />
+            </mesh>
+          </group>
+        );
+      }
     }
-  }
 
-  return <group>{windows}</group>;
+    return windows;
+  }, [count, width, depth, era.buildingStyle]);
+
+  return <group>{windowElements}</group>;
 }
