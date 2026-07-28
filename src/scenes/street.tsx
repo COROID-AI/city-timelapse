@@ -30,7 +30,7 @@ export default function Street({ era }: Props) {
       {/* Ground plane */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
         <planeGeometry args={[100, 100]} />
-        <meshStandardMaterial color={new THREE.Color(0.25, 0.25, 0.22)} roughness={0.95} />
+        <meshStandardMaterial color={new THREE.Color(0.45, 0.45, 0.42)} roughness={0.95} />
       </mesh>
 
       {/* Main road - center */}

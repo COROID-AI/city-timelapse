@@ -64,24 +64,24 @@ function Building({ position, width, depth, era, index }: {
   // Era-specific colors and materials
   const getFacadeColor = () => {
     const colors: Record<string, [number, number, number]> = {
-      ww2: [0.55, 0.45, 0.35],
-      midcentury: [0.75, 0.70, 0.60],
-      neon: [0.30, 0.25, 0.35],
-      digital: [0.50, 0.55, 0.60],
-      modern: [0.65, 0.70, 0.75],
-      futuristic: [0.20, 0.30, 0.45],
+      ww2: [0.82, 0.75, 0.62],
+      midcentury: [0.90, 0.88, 0.80],
+      neon: [0.60, 0.48, 0.65],
+      digital: [0.78, 0.82, 0.86],
+      modern: [0.85, 0.88, 0.92],
+      futuristic: [0.55, 0.65, 0.75],
     };
     return colors[era.buildingStyle] || [0.5, 0.5, 0.5];
   };
 
   const getRoofColor = () => {
     const colors: Record<string, [number, number, number]> = {
-      ww2: [0.40, 0.35, 0.30],
-      midcentury: [0.60, 0.55, 0.50],
-      neon: [0.20, 0.15, 0.25],
-      digital: [0.40, 0.45, 0.50],
-      modern: [0.55, 0.60, 0.65],
-      futuristic: [0.15, 0.25, 0.40],
+      ww2: [0.68, 0.62, 0.52],
+      midcentury: [0.82, 0.78, 0.70],
+      neon: [0.42, 0.36, 0.50],
+      digital: [0.62, 0.66, 0.70],
+      modern: [0.76, 0.80, 0.84],
+      futuristic: [0.38, 0.48, 0.60],
     };
     return colors[era.buildingStyle] || [0.4, 0.4, 0.4];
   };

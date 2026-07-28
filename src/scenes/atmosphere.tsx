@@ -117,9 +117,9 @@ export default function Atmosphere({ era }: Props) {
       <hemisphereLight
         color="#ffddaa"
         groundColor="#446688"
-        intensity={2.5}
+        intensity={12}
       />
-      <pointLight position={[0, 10, 0]} intensity={1.0} color="#ffffff" />
+      <pointLight position={[0, 10, 0]} intensity={8.0} color="#ffffff" />
     </>
   );
 }
