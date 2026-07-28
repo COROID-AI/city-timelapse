@@ -99,16 +99,20 @@ export default function Atmosphere({ era }: Props) {
     sceneRef.current.background = bgColorRef.current;
   });
 
+  // Convert 0–1 RGB to a Three.js hex color string
+  const toHex = (c: [number, number, number]) =>
+    '#' + c.map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('');
+
   return (
     <>
       <ambientLight
         intensity={interpolatedEra.ambientIntensity}
-        color={`rgb(${interpolatedEra.ambientColor[0] * 255}, ${interpolatedEra.ambientColor[1] * 255}, ${interpolatedEra.ambientColor[2] * 255})`}
+        color={toHex(interpolatedEra.ambientColor)}
       />
       <directionalLight
         position={interpolatedEra.sunPosition}
         intensity={interpolatedEra.sunIntensity}
-        color={`rgb(${interpolatedEra.sunColor[0] * 255}, ${interpolatedEra.sunColor[1] * 255}, ${interpolatedEra.sunColor[2] * 255})`}
+        color={toHex(interpolatedEra.sunColor)}
       />
       <hemisphereLight
         color="#ffddaa"
