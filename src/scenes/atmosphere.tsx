@@ -1,8 +1,8 @@
 import { useStore } from '../state';
-import { ERA_DATA, type EraData } from './eras';
+import { ERA_DATA } from './eras';
 import { useRef, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
-import * as THREE from 'three';
+import { useFrame, useThree } from '@react-three/fiber';
+import { Color, FogExp2 } from 'three';
 
 interface Props {
   era: any;
@@ -13,10 +13,10 @@ function getEraIndex(year: number): number {
 }
 
 export default function Atmosphere({ era }: Props) {
-  const sceneRef = useRef<THREE.Scene>(null);
-  const fogRef = useRef<THREE.FogExp2 | null>(null);
-  const bgColorRef = useRef(new THREE.Color(0x87CEEB));
-  const fogColorRef = useRef(new THREE.Color(0x888888));
+  const { scene } = useThree();
+  const fogRef = useRef<FogExp2 | null>(null);
+  const bgColorRef = useRef(new Color(0x87CEEB));
+  const fogColorRef = useRef(new Color(0x888888));
 
   // Selector-based reactive era interpolation - avoids getState() calls in render
   const currentEra = useStore((s) => s.currentEra);
@@ -78,25 +78,23 @@ export default function Atmosphere({ era }: Props) {
   }, [currentEra, targetEra, transitionProgress, isTransitioning]);
 
   useFrame(() => {
-    if (!sceneRef.current) return;
-
     // Reuse existing FogExp2 object instead of creating new ones every frame
     const fogDensity = interpolatedEra.fogDensity;
     if (fogDensity > 0.001) {
       if (!fogRef.current) {
-        fogRef.current = new THREE.FogExp2(0xffffff, 0.01);
+        fogRef.current = new FogExp2(0xffffff, 0.01);
       }
-      fogColorRef.current.setRGB(interpolatedEra.fogColor[0], interpolatedEra.fogColor[1], interpolatedEra.fogColor[2]);
+      fogColorRef.current.setRGB(...interpolatedEra.fogColor);
       fogRef.current.color.copy(fogColorRef.current);
       fogRef.current.density = fogDensity;
-      sceneRef.current.fog = fogRef.current;
+      scene.fog = fogRef.current;
     } else {
-      sceneRef.current.fog = null;
+      scene.fog = null;
     }
 
     // Reuse color object instead of creating new ones every frame
-    bgColorRef.current.setRGB(interpolatedEra.skyColor[0], interpolatedEra.skyColor[1], interpolatedEra.skyColor[2]);
-    sceneRef.current.background = bgColorRef.current;
+    bgColorRef.current.setRGB(...interpolatedEra.skyColor);
+    scene.background = bgColorRef.current;
   });
 
   // Convert 0–1 RGB to a Three.js hex color string
@@ -105,20 +103,9 @@ export default function Atmosphere({ era }: Props) {
 
   return (
     <>
-      <ambientLight
-        intensity={interpolatedEra.ambientIntensity}
-        color={toHex(interpolatedEra.ambientColor)}
-      />
-      <directionalLight
-        position={interpolatedEra.sunPosition}
-        intensity={interpolatedEra.sunIntensity}
-        color={toHex(interpolatedEra.sunColor)}
-      />
-      <hemisphereLight
-        color="#ffddaa"
-        groundColor="#aabbcc"
-        intensity={1.5}
-      />
+      <ambientLight intensity={era.ambientIntensity} color={toHex(era.ambientColor)} />
+      <directionalLight position={era.sunPosition} intensity={era.sunIntensity} color={toHex(era.sunColor)} />
+      <hemisphereLight color="#ffddaa" groundColor="#aabbcc" intensity={1.5} />
       <pointLight position={[0, 10, 0]} intensity={1.5} color="#ffffff" />
     </>
   );

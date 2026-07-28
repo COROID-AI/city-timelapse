@@ -29,7 +29,6 @@ export default function App() {
         gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
         camera={{ position: [25, 18, 25], fov: 55, near: 0.5, far: 500 }}
         style={{ opacity: isLoaded ? 1 : 0, transition: 'opacity 1s ease' }}
-        exposure={1.2}
       >
         <CityScene onLoaded={() => {}} />
         <OrbitControls
