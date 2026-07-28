@@ -5,97 +5,8 @@
  */
 import * as THREE from 'three';
 import type { EraId } from '../eras';
+import { SKY_SPECS } from '../eras';
 import type { AppState } from '../state';
-
-interface SkySpec {
-  /** Sky color at zenith */
-  skyTop: THREE.Color;
-  /** Sky color at horizon */
-  skyBottom: THREE.Color;
-  /** Sun color */
-  sunColor: THREE.Color;
-  /** Sun intensity */
-  sunIntensity: number;
-  /** Fog color */
-  fogColor: THREE.Color;
-  /** Fog density */
-  fogDensity: number;
-  /** Particle color */
-  particleColor: THREE.Color;
-  /** Particle density (0..1) */
-  particleDensity: number;
-  /** Particle size */
-  particleSize: number;
-}
-
-const SKY_SPECS: Record<EraId, SkySpec> = {
-  '1945': {
-    skyTop: new THREE.Color(0x87ceeb),
-    skyBottom: new THREE.Color(0xf0e6d2),
-    sunColor: new THREE.Color(0xffddaa),
-    sunIntensity: 0.8,
-    fogColor: new THREE.Color(0xd2b48c),
-    fogDensity: 0.001,
-    particleColor: new THREE.Color(0xc2b280),
-    particleDensity: 0.3,
-    particleSize: 0.5,
-  },
-  '1965': {
-    skyTop: new THREE.Color(0x87ceeb),
-    skyBottom: new THREE.Color(0xf0e6d2),
-    sunColor: new THREE.Color(0xffeecc),
-    sunIntensity: 0.9,
-    fogColor: new THREE.Color(0xe0d0b0),
-    fogDensity: 0.0008,
-    particleColor: new THREE.Color(0xffd700),
-    particleDensity: 0.2,
-    particleSize: 0.4,
-  },
-  '1985': {
-    skyTop: new THREE.Color(0x4a4a6a),
-    skyBottom: new THREE.Color(0x8a6a4a),
-    sunColor: new THREE.Color(0xffaa33),
-    sunIntensity: 0.7,
-    fogColor: new THREE.Color(0x5a4a3a),
-    fogDensity: 0.002,
-    particleColor: new THREE.Color(0xff0066),
-    particleDensity: 0.4,
-    particleSize: 0.3,
-  },
-  '2005': {
-    skyTop: new THREE.Color(0x4a6a8a),
-    skyBottom: new THREE.Color(0x8a8a6a),
-    sunColor: new THREE.Color(0xffeeaa),
-    sunIntensity: 0.9,
-    fogColor: new THREE.Color(0x6a6a6a),
-    fogDensity: 0.0015,
-    particleColor: new THREE.Color(0x00aaff),
-    particleDensity: 0.3,
-    particleSize: 0.3,
-  },
-  '2025': {
-    skyTop: new THREE.Color(0x3a5a7a),
-    skyBottom: new THREE.Color(0x8a8a8a),
-    sunColor: new THREE.Color(0xffffff),
-    sunIntensity: 1.0,
-    fogColor: new THREE.Color(0x7a7a7a),
-    fogDensity: 0.0012,
-    particleColor: new THREE.Color(0x00ffaa),
-    particleDensity: 0.2,
-    particleSize: 0.25,
-  },
-  '2055': {
-    skyTop: new THREE.Color(0x0a1a2a),
-    skyBottom: new THREE.Color(0x1a2a4a),
-    sunColor: new THREE.Color(0x00ffff),
-    sunIntensity: 1.2,
-    fogColor: new THREE.Color(0x001a33),
-    fogDensity: 0.003,
-    particleColor: new THREE.Color(0x00ffff),
-    particleDensity: 0.6,
-    particleSize: 0.4,
-  },
-};
 
 export class SkyModule {
   group: THREE.Group;
@@ -218,8 +129,8 @@ export class SkyModule {
     const skyMat = this.skyMesh.material as THREE.MeshBasicMaterial;
     skyMat.color.copy(skyTop);
 
-    // Apply sun
-    this.sunMesh.material = new THREE.MeshBasicMaterial({ color: sunColor });
+    // Apply sun (reuse existing material instance)
+    (this.sunMesh.material as THREE.MeshBasicMaterial).color.copy(sunColor);
     const sunLight = this.group.children.find(c => c.type === 'DirectionalLight') as THREE.DirectionalLight;
     if (sunLight) {
       sunLight.color.copy(sunColor);
@@ -241,7 +152,7 @@ export class SkyModule {
     const spec = SKY_SPECS[era];
     const skyMat = this.skyMesh.material as THREE.MeshBasicMaterial;
     skyMat.color.copy(spec.skyTop);
-    this.sunMesh.material = new THREE.MeshBasicMaterial({ color: spec.sunColor });
+    (this.sunMesh.material as THREE.MeshBasicMaterial).color.copy(spec.sunColor);
     const sunLight = this.group.children.find(c => c.type === 'DirectionalLight') as THREE.DirectionalLight;
     if (sunLight) {
       sunLight.color.copy(spec.sunColor);

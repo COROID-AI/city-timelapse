@@ -4,95 +4,18 @@
  * window grids (instanced), and rooftop props.
  */
 import * as THREE from 'three';
-import type { EraId } from '../eras';
+import type { EraId, BuildingSpec } from '../eras';
+import { BUILDING_SPECS } from '../eras';
 import type { AppState } from '../state';
-
-interface BuildingSpec {
-  /** Facade color */
-  color: THREE.Color;
-  /** Window emissive color */
-  windowEmissive: THREE.Color;
-  /** Window emissive intensity */
-  windowIntensity: number;
-  /** Base building height */
-  height: number;
-  /** Height variation */
-  heightVariation: number;
-  /** Rooftop prop type */
-  roofProp: 'water_tower' | 'ac_units' | 'antennas' | 'sat_dishes' | 'led_signs' | 'greenery' | 'solar';
-  /** Material roughness */
-  roughness: number;
-  /** Material metalness */
-  metalness: number;
-}
-
-const BUILDING_SPECS: Record<EraId, BuildingSpec> = {
-  '1945': {
-    color: new THREE.Color(0x8b5a2b),
-    windowEmissive: new THREE.Color(0xffdd88),
-    windowIntensity: 0.3,
-    height: 12,
-    heightVariation: 4,
-    roofProp: 'water_tower',
-    roughness: 0.85,
-    metalness: 0.1,
-  },
-  '1965': {
-    color: new THREE.Color(0xd4a574),
-    windowEmissive: new THREE.Color(0xffffaa),
-    windowIntensity: 0.4,
-    height: 16,
-    heightVariation: 6,
-    roofProp: 'ac_units',
-    roughness: 0.75,
-    metalness: 0.2,
-  },
-  '1985': {
-    color: new THREE.Color(0x5a5a6a),
-    windowEmissive: new THREE.Color(0xff0066),
-    windowIntensity: 0.6,
-    height: 20,
-    heightVariation: 8,
-    roofProp: 'antennas',
-    roughness: 0.6,
-    metalness: 0.4,
-  },
-  '2005': {
-    color: new THREE.Color(0x3a5a7a),
-    windowEmissive: new THREE.Color(0x00aaff),
-    windowIntensity: 0.7,
-    height: 24,
-    heightVariation: 10,
-    roofProp: 'sat_dishes',
-    roughness: 0.3,
-    metalness: 0.7,
-  },
-  '2025': {
-    color: new THREE.Color(0x4a4a4a),
-    windowEmissive: new THREE.Color(0x00ffaa),
-    windowIntensity: 0.8,
-    height: 26,
-    heightVariation: 10,
-    roofProp: 'led_signs',
-    roughness: 0.2,
-    metalness: 0.8,
-  },
-  '2055': {
-    color: new THREE.Color(0x0a2a3a),
-    windowEmissive: new THREE.Color(0x00ffff),
-    windowIntensity: 1.0,
-    height: 30,
-    heightVariation: 12,
-    roofProp: 'greenery',
-    roughness: 0.1,
-    metalness: 0.9,
-  },
-};
 
 interface BuildingInstance {
   mesh: THREE.Mesh;
   windows: THREE.InstancedMesh;
   roofProp: THREE.Group | null;
+  /** Cached rooftop prop groups for all era types, keyed by prop type */
+  roofProps: Map<string, THREE.Group>;
+  /** Current active prop type */
+  currentPropType: string;
   baseHeight: number;
   width: number;
   depth: number;
@@ -195,14 +118,27 @@ export class BuildingsModule {
 
         this.group.add(windowInstances);
 
-        // Rooftop prop
-        const roofProp = this.createRoofProp('water_tower', posX, height, posZ);
-        this.group.add(roofProp);
+        // Rooftop props: pre-create all era types and cache them
+        const propTypes: BuildingSpec['roofProp'][] = ['water_tower', 'ac_units', 'antennas', 'sat_dishes', 'led_signs', 'greenery', 'solar'];
+        const roofProps = new Map<string, THREE.Group>();
+        let roofProp: THREE.Group | null = null;
+        for (const propType of propTypes) {
+          const prop = this.createRoofProp(propType, posX, height, posZ);
+          prop.visible = false;
+          this.group.add(prop);
+          roofProps.set(propType, prop);
+          if (propType === 'water_tower') {
+            roofProp = prop;
+            roofProp.visible = true;
+          }
+        }
 
         this.buildings.push({
           mesh,
           windows: windowInstances,
           roofProp,
+          roofProps,
+          currentPropType: 'water_tower',
           baseHeight: height,
           width,
           depth,
@@ -314,11 +250,20 @@ export class BuildingsModule {
       windowMat.emissive.copy(windowColor);
       windowMat.emissiveIntensity = windowIntensity;
 
-      // Update rooftop prop
-      if (building.roofProp) {
-        this.group.remove(building.roofProp);
-        building.roofProp = this.createRoofProp(toSpec.roofProp, building.mesh.position.x, newHeight, building.mesh.position.z);
-        this.group.add(building.roofProp);
+      // Update rooftop prop (toggle cached instance visibility)
+      const toPropType = toSpec.roofProp;
+      if (building.currentPropType !== toPropType) {
+        const prevProp = building.roofProps.get(building.currentPropType);
+        if (prevProp) prevProp.visible = false;
+        const nextProp = building.roofProps.get(toPropType);
+        if (nextProp) {
+          nextProp.visible = true;
+          nextProp.position.set(building.mesh.position.x, newHeight, building.mesh.position.z);
+        }
+        building.currentPropType = toPropType;
+        building.roofProp = nextProp ?? null;
+      } else if (building.roofProp) {
+        building.roofProp.position.set(building.mesh.position.x, newHeight, building.mesh.position.z);
       }
     }
   }
@@ -340,10 +285,20 @@ export class BuildingsModule {
       windowMat.emissive.copy(spec.windowEmissive);
       windowMat.emissiveIntensity = spec.windowIntensity;
 
-      if (building.roofProp) {
-        this.group.remove(building.roofProp);
-        building.roofProp = this.createRoofProp(spec.roofProp, building.mesh.position.x, height, building.mesh.position.z);
-        this.group.add(building.roofProp);
+      // Update rooftop prop (toggle cached instance visibility)
+      const propType = spec.roofProp;
+      if (building.currentPropType !== propType) {
+        const prevProp = building.roofProps.get(building.currentPropType);
+        if (prevProp) prevProp.visible = false;
+        const nextProp = building.roofProps.get(propType);
+        if (nextProp) {
+          nextProp.visible = true;
+          nextProp.position.set(building.mesh.position.x, height, building.mesh.position.z);
+        }
+        building.currentPropType = propType;
+        building.roofProp = nextProp ?? null;
+      } else if (building.roofProp) {
+        building.roofProp.position.set(building.mesh.position.x, height, building.mesh.position.z);
       }
     }
   }

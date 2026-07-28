@@ -2,6 +2,7 @@
  * Shared era types and registry for the city timelapse.
  * Six eras: 1945, 1965, 1985, 2005, 2025, 2055.
  */
+import * as THREE from 'three';
 
 export type EraId = '1945' | '1965' | '1985' | '2005' | '2025' | '2055';
 
@@ -118,5 +119,185 @@ export const SFX_ERA_DATA: Record<EraId, SfxEraData> = {
     musicFreq: 784,
     ambientVolume: 0.5,
     trafficVolume: 0.4,
+  },
+};
+
+/**
+ * Era-specific sky and atmosphere configuration.
+ * Centralized here so all scene modules import from a single source of truth.
+ */
+export interface SkySpec {
+  /** Sky color at zenith */
+  skyTop: THREE.Color;
+  /** Sky color at horizon */
+  skyBottom: THREE.Color;
+  /** Sun color */
+  sunColor: THREE.Color;
+  /** Sun intensity */
+  sunIntensity: number;
+  /** Fog color */
+  fogColor: THREE.Color;
+  /** Fog density */
+  fogDensity: number;
+  /** Particle color */
+  particleColor: THREE.Color;
+  /** Particle density (0..1) */
+  particleDensity: number;
+  /** Particle size */
+  particleSize: number;
+}
+
+export const SKY_SPECS: Record<EraId, SkySpec> = {
+  '1945': {
+    skyTop: new THREE.Color(0x87ceeb),
+    skyBottom: new THREE.Color(0xf0e6d2),
+    sunColor: new THREE.Color(0xffddaa),
+    sunIntensity: 0.8,
+    fogColor: new THREE.Color(0xd2b48c),
+    fogDensity: 0.001,
+    particleColor: new THREE.Color(0xc2b280),
+    particleDensity: 0.3,
+    particleSize: 0.5,
+  },
+  '1965': {
+    skyTop: new THREE.Color(0x87ceeb),
+    skyBottom: new THREE.Color(0xf0e6d2),
+    sunColor: new THREE.Color(0xffeecc),
+    sunIntensity: 0.9,
+    fogColor: new THREE.Color(0xe0d0b0),
+    fogDensity: 0.0008,
+    particleColor: new THREE.Color(0xffd700),
+    particleDensity: 0.2,
+    particleSize: 0.4,
+  },
+  '1985': {
+    skyTop: new THREE.Color(0x4a4a6a),
+    skyBottom: new THREE.Color(0x8a6a4a),
+    sunColor: new THREE.Color(0xffaa33),
+    sunIntensity: 0.7,
+    fogColor: new THREE.Color(0x5a4a3a),
+    fogDensity: 0.002,
+    particleColor: new THREE.Color(0xff0066),
+    particleDensity: 0.4,
+    particleSize: 0.3,
+  },
+  '2005': {
+    skyTop: new THREE.Color(0x4a6a8a),
+    skyBottom: new THREE.Color(0x8a8a6a),
+    sunColor: new THREE.Color(0xffeeaa),
+    sunIntensity: 0.9,
+    fogColor: new THREE.Color(0x6a6a6a),
+    fogDensity: 0.0015,
+    particleColor: new THREE.Color(0x00aaff),
+    particleDensity: 0.3,
+    particleSize: 0.3,
+  },
+  '2025': {
+    skyTop: new THREE.Color(0x3a5a7a),
+    skyBottom: new THREE.Color(0x8a8a8a),
+    sunColor: new THREE.Color(0xffffff),
+    sunIntensity: 1.0,
+    fogColor: new THREE.Color(0x7a7a7a),
+    fogDensity: 0.0012,
+    particleColor: new THREE.Color(0x00ffaa),
+    particleDensity: 0.2,
+    particleSize: 0.25,
+  },
+  '2055': {
+    skyTop: new THREE.Color(0x0a1a2a),
+    skyBottom: new THREE.Color(0x1a2a4a),
+    sunColor: new THREE.Color(0x00ffff),
+    sunIntensity: 1.2,
+    fogColor: new THREE.Color(0x001a33),
+    fogDensity: 0.003,
+    particleColor: new THREE.Color(0x00ffff),
+    particleDensity: 0.6,
+    particleSize: 0.4,
+  },
+};
+
+/**
+ * Era-specific building configuration.
+ * Centralized here so all scene modules import from a single source of truth.
+ */
+export interface BuildingSpec {
+  /** Facade color */
+  color: THREE.Color;
+  /** Window emissive color */
+  windowEmissive: THREE.Color;
+  /** Window emissive intensity */
+  windowIntensity: number;
+  /** Base building height */
+  height: number;
+  /** Height variation */
+  heightVariation: number;
+  /** Rooftop prop type */
+  roofProp: 'water_tower' | 'ac_units' | 'antennas' | 'sat_dishes' | 'led_signs' | 'greenery' | 'solar';
+  /** Material roughness */
+  roughness: number;
+  /** Material metalness */
+  metalness: number;
+}
+
+export const BUILDING_SPECS: Record<EraId, BuildingSpec> = {
+  '1945': {
+    color: new THREE.Color(0x8b5a2b),
+    windowEmissive: new THREE.Color(0xffdd88),
+    windowIntensity: 0.3,
+    height: 12,
+    heightVariation: 4,
+    roofProp: 'water_tower',
+    roughness: 0.85,
+    metalness: 0.1,
+  },
+  '1965': {
+    color: new THREE.Color(0xd4a574),
+    windowEmissive: new THREE.Color(0xffffaa),
+    windowIntensity: 0.4,
+    height: 16,
+    heightVariation: 6,
+    roofProp: 'ac_units',
+    roughness: 0.75,
+    metalness: 0.2,
+  },
+  '1985': {
+    color: new THREE.Color(0x5a5a6a),
+    windowEmissive: new THREE.Color(0xff0066),
+    windowIntensity: 0.6,
+    height: 20,
+    heightVariation: 8,
+    roofProp: 'antennas',
+    roughness: 0.6,
+    metalness: 0.4,
+  },
+  '2005': {
+    color: new THREE.Color(0x3a5a7a),
+    windowEmissive: new THREE.Color(0x00aaff),
+    windowIntensity: 0.7,
+    height: 24,
+    heightVariation: 10,
+    roofProp: 'sat_dishes',
+    roughness: 0.3,
+    metalness: 0.7,
+  },
+  '2025': {
+    color: new THREE.Color(0x4a4a4a),
+    windowEmissive: new THREE.Color(0x00ffaa),
+    windowIntensity: 0.8,
+    height: 26,
+    heightVariation: 10,
+    roofProp: 'led_signs',
+    roughness: 0.2,
+    metalness: 0.8,
+  },
+  '2055': {
+    color: new THREE.Color(0x0a2a3a),
+    windowEmissive: new THREE.Color(0x00ffff),
+    windowIntensity: 1.0,
+    height: 30,
+    heightVariation: 12,
+    roofProp: 'greenery',
+    roughness: 0.1,
+    metalness: 0.9,
   },
 };
