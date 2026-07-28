@@ -99,5 +99,22 @@ export default function Atmosphere({ era }: Props) {
     sceneRef.current.background = bgColorRef.current;
   });
 
-  return null;
+  return (
+    <>
+      <ambientLight
+        intensity={interpolatedEra.ambientIntensity}
+        color={`rgb(${interpolatedEra.ambientColor[0] * 255}, ${interpolatedEra.ambientColor[1] * 255}, ${interpolatedEra.ambientColor[2] * 255})`}
+      />
+      <directionalLight
+        position={interpolatedEra.sunPosition}
+        intensity={interpolatedEra.sunIntensity}
+        color={`rgb(${interpolatedEra.sunColor[0] * 255}, ${interpolatedEra.sunColor[1] * 255}, ${interpolatedEra.sunColor[2] * 255})`}
+      />
+      <hemisphereLight
+        color="#ffddaa"
+        groundColor="#446688"
+        intensity={0.5}
+      />
+    </>
+  );
 }
