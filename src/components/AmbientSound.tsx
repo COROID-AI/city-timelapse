@@ -17,13 +17,19 @@ export function AmbientSound({ era }: Props) {
       startedRef.current = true;
 
       try {
-        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-        audioContextRef.current = new AudioContext();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+        if (!AudioCtx) {
+          console.warn('Web Audio API not supported');
+          return;
+        }
+        audioContextRef.current = new AudioCtx();
       } catch (e) {
-        console.warn('Web Audio API not supported');
+        console.warn('Failed to initialize Web Audio API', e);
         return;
       }
 
+      // Remove listeners after first successful init
       document.removeEventListener('click', startAudio);
       document.removeEventListener('keydown', startAudio);
     };
