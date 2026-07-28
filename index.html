@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>City Era Timelapse 1945–2055</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; }
+      body { background: #000; color: #fff; }
+      #loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 100; background: #000; }
+      #loading .spinner { width: 48px; height: 48px; border: 3px solid rgba(255,255,255,0.2); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <div id="loading"><div class="spinner"></div></div>
+    <canvas id="three-canvas"></canvas>
+    <div id="ui-root"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
