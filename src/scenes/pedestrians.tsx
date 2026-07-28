@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import type { EraData } from './eras';
 import * as THREE from 'three';
@@ -32,8 +32,10 @@ function Pedestrian({ position, era, index }: {
   index: number;
 }) {
   const ref = useRef<THREE.Group>(null);
-  const walkSpeed = 0.5 + Math.random() * 0.5;
-  const walkOffset = Math.random() * Math.PI * 2;
+  const { walkSpeed, walkOffset } = useMemo(() => ({
+    walkSpeed: 0.5 + Math.random() * 0.5,
+    walkOffset: Math.random() * Math.PI * 2,
+  }), [index]);
 
   useFrame(({ clock }) => {
     if (!ref.current) return;

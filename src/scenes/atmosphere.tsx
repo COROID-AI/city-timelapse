@@ -1,5 +1,5 @@
 import { useStore } from '../state';
-import { ERA_DATA } from './eras';
+import { ERA_DATA, type EraData } from './eras';
 import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -12,7 +12,7 @@ function getEraIndex(year: number): number {
   return [1945, 1965, 1985, 2005, 2025, 2055].indexOf(year);
 }
 
-function getInterpolatedEra(): any {
+function getInterpolatedEra(): EraData {
   const { currentEra, targetEra, transitionProgress, isTransitioning } = useStore.getState();
   if (!isTransitioning) return ERA_DATA[[1945, 1965, 1985, 2005, 2025, 2055][currentEra]];
 

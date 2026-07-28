@@ -22,6 +22,80 @@ export default function CityScene({ onLoaded }: { onLoaded: () => void }) {
   const currentData = ERA_DATA[[1945, 1965, 1985, 2005, 2025, 2055][currentEra]];
   const targetData = ERA_DATA[[1945, 1965, 1985, 2005, 2025, 2055][targetEra]];
 
+  // Audio context and oscillators for ambient era-appropriate sounds
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const oscillatorsRef = useRef<OscillatorNode[]>([]);
+  const gainNodeRef = useRef<GainNode | null>(null);
+
+  // Initialize audio on first user interaction (autoplay policy)
+  useEffect(() => {
+    const initAudio = async () => {
+      if (audioContextRef.current) return;
+      
+      try {
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        audioContextRef.current = ctx;
+        
+        // Create master gain node
+        const gain = ctx.createGain();
+        gain.gain.value = 0.05; // Low ambient volume
+        gain.connect(ctx.destination);
+        gainNodeRef.current = gain;
+
+        // Create ambient oscillators based on current era
+        createAmbientSound(ctx, gain, currentEra, oscillatorsRef);
+      } catch (e) {
+        console.warn('Audio initialization failed:', e);
+      }
+    };
+
+    // Initialize on first user interaction
+    const handler = () => {
+      initAudio();
+      window.removeEventListener('click', handler);
+      window.removeEventListener('keydown', handler);
+    };
+    window.addEventListener('click', handler);
+    window.addEventListener('keydown', handler);
+
+    return () => {
+      window.removeEventListener('click', handler);
+      window.removeEventListener('keydown', handler);
+    };
+  }, [currentEra]);
+
+  // Update ambient sound when era changes
+  useEffect(() => {
+    if (audioContextRef.current && gainNodeRef.current) {
+      // Stop existing oscillators
+      oscillatorsRef.current.forEach(osc => {
+        try { osc.stop(); } catch { /* already stopped */ }
+      });
+      oscillatorsRef.current = [];
+      
+      // Create new ambient sound for new era
+      createAmbientSound(audioContextRef.current, gainNodeRef.current, currentEra, oscillatorsRef);
+    }
+  }, [currentEra]);
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      // Stop all oscillators
+      oscillatorsRef.current.forEach(osc => {
+        try { osc.stop(); } catch { /* already stopped */ }
+      });
+      oscillatorsRef.current = [];
+
+      // Close audio context
+      if (audioContextRef.current) {
+        try { audioContextRef.current.close(); } catch { /* already closed */ }
+        audioContextRef.current = null;
+      }
+      gainNodeRef.current = null;
+    };
+  }, []);
+
   const era = useMemo(() => {
     if (!isTransitioning) return currentData;
     const t = transitionProgress;
@@ -91,4 +165,37 @@ export default function CityScene({ onLoaded }: { onLoaded: () => void }) {
       <Particles era={era} />
     </group>
   );
+}
+
+// Create era-appropriate ambient sound
+function createAmbientSound(ctx: AudioContext, gain: GainNode, eraIndex: number, oscillatorsRef: React.MutableRefObject<OscillatorNode[]>) {
+  const eraYears = [1945, 1965, 1985, 2005, 2025, 2055];
+  const year = eraYears[eraIndex];
+  
+  // Define frequencies for each era's ambient feel
+  const eraFreqs: Record<number, number[]> = {
+    1945: [60, 120, 180],      // Low hum - post-war industrial
+    1965: [110, 220, 330],     // Mid-century hum
+    1985: [150, 300, 600],     // Neon buzz
+    2005: [200, 400, 800],     // Digital hum
+    2025: [250, 500, 1000],    // Smart city
+    2055: [300, 600, 1200],    // Futuristic
+  };
+  
+  const freqs = eraFreqs[year] || [110, 220, 330];
+  
+  freqs.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const oscGain = ctx.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    oscGain.gain.value = 0.3 / (i + 1); // Decreasing volume for harmonics
+    
+    osc.connect(oscGain);
+    oscGain.connect(gain);
+    osc.start();
+    
+    oscillatorsRef.current.push(osc);
+  });
 }
