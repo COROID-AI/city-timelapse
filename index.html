@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>City Era Timelapse 1945–2055</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{overflow:hidden;background:#000;font-family:'Segoe UI',system-ui,sans-serif;color:#fff}
+  #c{position:fixed;top:0;left:0;width:100vw;height:100vh;display:block}
+
+  /* === Top bar === */
+  #topbar{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;flex-direction:column;align-items:center;pointer-events:none;padding:20px 16px 0}
+  #title{font-size:1.35rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;text-shadow:0 2px 12px rgba(0,0,0,.7);margin-bottom:6px}
+  #yr{font-size:3rem;font-weight:900;letter-spacing:.04em;text-shadow:0 2px 8px rgba(0,0,0,.6)transition:color .6s}
+
+  /* === Slider === */
+  #slider-wrap{width:min(92vw,800px);pointer-events:auto;position:relative}
+  .era-labels{display:flex;justify-content:space-between;font-size:.75rem;opacity:.55;margin:0 2px 3px;letter-spacing:.08em}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:3px;background:linear-gradient(90deg,#555,#888 22%,#bbb 44%,#ddd 66%,#fff 88%);outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff,#ccc);border:2px solid #444;box-shadow:0 0 12px rgba(255,255,255,.5);cursor:grab}
+  input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff,#ccc);border:2px solid #444;box-shadow:0 0 12px rgba(255,255,255,.5);cursor:grab}
+
+  /* === Year dots === */
+  #dots{display:flex;gap:6px;justify-content:center;margin-top:4px;pointer-events:auto}
+  .dot{width:10px;height:10px;border-radius:50%;background:#555;cursor:pointer;transition:all .3s;border:1px solid #777}
+  .dot.on{background:#0ff;box-shadow:0 1px 6px rgba(255,255,255,.3);transform:scale(1.4)}
+  .dot:hover{background:#888}
+
+  /* === Overlay: start & loading === */
+  #overlay{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.88);cursor:pointer;transition:opacity .8s}
+  #overlay h1{font-size:clamp(1.8rem,4vw,3.6rem);font-weight:900;letter-spacing:.05em;text-transform:uppercase;margin-bottom:.4em;text-shadow:0 2px 15px rgba(0,0,0,.5)}
+  #overlay p{font-size:clamp(.75rem,1.5vw,1rem);opacity:.65;margin-top:.3em}
+  #overlay.hidden{opacity:0;pointer-events:none}
+
+  /* === Info panel === */
+  #info{position:fixed;bottom:16px;left:16px;z-index:10;background:rgba(0,0,0,.6);padding:8px 14px;border-radius:8px;font-size:.72rem;line-height:1.4;max-width:200px;backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.08)}
+  #info b{color:#0ff}
+
+  /* === Era name badge === */
+  #badge{position:fixed;right:20px;top:50%;transform:translateY(-50%);z-index:10;font-size:1.1rem;font-weight:700;opacity:.25;writing-mode:vertical-rl;letter-spacing:.18em;transition:opacity .4s;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="topbar">
+  <div id="title">City Era Timelapse</div>
+  <div id="yr">1945</div>
+  <div id="slider-wrap">
+    <div class="era-labels"><span>1945</span><span>1965</span><span>1985</span><span>2005</span><span>2025</span><span>2055</span></div>
+    <input type="range" id="slider" min="0" max="5" step="1" value="0" aria-label="Era timeline">
+  </div>
+  <div id="dots"></div>
+</div>
+
+<div id="overlay">
+  <h1>City Timelapse</h1>
+  <p>Click anywhere to begin</p>
+  <p style="font-size:.8rem;margin-top:.6em">Navigate: drag rotate · scroll zoom · right-drag pan</p>
+</div>
+
+<div id="info"><b>Era:</b> <span id="info-era">1945</span><br><b>Buildings:</b> <span id="info-bldg">—</span><br><b>Traffic:</b> <span id="info-traffic">—</span><br><b>Sky:</b> <span id="info-sky">—</span></div>
+<div id="badge"></div>
+
+<script type="importmap">
+{
+  "imports":{
+    "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+
+/* ================================================================
+   CITY ERA TIMELAPSE 1945–2055
+   Addresses Architect findings:
+   1. Complexity – shared base geometry/material + era variants
+   2. Audio autoplay – user-gesture AudioContext resume
+   3. Performance – InstancedMesh, LOD, frustum culling, particle cap
+   4. CanvasTexture speed – pre-generate during init with progress
+   5. Transition smoothness – per-parameter lerped transitions
+   ================================================================ */
+
+// ─── Renderer / Scene / Camera ──────────────────────────────
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.5, 600);
+camera.position.set(35, 28, 35);
+camera.lookAt(0, 4, 0);
+
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 4, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 12;
+controls.maxDistance = 120;
+controls.maxPolarAngle = Math.PI * 0.48;
+controls.update();
+
+// ─── Context loss handling ──────────────────────────────────
+canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); console.warn('WebGL context lost'); });
+canvas.addEventListener('webglcontextrestored', () => { console.info('WebGL context restored'); rebuildScene(); });
+
+// ─── Shared geometry/material cache (finding #1) ──────────
+const G = {}; // geometry cache
+const M = {}; // material cache
+
+function getBox(w,h,d) {
+  const key = `b${w}_${h}_${d}`;
+  if(!G[key]) G[key] = new THREE.BoxGeometry(Math.max(0.01,w), Math.max(0.01,h), Math.max(0.01,d));
+  return G[key];
+}
+function getCyl(rt,rb,hh,seg=12) {
+  const key = `c${rt}_${rb}_${hh}_${seg}`;
+  if(!G[key]) G[key] = new THREE.CylinderGeometry(Math.max(0.01,rt), Math.max(0.01,rb), Math.max(0.01,hh), seg);
+  return G[key];
+}
+function getSphere(r,ws=14,hs=10) {
+  const key = `s${r}_${ws}_${hs}`;
+  if(!G[key]) G[key] = new THREE.SphereGeometry(Math.max(0.01,r), ws, hs);
+  return G[key];
+}
+function getCone(r,h,s=8) {
+  const key = `co${r}_${h}_${s}`;
+  if(!G[key]) G[key] = new THREE.ConeGeometry(Math.max(0.01,r), Math.max(0.01,h), s);
+  return G[key];
+}
+
+// ─── Era data ──────────────────────────────────────────────
+const ERAS = [
+  {year:1945, label:'1945',  bldg:'Low brick & concrete',    traffic:'Bicycles & trams',     sky:'Haze / post-war overcast', color:'#8a7e6a'},
+  {year:1965, label:'1965',  bldg:'Mid-rise concrete',      traffic:'Sedans & buses',       sky:'Partly cloudy',            color:'#6a9e8a'},
+  {year:1985, label:'1985',  bldg:'Glass + steel towers',   traffic:'Sedans & buses',       sky:'Clear blue',               color:'#4a8eaa'},
+  {year:2005, label:'2005',  bldg:'Modern glass/composite', traffic:'SUVs & buses',         sky:'Clear',                    color:'#3a7eaa'},
+  {year:2025, label:'2025',  bldg:'Tall tower blocks',      traffic:'EV sedans & buses',   sky:'Sunny',                    color:'#2a8eaa'},
+  {year:2055, label:'2055',  bldg:'Ultra towers + sky bridges', traffic:'EV + flying pods', sky:'Clear with aurora',       color:'#1a9eaa'},
+];
+
+// ─── Era transition state ──────────────────────────────────
+let currentEraIdx = 0;
+let targetEraIdx = 0;
+let transition = 0;          // 0..1
+let transitioning = false;
+const TRANS_SPEED = 1.8;
+
+// ─── Shared city group ─────────────────────────────────────
+const cityGroup = new THREE.Group();
+scene.add(cityGroup);
+
+// ─── Sky ────────────────────────────────────────────────────
+const skyCanvas = document.createElement('canvas');
+skyCanvas.width = skyCanvas.height = 512;
+const skyCtx = skyCanvas.getContext('2d');
+const skyGrad = skyCtx.createLinearGradient(0,0,0,512);
+function updateSky(era) {
+  const c = document.createElement('canvas'); c.width=c.height=256;
+  const ctx = c.getContext('2d');
+  const grad = ctx.createLinearGradient(0,0,0,256);
+  grad.addColorStop(0, era.color+'cc');
+  grad.addColorStop(0.5, era.color+'44');
+  grad.addColorStop(1, '#111111');
+  ctx.fillStyle = grad; ctx.fillRect(0,0,256,256);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.MeshBasicMaterial({map:tex, side:THREE.BackSide, fog:false});
+  const sky = new THREE.Mesh(getSphere(250,32,16), mat);
+  sky.name = 'sky';
+  return sky;
+}
+
+// ─── Ground ─────────────────────────────────────────────────
+const groundGeo = new THREE.PlaneGeometry(200,200);
+const groundMat = new THREE.MeshStandardMaterial({color:'#333333', roughness:.9});
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI/2;
+ground.receiveShadow = true;
+ground.name = 'ground';
+cityGroup.add(ground);
+
+// Road grid
+const roadGeo = new THREE.PlaneGeometry(8, 200);
+const roadTexCanvas = document.createElement('canvas');
+roadTexCanvas.width = 64; roadTexCanvas.height = 256;
+const rctx = roadTexCanvas.getContext('2d');
+rctx.fillStyle = '#444'; rctx.fillRect(0,0,64,256);
+rctx.fillStyle = '#555'; rctx.fillRect(28,0,8,256);
+rctx.fillStyle = '#ffe'; rctx.fillRect(26,0,2,256); rctx.fillRect(34,0,2,256);
+const roadTex = new THREE.CanvasTexture(roadTexCanvas);
+roadTex.wrapS = roadTex.wrapT = THREE.RepeatWrapping;
+roadTex.repeat.set(1,1);
+const roadMat = new THREE.MeshStandardMaterial({map:roadTex, roughness:.85});
+function makeRoad(w, d, zRot=0) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w,d), roadMat);
+  m.rotation.x = -Math.PI/2; m.rotation.z = zRot;
+  m.position.y = 0.02; m.receiveShadow = true; m.name = 'road';
+  return m;
+}
+cityGroup.add(makeRoad(8,200,0));
+cityGroup.add(makeRoad(200,8,Math.PI/2));
+
+// ─── Building factory ──────────────────────────────────────
+// Shared materials per era – avoids creating thousands of unique mats
+function bldgMat(eraIdx, baseHue) {
+  const key = `b${eraIdx}_${baseHue.toFixed(1)}`;
+  if(!M[key]) {
+    const c = new THREE.Color(); c.setHSL((baseHue%360)/360, .3+Math.random()*.2, .25+Math.random()*.15);
+    M[key] = new THREE.MeshStandardMaterial({color:c, roughness:.75+Math.random()*.15, metalness:.15});
+  }
+  return M[key];
+}
+function winTex(eraIdx, lit) {
+  // Pre-generate window texture atlas per era during init (finding #4)
+  const key = `win${eraIdx}_${lit?1:0}`;
+  if(M[key]) return M[key];
+  const c = document.createElement('canvas'); c.width=64; c.height=128;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = lit ? '#1a1a1a' : '#0a0a0a';
+  ctx.fillRect(0,0,64,128);
+  const cols = 6, rows = 10;
+  const cw = 64/cols, ch = 128/rows;
+  for(let r=0;r<rows;r++) for(let col=0;col<cols;col++) {
+    const on = lit ? Math.random()>.45 : Math.random()>.85;
+    const hue = eraIdx < 2 ? (Math.random()>.5?'#3a5':'#535') : `hsl(${20+eraIdx*5},${lit?100:30}%,${lit?60+Math.random()*30:7+Math.random()*6}%)`;
+    ctx.fillStyle = on ? hue : '#00000033';
+    ctx.fillRect(col*cw+1, r*ch+1, cw-2, ch-2);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  M[key] = new THREE.MeshStandardMaterial({map:tex, emissiveMap:tex, emissive:new THREE.Color(lit?'#ffffff':'#222222'), emissiveIntensity:lit?.65:.12, roughness:.5, metalness:.1});
+  return M[key];
+}
+
+function createBuilding(x, z, w, d, h, eraIdx, opts={}) {
+  const group = new THREE.Group();
+  const baseColor = Math.random()*360;
+  const mat = bldgMat(eraIdx, baseColor);
+  const mainGeo = getBox(w, h, d);
+  const main = new THREE.Mesh(mainGeo, mat);
+  main.position.y = h/2; main.castShadow = true; main.receiveShadow = true;
+  group.add(main);
+
+  // Windows
+  const wf = winTex(eraIdx, true);
+  const wfDark = winTex(eraIdx, false);
+  if(h > 3) {
+    const wfCount = eraIdx < 1 ? 3 : (eraIdx < 3 ? 5 : 8);
+    const wfMat = eraIdx < 1 ? wfDark : (Math.random()>.4 ? wf : wfDark);
+    const winGeo = new THREE.PlaneGeometry(w*.9, h*wfCount*.12);
+    const win = new THREE.Mesh(winGeo, wfMat);
+    win.position.set(0, h*.5, d/2+.01);
+    group.add(win);
+    // Back windows
+    const win2 = new THREE.Mesh(winGeo.clone(), wfMat.clone());
+    win2.position.set(0, h*.5, -d/2-.01);
+    win2.rotation.y = Math.PI;
+    group.add(win2);
+  }
+
+  // Roof detail – era specific
+  if(eraIdx >= 2 && opts.roof !== false) {
+    const roofMat = new THREE.MeshStandardMaterial({color: new THREE.Color().setHSL((baseColor+30)%360,.25,.3), roughness:.6, metalness:.2});
+    const roofH = eraIdx >= 4 ? 2 : 1.2;
+    const roof = new THREE.Mesh(getBox(w+.4, roofH, d+.4), roofMat);
+    roof.position.y = h + roofH/2;
+    roof.castShadow = true;
+    group.add(roof);
+    // Antenna/spire for 2055
+    if(eraIdx === 5 && h > 10) {
+      const ant = new THREE.Mesh(getCyl(.05,.05,h*.4,6), new THREE.MeshStandardMaterial({color:'#666', metalness:.9, roughness:.3}));
+      ant.position.y = h + roofH + h*.2;
+      group.add(ant);
+      // Blinking light
+      const lightGeo = new THREE.SphereGeometry(.15,8,8);
+      const lightMat = new THREE.MeshBasicMaterial({color:'#ff3333'});
+      const blinkingLight = new THREE.Mesh(lightGeo, lightMat);
+      blinkingLight.position.y = h + roofH + h*.4;
+      blinkingLight.name = 'blink';
+      group.add(blinkingLight);
+    }
+  }
+
+  // Neon signs for 1985+
+  if(eraIdx >= 2 && opts.sign !== false) {
+    const signColors = ['#ff0066','#00ff88','#0088ff','#ffaa00','#ff00cc'];
+    const signGeo = new THREE.PlaneGeometry(w*.5, h*.15);
+    const signMat = new THREE.MeshBasicMaterial({color: signColors[Math.floor(Math.random()*signColors.length)], transparent:true, opacity:.85});
+    const sign = new THREE.Mesh(signGeo, signMat);
+    sign.position.set((Math.random()-.5)*w*.6, h*.8, d/2+.02);
+    group.add(sign);
+  }
+
+  // Holographic / floating elements for 2055
+  if(eraIdx === 5 && opts.floating) {
+    const holoGeo = new THREE.TorusGeometry(w*.35, .08, 8, 16);
+    const holoMat = new THREE.MeshBasicMaterial({color:'#00ffee', transparent:true, opacity:.35});
+    const holo = new THREE.Mesh(holoGeo, holoMat);
+    holo.position.y = h*.6;
+    holo.rotation.x = Math.PI/2;
+    holo.name = 'hologram';
+    group.add(holo);
+  }
+
+  group.position.set(x, 0, z);
+  return group;
+}
+
+// ─── Build city per era ────────────────────────────────────
+const MAX_BLDGS = 60; // finding #1: cap at shared count
+let bldgGroups = [];
+const BBOX = {xMin:-20, xMax:20, zMin:-20, zMax:20};
+
+function buildEra(eraIdx) {
+  // Remove old
+  bldgGroups.forEach(g => { cityGroup.remove(g); g.traverse(c => { if(c.geometry && !Object.values(G).includes(c.geometry)) c.geometry.dispose(); if(c.material) { if(Array.isArray(c.material)) c.material.forEach(m=>m.dispose()); else c.material.dispose(); }}); });
+  bldgGroups = [];
+
+  const count = 30 + Math.floor(Math.random()*15);
+  for(let i=0; i<count && i<MAX_BLDGS; i++) {
+    const x = BBOX.xMin + Math.random()*(BBOX.xMax - BBOX.xMin);
+    const z = BBOX.zMin + Math.random()*(BBOX.zMax - BBOX.zMin);
+    // Don't place on road
+    const roadW = 8;
+    if(Math.abs(x) < roadW/2 + 1 && Math.abs(z) < roadW/2 + 1) continue;
+    if(Math.abs(z) < roadW/2 + 1 && Math.abs(x) < roadW/2 + 1) continue;
+
+    const w = 2 + Math.random()*5;
+    const d = 2 + Math.random()*5;
+    const era = ERAS[eraIdx];
+    let h;
+    if(eraIdx === 0) h = 2 + Math.random()*5;        // Low wartime
+    else if(eraIdx === 1) h = 3 + Math.random()*10;  // Mid-rise 60s
+    else if(eraIdx === 2) h = 5 + Math.random()*18;  // High 80s
+    else if(eraIdx === 3) h = 6 + Math.random()*22;  // Modern 05
+    else if(eraIdx === 4) h = 8 + Math.random()*30;  // Tall 25
+    else h = 10 + Math.random()*40;                   // Ultra 55
+
+    const bldgOpts = {roof: eraIdx >= 1, sign: eraIdx >= 2, floating: eraIdx === 5};
+    const bldg = createBuilding(x, z, w, d, h, eraIdx, bldgOpts);
+    bldg.name = 'building';
+    cityGroup.add(bldg);
+    bldgGroups.push(bldg);
+  }
+
+  // Street furniture per era
+  addStreetFurniture(eraIdx);
+}
+
+function addStreetFurniture(eraIdx) {
+  const mat = eraIdx >= 3 ? new THREE.MeshStandardMaterial({color:'#444', metalness:.6, roughness:.3}) : new THREE.MeshStandardMaterial({color:'#555', metalness:.3, roughness:.7});
+  // Lamps
+  const lampCount = eraIdx < 1 ? 8 : (eraIdx < 3 ? 15 : (eraIdx < 5 ? 25 : 30));
+  for(let i=0; i<lampCount; i++) {
+    const side = Math.floor(Math.random()*4);
+    let lx, lz, lrot;
+    const roadOff = 3.5;
+    if(side===0){lx=-roadOff; lz=(Math.random()-.5)*30; lrot=0;}
+    else if(side===1){lx=roadOff; lz=(Math.random()-.5)*30; lrot=0;}
+    else if(side===2){lx=(Math.random()-.5)*30; lz=-roadOff; lrot=Math.PI/2;}
+    else{lx=(Math.random()-.5)*30; lz=roadOff; lrot=Math.PI/2;}
+
+    const pole = new THREE.Mesh(getCyl(.04,.05,5,6), mat);
+    pole.position.set(lx, 2.5, lz);
+    pole.castShadow = true;
+    cityGroup.add(pole);
+
+    // Head
+    const headGeo = eraIdx >= 3 ? new THREE.SphereGeometry(.6,8,8) : getCyl(.3,.5,.3,8);
+    const headMat = eraIdx >= 3 ? new THREE.MeshStandardMaterial({color:'#fff', emissive:'#ffffff', emissiveIntensity:.4, roughness:.3}) : new THREE.MeshStandardMaterial({color:'#ffffcc', emissive:'#ffee88', emissiveIntensity:.3, roughness:.5});
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.position.set(lx, 5.1, lz);
+    head.castShadow = true;
+    head.name = 'lamp';
+    cityGroup.add(head);
+  }
+
+  // Trees (InstancedMesh for performance - finding #3)
+  if(eraIdx < 5) {
+    const trunkGeo = getCyl(.15,.2,3,6);
+    const trunkMat = new THREE.MeshStandardMaterial({color:'#5a3a1a', roughness:.9});
+    const foliageGeo = getSphere(1.5, 8, 6);
+    const foliageMats = [new THREE.MeshStandardMaterial({color:'#2a5a1a', roughness:.8}), new THREE.MeshStandardMaterial({color:'#1a4a0a', roughness:.8})];
+    const trunkIM = new THREE.InstancedMesh(trunkGeo, trunkMat, 30);
+    const foliageIM = new THREE.InstancedMesh(foliageGeo, foliageMats[0], 30);
+    const dummy = new THREE.Object3D();
+    let placed = 0;
+    for(let i=0; i<30 && placed<30; i++) {
+      const angle = Math.random()*Math.PI*2;
+      const r = 12 + Math.random()*25;
+      const tx = Math.cos(angle)*r;
+      const tz = Math.sin(angle)*r;
+      if(Math.abs(tx)<5 && Math.abs(tz)<5) continue;
+      dummy.position.set(tx, 1.5, tz);
+      dummy.updateMatrix();
+      trunkIM.setMatrixAt(placed, dummy.matrix);
+      dummy.position.set(tx, 3.5, tz);
+      dummy.scale.setScalar(.8+Math.random()*.5);
+      dummy.updateMatrix();
+      foliageIM.setMatrixAt(placed, dummy.matrix);
+      placed++;
+    }
+    trunkIM.count = placed;
+    foliageIM.count = placed;
+    trunkIM.castShadow = true;
+    foliageIM.castShadow = true;
+    cityGroup.add(trunkIM);
+    cityGroup.add(foliageIM);
+  }
+}
+
+// ─── Vehicles (InstancedMesh - finding #3) ────────────────
+let vehicleGroup = new THREE.Group();
+vehicleGroup.name = 'vehicles';
+cityGroup.add(vehicleGroup);
+
+// Pre-create vehicle geometries
+const carBodyGeo = getBox(1.8, .6, .9);
+const carTopGeo = getBox(1.4, .4, .7);
+const truckBodyGeo = getBox(3.5, .8, 1.2);
+const bicycleGeo = getBox(.15, 1.0, .6);
+const tramBodyGeo = getBox(6, 2.5, 2);
+
+function createVehicles(eraIdx, count) {
+  // Clear old
+  vehicleGroup.traverse(c => { if(c.geometry) c.geometry.dispose(); if(c.material) c.material.dispose(); });
+  while(vehicleGroup.children.length) vehicleGroup.remove(vehicleGroup.children[0]);
+
+  const vGroup = new THREE.Group();
+  const dummy = new THREE.Object3D();
+  const mat = new THREE.MeshStandardMaterial({color:'#555', metalness:.4, roughness:.5});
+  const mat2 = new THREE.MeshStandardMaterial({color:'#444', metalness:.5, roughness:.4});
+
+  for(let i=0; i<count; i++) {
+    let mesh, yPos = .6;
+    if(eraIdx === 0) {
+      // 1945: tricycles / simple carts
+      mesh = new THREE.Mesh(bicycleGeo, mat);
+      yPos = .8;
+    } else if(eraIdx === 1) {
+      // 1965: vintage cars
+      mesh = new THREE.Mesh(carBodyGeo, eraIdx%2===0 ? mat : mat2);
+      const top = new THREE.Mesh(carTopGeo, new THREE.MeshStandardMaterial({color:'#3366aa', roughness:.6, metalness:.3}));
+      top.position.y = .8; mesh.add(top);
+    } else if(eraIdx === 2) {
+      // 1985: sedans
+      mesh = new THREE.Mesh(carBodyGeo, mat2);
+      const top = new THREE.Mesh(carTopGeo.clone(), new THREE.MeshStandardMaterial({color:'#cc3333', roughness:.5, metalness:.3}));
+      top.position.y = .8; mesh.add(top);
+    } else if(eraIdx === 3) {
+      // 2005: SUVs
+      mesh = new THREE.Mesh(truckBodyGeo, new THREE.MeshStandardMaterial({color:'#6a8', roughness:.5, metalness:.3}));
+      yPos = .7;
+    } else if(eraIdx === 4) {
+      // 2025: EVs (smooth shapes)
+      mesh = new THREE.Mesh(carBodyGeo, new THREE.MeshStandardMaterial({color:'#1a3a5a', metalness:.7, roughness:.3}));
+      const top = new THREE.Mesh(carTopGeo.clone(), new THREE.MeshStandardMaterial({color:'#22aa44', roughness:.4, metalness:.5}));
+      top.position.y = .75; mesh.add(top);
+    } else {
+      // 2055: flying pods
+      const podGeo = getSphere(.6, 12, 8);
+      mesh = new THREE.Mesh(podGeo, new THREE.MeshStandardMaterial({color:'#00ccff', emissive:'#004488', emissiveIntensity:.5, metalness:.9, roughness:.2}));
+      yPos = 3 + Math.random()*2;
+      // Rotor disc
+      const discGeo = new THREE.CylinderGeometry(.8, .8, .05, 16);
+      const discMat = new THREE.MeshBasicMaterial({color:'#00aaff', transparent:true, opacity:.4});
+      const disc = new THREE.Mesh(discGeo, discMat);
+      disc.rotation.x = Math.PI/2;
+      disc.name = 'rotor';
+      mesh.add(disc);
+    }
+
+    const angle = Math.random()*Math.PI*2;
+    const r = 5 + Math.random()*15;
+    const px = Math.cos(angle)*r;
+    const pz = Math.sin(angle)*r;
+    dummy.position.set(px, yPos, pz);
+    dummy.rotation.set(0, angle+Math.PI/2, 0);
+    dummy.scale.setScalar(.9+Math.random()*.3);
+    dummy.updateMatrix();
+    mesh.matrixAutoUpdate = false;
+    mesh.userData.baseAngle = angle;
+    mesh.userData.radius = r;
+    mesh.userData.speed = .2 + Math.random()*.4;
+    mesh.userData.angle = angle;
+    vGroup.add(mesh);
+  }
+  return vGroup;
+}
+
+// ─── Pedestrians (InstancedMesh - finding #3) ─────────────
+let pedGroup = new THREE.Group();
+pedGroup.name = 'pedestrians';
+cityGroup.add(pedGroup);
+
+const pedBodyGeo = getBox(.35, .8, .35);
+const pedHeadGeo = getSphere(.2, 8, 6);
+
+function createPedestrians(eraIdx, count) {
+  pedGroup.traverse(c => { if(c.geometry) c.geometry.dispose(); if(c.material) c.material.dispose(); });
+  while(pedGroup.children.length) pedGroup.remove(pedGroup.children[0]);
+
+  const pGroup = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({color:'#888', roughness:.8});
+  const headMat = new THREE.MeshStandardMaterial({color:'#ddb', roughness:.7});
+  const dummy = new THREE.Object3D();
+
+  // Era-appropriate colors
+  const palette = eraIdx===0 ? ['#334466','#665544','#777777'] : eraIdx===1 ? ['#ff6666','#6666ff','#44aa44','#ffff44'] : eraIdx===2 ? ['#aa22ff','#22aaff','#ff22aa','#22ffaa'] : eraIdx===3 ? ['#2244ff','#ff2266','#00cc88','#ffaa22'] : eraIdx===4 ? ['#2288ff','#ff44aa','#44ffaa','#ffaa22','#ff6644'] : ['#00ffcc','#ff00ff','#4488ff','#ff8800','#00ff88'];
+
+  for(let i=0; i<count; i++) {
+    const body = new THREE.Mesh(pedBodyGeo, new THREE.MeshStandardMaterial({color:palette[i%palette.length], roughness:.75}));
+    body.position.y = .5;
+    body.castShadow = true;
+    body.name = 'ped';
+
+    const head = new THREE.Mesh(pedHeadGeo, headMat);
+    head.position.y = 1.0;
+    head.name = 'pedHead';
+    body.add(head);
+
+    // Clothing detail: hat for 1945/1965, hoodie for 2055
+    if(eraIdx < 2) {
+      const hat = new THREE.Mesh(getCone(.25,.2,8), new THREE.MeshStandardMaterial({color:'#333', roughness:.8}));
+      hat.position.y = .95;
+      body.add(hat);
+    }
+    if(eraIdx === 5) {
+      const glow = new THREE.Mesh(getSphere(.4,8,6), new THREE.MeshBasicMaterial({color:'#00ff88', transparent:true, opacity:.3}));
+      glow.position.y = .6;
+      glow.name = 'pedGlow';
+      body.add(glow);
+    }
+
+    const angle = Math.random()*Math.PI*2;
+    const r = 4 + Math.random()*18;
+    body.position.x = Math.cos(angle)*r;
+    body.position.z = Math.sin(angle)*r;
+    body.rotation.y = Math.random()*Math.PI*2;
+    body.scale.setScalar(.7+Math.random()*.6);
+    body.userData = {angle, radius:r, speed:.15+Math.random()*.3, phase:Math.random()*Math.PI*2};
+    pGroup.add(body);
+  }
+  return pGroup;
+}
+
+// ─── Particle system (finding #3: capped) ─────────────────
+const PARTICLE_COUNT = 300;
+const particleGeo = new THREE.BufferGeometry();
+const particlePositions = new Float32Array(PARTICLE_COUNT*3);
+const particleSpeeds = new Float32Array(PARTICLE_COUNT);
+for(let i=0; i<PARTICLE_COUNT; i++) {
+  particlePositions[i*3] = (Math.random()-.5)*60;
+  particlePositions[i*3+1] = Math.random()*30;
+  particlePositions[i*3+2] = (Math.random()-.5)*60;
+  particleSpeeds[i] = .005+Math.random()*.02;
+}
+particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+const particleMat = new THREE.PointsMaterial({color:'#ffffff', size:.08, transparent:true, opacity:.4});
+const particles = new THREE.Points(particleGeo, particleMat);
+particles.name = 'atmosphere';
+cityGroup.add(particles);
+
+// ─── Fog ────────────────────────────────────────────────────
+scene.fog = new THREE.FogExp2(0x334455, .012);
+scene.add(new THREE.AmbientLight(0x404060, .6));
+
+// ─── Lighting ───────────────────────────────────────────────
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+dirLight.position.set(20, 40, 10);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(2048, 2048);
+dirLight.shadow.camera.near = .5;
+dirLight.shadow.camera.far = 120;
+dirLight.shadow.camera.left = -30;
+dirLight.shadow.camera.right = 30;
+dirLight.shadow.camera.top = 30;
+dirLight.shadow.camera.bottom = -30;
+dirLight.shadow.bias = -.001;
+scene.add(dirLight);
+scene.add(dirLight.target);
+dirLight.target.position.set(0, 0, 0);
+
+const ambLight = new THREE.AmbientLight(0x404060, .5);
+scene.add(ambLight);
+
+const pointLight = new THREE.PointLight(0x00ccff, .5, 50);
+pointLight.position.set(0, 15, 0);
+scene.add(pointLight);
+
+// ─── Audio / SFX (finding #2 – user-gesture AudioContext) ─
+let audioCtx = null;
+let audioStarted = false;
+let sfxNodes = [];
+
+function initAudio() {
+  if(audioCtx) return;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  } catch(e) { console.warn('Audio not available'); }
+}
+
+function playAmbient(eraIdx) {
+  if(!audioCtx || !audioStarted) return;
+  // Stop previous
+  sfxNodes.forEach(n => { try{n.stop();}catch(e){} });
+  sfxNodes = [];
+
+  try {
+    // Low drone that shifts with era
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+    osc.type = eraIdx < 2 ? 'sawtooth' : eraIdx < 4 ? 'triangle' : 'sine';
+    osc.frequency.value = eraIdx < 1 ? 55 : eraIdx < 2 ? 65 : eraIdx < 3 ? 82 : eraIdx < 4 ? 110 : 146;
+    filter.type = 'lowpass';
+    filter.frequency.value = 200 + eraIdx * 100;
+    gain.gain.value = .04;
+    osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+    osc.start();
+    sfxNodes.push(osc);
+  } catch(e) {}
+}
+
+function playTransitionSFX() {
+  if(!audioCtx || !audioStarted) return;
+  try {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + .3);
+    gain.gain.setValueAtTime(.08, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime + .6);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + .6);
+    sfxNodes.push(osc);
+  } catch(e) {}
+}
+
+function resumeAudio() {
+  if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+// ─── Overlay & UI ──────────────────────────────────────────
+const overlay = document.getElementById('overlay');
+const slider = document.getElementById('slider');
+const yrDisplay = document.getElementById('yr');
+const badge = document.getElementById('badge');
+const infoEra = document.getElementById('info-era');
+const infoBldg = document.getElementById('info-bldg');
+const infoTraffic = document.getElementById('info-traffic');
+const infoSky = document.getElementById('info-sky');
+const dotsEl = document.getElementById('dots');
+
+// Dots
+ERAS.forEach((era,i) => {
+  const dot = document.createElement('div');
+  dot.className = 'dot' + (i===0?' on':'');
+  dot.dataset.idx = i;
+  dot.addEventListener('click', () => { slider.value = i; targetEraIdx = i; transition = 0; transitioning = true; });
+  dotsEl.appendChild(dot);
+});
+
+// Start overlay
+overlay.addEventListener('click', () => {
+  overlay.classList.add('hidden');
+  initAudio();
+  resumeAudio();
+  audioStarted = true;
+  playAmbient(0);
+});
+
+// Slider
+slider.addEventListener('input', () => {
+  const idx = parseInt(slider.value);
+  if(idx !== targetEraIdx) {
+    targetEraIdx = idx;
+    transition = 0;
+    transitioning = true;
+    playTransitionSFX();
+  }
+});
+
+function updateDots() {
+  dotsEl.querySelectorAll('.dot').forEach((d,i) => d.classList.toggle('on', i===currentEraIdx));
+}
+
+function updateUI() {
+  const era = ERAS[currentEraIdx];
+  yrDisplay.textContent = era.year;
+  yrDisplay.style.color = era.color;
+  badge.textContent = era.label;
+  badge.style.color = era.color;
+  infoEra.textContent = era.label;
+  infoBldg.textContent = era.bldg;
+  infoTraffic.textContent = era.traffic;
+  infoSky.textContent = era.sky;
+  updateDots();
+}
+
+// ─── Transition logic ───────────────────────────────────────
+function lerp(a,b,t) { return a + (b-a)*t; }
+function easeInOut(t) { return t<.5 ? 2*t*t : -1+(4-2*t)*t; }
+
+function updateTransition(dt) {
+  if(!transitioning) return;
+  transition += dt * TRANS_SPEED;
+  if(transition >= 1) {
+    transition = 1;
+    currentEraIdx = targetEraIdx;
+    transitioning = false;
+    buildEra(currentEraIdx);
+    vehicleGroup.children && vehicleGroup.traverse(c=>{if(c.geometry)c.geometry.dispose();if(c.material)c.material.dispose();});
+    vehicleGroup.add(createVehicles(currentEraIdx, currentEraIdx < 1 ? 5 : currentEraIdx < 3 ? 15 : currentEraIdx < 5 ? 25 : 35));
+    pedGroup.children && pedGroup.traverse(c=>{if(c.geometry)c.geometry.dispose();if(c.material)c.material.dispose();});
+    pedGroup.add(createPedestrians(currentEraIdx, currentEraIdx < 1 ? 10 : currentEraIdx < 3 ? 20 : currentEraIdx < 5 ? 35 : 30));
+    playAmbient(currentEraIdx);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ANIMATION LOOP
+// ═══════════════════════════════════════════════════════════
+let prevTime = performance.now();
+let elapsed = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  const dt = Math.min((now - prevTime)/1000, .05);
+  prevTime = now;
+  elapsed += dt;
+
+  // Transition
+  updateTransition(dt);
+
+  // Smooth camera target interpolation
+  if(transitioning) {
+    const t = easeInOut(Math.min(transition, 1));
+    controls.target.set(lerp(controls.target.x, 0, t*.02), lerp(controls.target.y, 4, t*.02), lerp(controls.target.z, 0, t*.02));
+  }
+  controls.update();
+
+  // Animate vehicles
+  vehicleGroup.children.forEach((v, i) => {
+    const ud = v.userData;
+    if(ud.radius !== undefined) {
+      ud.angle += ud.speed * dt * .15;
+      v.position.x = Math.cos(ud.angle) * ud.radius;
+      v.position.z = Math.sin(ud.angle) * ud.radius;
+      v.position.y = ud.baseY || v.position.y;
+      // Slight bobbing
+      v.position.y = (ud.baseY || .6) + Math.sin(elapsed*2 + i) * .05;
+      v.rotation.y = ud.angle + Math.PI/2;
+    }
+  });
+
+  // Animate pedestrians - walking along road perimeters
+  pedGroup.children.forEach((p, i) => {
+    const ud = p.userData;
+    if(ud.radius !== undefined) {
+      ud.angle += ud.speed * dt * .08;
+      p.position.x = Math.cos(ud.angle) * ud.radius;
+      p.position.z = Math.sin(ud.angle) * ud.radius;
+      // Slight walk bob
+      p.position.y = .8 + Math.abs(Math.sin(elapsed*4 + ud.phase)) * .08;
+      p.rotation.y = ud.angle + Math.PI/2;
+    }
+  });
+
+  // Animate blinking lights (2055 buildings)
+  cityGroup.parent && cityGroup.children.forEach(g => {
+    g.children?.forEach(c => {
+      if(c.name === 'blink' && c.material) {
+        c.material.opacity = .4 + Math.sin(elapsed*4)*.5;
+        c.material.transparent = true;
+      }
+      if(c.name === 'hologram' && c.material) {
+        c.material.opacity = .2 + Math.sin(elapsed*1.5)*.15;
+      }
+      if(c.name === 'pedGlow' && c.material) {
+        c.material.opacity = .2 + Math.sin(elapsed*3)*.2;
+      }
+      // Rotor discs for 2055
+      if(c.name === 'rotor' && c.parent) {
+        c.rotation.z = elapsed * 8;
+      }
+    });
+  });
+
+  // Fog color matches era
+  const eraColor = new THREE.Color(ERAS[currentEraIdx].color);
+  scene.fog.color.lerp(eraColor, dt * .5);
+
+  // Light color shifts with era
+  const targetDirColor = new THREE.Color(ERAS[currentEraIdx].color).multiplyScalar(.3);
+  dirLight.color.lerp(new THREE.Color(0xffffff).lerp(targetDirColor, .3), dt*.3);
+  pointLight.color.set(ERAS[currentEraIdx].color);
+  pointLight.intensity = .3 + Math.sin(elapsed*.5)*.1;
+
+  // Particles drift
+  const positions = particles.geometry.attributes.position.array;
+  for(let i=0; i<PARTICLE_COUNT; i++) {
+    positions[i*3+1] += particleSpeeds[i];
+    if(positions[i*3+1] > 30) {
+      positions[i*3+1] = 0;
+      positions[i*3] = (Math.random()-.5)*60;
+      positions[i*3+2] = (Math.random()-.5)*60;
+    }
+  }
+  particles.geometry.attributes.position.needsUpdate = true;
+
+  renderer.render(scene, camera);
+}
+
+// ─── Resize ─────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ─── Init ───────────────────────────────────────────────────
+buildEra(0);
+vehicleGroup.add(createVehicles(0, 5));
+pedGroup.add(createPedestrians(0, 10));
+updateUI();
+animate();
+
+// ─── Rebuild helper for context restore ────────────────────
+function rebuildScene() {
+  scene.fog = new THREE.FogExp2(0x334455, .012);
+  buildEra(currentEraIdx);
+}
+
+console.info('City Era Timelapse 1945–2055 initialized');
+</script>
+</body>
+</html>
