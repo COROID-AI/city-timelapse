@@ -105,8 +105,8 @@ export default function Atmosphere({ era }: Props) {
     <>
       <ambientLight intensity={era.ambientIntensity} color={toHex(era.ambientColor)} />
       <directionalLight position={era.sunPosition} intensity={era.sunIntensity} color={toHex(era.sunColor)} />
-      <hemisphereLight color="#ffddaa" groundColor="#aabbcc" intensity={1.5} />
-      <pointLight position={[0, 10, 0]} intensity={1.5} color="#ffffff" />
+      <hemisphereLight color="#ffddaa" groundColor="#aabbcc" intensity={3} />
+      <pointLight position={[0, 10, 0]} intensity={3} color="#ffffff" />
     </>
   );
 }

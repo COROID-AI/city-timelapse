@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { useStore } from './state';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import CityScene from './scenes/CityScene';
 import TimelineSlider from './ui/TimelineSlider';
 import EraInfo from './ui/EraInfo';
@@ -23,12 +23,12 @@ export default function App() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
-      {!isLoaded && <LoadingScreen />}
       <Canvas
         shadows
         gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
         camera={{ position: [25, 18, 25], fov: 55, near: 0.5, far: 500 }}
         style={{ opacity: isLoaded ? 1 : 0, transition: 'opacity 1s ease' }}
+        bg={{ color: '#87CEEB', initialLoad: false }}
       >
         <CityScene onLoaded={() => {}} />
         <OrbitControls
@@ -43,8 +43,8 @@ export default function App() {
           zoomSpeed={1.2}
           panSpeed={0.8}
         />
-        <PerspectiveCamera makeDefault position={[25, 18, 25]} fov={55} />
       </Canvas>
+      {!isLoaded && <LoadingScreen />}
       {showUI && (
         <>
           <TimelineSlider />
