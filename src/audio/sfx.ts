@@ -1,6 +1,17 @@
-export function playStepSound() {
+function getAudioContext(): AudioContext | null {
   try {
-    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+    const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+    if (!AC) return null
+    return new AC()
+  } catch {
+    return null
+  }
+}
+
+export function playStepSound() {
+  const ctx = getAudioContext()
+  if (!ctx) return
+  try {
     const osc = ctx.createOscillator()
     osc.type = 'sine'
     osc.frequency.value = 200
@@ -11,14 +22,16 @@ export function playStepSound() {
     gain.connect(ctx.destination)
     osc.start(ctx.currentTime)
     osc.stop(ctx.currentTime + 0.1)
-  } catch (e) {
-    // ignore
+    osc.onended = () => ctx.close().catch(() => {})
+  } catch {
+    ctx.close().catch(() => {})
   }
 }
 
 export function playTrafficNoise(eraId: string) {
+  const ctx = getAudioContext()
+  if (!ctx) return
   try {
-    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
     const bufferSize = ctx.sampleRate * 0.5
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
     const data = buffer.getChannelData(0)
@@ -36,7 +49,8 @@ export function playTrafficNoise(eraId: string) {
     filter.connect(gain)
     gain.connect(ctx.destination)
     source.start()
-  } catch (e) {
-    // ignore
+    source.onended = () => ctx.close().catch(() => {})
+  } catch {
+    ctx.close().catch(() => {})
   }
 }
