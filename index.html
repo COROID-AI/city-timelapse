@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'">
 <title>City Era Timelapse 1945–2055</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
@@ -12,7 +13,7 @@
   /* === Top bar === */
   #topbar{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;flex-direction:column;align-items:center;pointer-events:none;padding:20px 16px 0}
   #title{font-size:1.35rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;text-shadow:0 2px 12px rgba(0,0,0,.7);margin-bottom:6px}
-  #yr{font-size:3rem;font-weight:900;letter-spacing:.04em;text-shadow:0 2px 8px rgba(0,0,0,.6)transition:color .6s}
+  #yr{font-size:3rem;font-weight:900;letter-spacing:.04em;text-shadow:0 2px 8px rgba(0,0,0,.6);transition:color .6s}
 
   /* === Slider === */
   #slider-wrap{width:min(92vw,800px);pointer-events:auto;position:relative}
@@ -62,6 +63,9 @@
 
 <div id="info"><b>Era:</b> <span id="info-era">1945</span><br><b>Buildings:</b> <span id="info-bldg">—</span><br><b>Traffic:</b> <span id="info-traffic">—</span><br><b>Sky:</b> <span id="info-sky">—</span></div>
 <div id="badge"></div>
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" as="script" type="text/javascript" crossorigin anonymous integrity="sha384-61S/Nu32S3E5+n+KpCOTb2eRYps6fVKm+9Gz1QBvSePFthb46f063Aa/qe/lykFZ">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js" as="script" type="text/javascript" crossorigin anonymous integrity="sha384-qlO/ZugKPxAQUAvTlQoo0QECzxJIJySZmCF/DHdb2Xn/hHndFwX/vfUAC9Hbk6LP">
 
 <script type="importmap">
 {
