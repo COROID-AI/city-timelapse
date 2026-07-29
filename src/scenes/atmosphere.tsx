@@ -4,6 +4,9 @@ import { useRef, useMemo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Color, FogExp2 } from 'three';
 
+// Global brightness multiplier to ensure the scene is clearly visible
+const BRIGHTNESS_SCALE = 2.5;
+
 interface Props {
   era: any;
 }
@@ -103,10 +106,18 @@ export default function Atmosphere({ era }: Props) {
 
   return (
     <>
-      <ambientLight intensity={era.ambientIntensity} color={toHex(era.ambientColor)} />
-      <directionalLight position={era.sunPosition} intensity={era.sunIntensity} color={toHex(era.sunColor)} />
-      <hemisphereLight color="#ffddaa" groundColor="#aabbcc" intensity={3} />
-      <pointLight position={[0, 10, 0]} intensity={3} color="#ffffff" />
+      {/* Ambient fill — base illumination so the scene is clearly visible */}
+      <ambientLight intensity={era.ambientIntensity * BRIGHTNESS_SCALE} color={toHex(era.ambientColor)} />
+      <directionalLight position={era.sunPosition} intensity={era.sunIntensity * BRIGHTNESS_SCALE} color={toHex(era.sunColor)} />
+      {/* Hemisphere sky/ground bounce */}
+      <hemisphereLight color="#ffddaa" groundColor="#aabbcc" intensity={3 * BRIGHTNESS_SCALE} />
+      {/* Center fill light — ensures the middle of the scene is well-lit */}
+      <pointLight position={[0, 10, 0]} intensity={3 * BRIGHTNESS_SCALE} color="#ffffff" />
+      {/* Corner fill lights — prevent dark corners between street lamps */}
+      <pointLight position={[-15, 8, -15]} intensity={2 * BRIGHTNESS_SCALE} color="#e8e8f0" />
+      <pointLight position={[15, 8, -15]} intensity={2 * BRIGHTNESS_SCALE} color="#e8e8f0" />
+      <pointLight position={[-15, 8, 15]} intensity={2 * BRIGHTNESS_SCALE} color="#e8e8f0" />
+      <pointLight position={[15, 8, 15]} intensity={2 * BRIGHTNESS_SCALE} color="#e8e8f0" />
     </>
   );
 }
