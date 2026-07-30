@@ -9,12 +9,11 @@ import Billboard from './Billboard';
 
 interface BuildingsCollectionProps {
   position: [number, number, number];
-  era: number;
   config: EraConfig;
   seed: number;
 }
 
-const BuildingsCollection: React.FC<BuildingsCollectionProps> = React.memo(({ position, era, config, seed }) => {
+const BuildingsCollection: React.FC<BuildingsCollectionProps> = React.memo(({ position, config, seed }) => {
   const buildings = useMemo(() => {
     const count = 3 + Math.floor(Math.abs(seed * 7 + seed) % 4);
     const blds: { pos: [number, number, number]; w: number; d: number; h: number; colorIndex: number }[] = [];
@@ -159,12 +158,11 @@ const BlockBillboards: React.FC<BlockBillboardsProps> = React.memo(({ buildings,
 
 interface BlockProps {
   position: [number, number, number];
-  era: number;
   config: EraConfig;
   seed: number;
 }
 
-const Block: React.FC<BlockProps> = React.memo(({ position, era, config, seed }) => {
+const Block: React.FC<BlockProps> = React.memo(({ position, config, seed }) => {
   const buildings = useMemo(() => {
     const count = 3 + Math.floor(Math.abs(seed * 7 + seed) % 4);
     const blds: { pos: [number, number, number]; w: number; d: number; h: number; colorIndex: number }[] = [];
@@ -186,7 +184,7 @@ const Block: React.FC<BlockProps> = React.memo(({ position, era, config, seed })
 
   return (
     <group position={position}>
-      <BuildingsCollection position={position} era={era} config={config} seed={seed} />
+      <BuildingsCollection position={position} config={config} seed={seed} />
       <BlockStorefronts buildings={buildings} config={config} seed={seed} />
       <BlockBillboards buildings={buildings} config={config} seed={seed} />
       <BlockVehicles position={position} config={config} seed={seed} />

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { EraConfig } from '../data/eraData';
 
@@ -47,6 +47,17 @@ const Building: React.FC<BuildingProps> = React.memo(({ position, width, depth, 
   const topGeo = useMemo(() => new THREE.CylinderGeometry(width * 0.3, width * 0.3, 2, 8), [width]);
   const topMat = useMemo(() => new THREE.MeshStandardMaterial({ color: 0x4466ff, emissive: 0x2244ff, emissiveIntensity: 0.4, roughness: 0.3, metalness: 0.5 }), []);
 
+  const bodyGeo = useMemo(() => new THREE.BoxGeometry(Math.max(0.1, width), Math.max(0.1, height), Math.max(0.1, depth)), [width, height, depth]);
+  const bodyMat = useMemo(() => new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0.2, emissive: color, emissiveIntensity: 0.05 }), [color]);
+
+  // Dispose all GPU resources when component unmounts or dependencies change
+  useEffect(() => {
+    return () => {
+      [windowGeo, frameGeo, antennaGeo, rooftopGeo, topGeo, bodyGeo].forEach(g => g.dispose());
+      [glassMat, frameMat, nightGlassMat, antennaMat, rooftopMat, topMat, bodyMat].forEach(m => m.dispose());
+    };
+  }, [windowGeo, frameGeo, antennaGeo, rooftopGeo, topGeo, bodyGeo, glassMat, frameMat, nightGlassMat, antennaMat, rooftopMat, topMat, bodyMat]);
+
   const windows = useMemo(() => {
     const wCount = Math.max(1, Math.floor(width / 2));
     const hCount = Math.max(1, Math.floor(height / 3));
@@ -57,7 +68,6 @@ const Building: React.FC<BuildingProps> = React.memo(({ position, width, depth, 
 
     const windowMeshes: React.ReactElement[] = [];
 
-    // Front face
     for (let r = 0; r < hCount; r++) {
       for (let c = 0; c < wCount; c++) {
         const wx = -offsetX + c * gap;
@@ -72,7 +82,6 @@ const Building: React.FC<BuildingProps> = React.memo(({ position, width, depth, 
       }
     }
 
-    // Back face (fewer lit windows for 1945 era)
     if (config.year >= 1985) {
       for (let r = 0; r < Math.floor(hCount / 2); r++) {
         for (let c = 0; c < wCount; c++) {
@@ -96,9 +105,6 @@ const Building: React.FC<BuildingProps> = React.memo(({ position, width, depth, 
     }
     return null;
   }, [height, seed, antennaGeo, antennaMat]);
-
-  const bodyGeo = useMemo(() => new THREE.BoxGeometry(Math.max(0.1, width), Math.max(0.1, height), Math.max(0.1, depth)), [width, height, depth]);
-  const bodyMat = useMemo(() => new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0.2, emissive: color, emissiveIntensity: 0.05 }), [color]);
 
   return (
     <group ref={groupRef} position={position}>

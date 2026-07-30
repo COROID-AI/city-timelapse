@@ -7,11 +7,10 @@ import Trees from './Trees';
 import SkyDome from './SkyDome';
 
 interface CitySceneProps {
-  era: number;
   config: EraConfig;
 }
 
-const CityScene: React.FC<CitySceneProps> = React.memo(({ era, config }) => {
+const CityScene: React.FC<CitySceneProps> = React.memo(({ config }) => {
   const blocks = useMemo(() => {
     const positions: [number, number, number][] = [];
     const gridSize = 4;
@@ -45,10 +44,10 @@ const CityScene: React.FC<CitySceneProps> = React.memo(({ era, config }) => {
     <group>
       <SkyDome color={config.skyColor} />
       {blocks.map((pos, i) => (
-        <Block key={`block-${i}`} position={pos} era={era} config={config} seed={i} />
+        <Block key={`block-${i}`} position={pos} config={config} seed={i} />
       ))}
       {roadPositions.map((road, i) => (
-        <Road key={`road-${i}`} start={road.start} end={road.end} width={road.width} color={config.roadColor} era={era} />
+        <Road key={`road-${i}`} start={road.start} end={road.end} width={road.width} color={config.roadColor} config={config} />
       ))}
       <Trees config={config} />
     </group>

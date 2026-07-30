@@ -81,7 +81,7 @@ function App() {
         />
 
         <EraTransitionManager currentEra={era} targetEra={targetEra} />
-        <CityScene era={era} config={config} />
+        <CityScene config={config} />
 
         <OrbitControls
           enableDamping

@@ -1,15 +1,16 @@
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
+import { EraConfig } from '../data/eraData';
 
 interface RoadProps {
   start: [number, number, number];
   end: [number, number, number];
   width: number;
   color: number;
-  era: number;
+  config: EraConfig;
 }
 
-const Road: React.FC<RoadProps> = React.memo(({ start, end, width, color, era }) => {
+const Road: React.FC<RoadProps> = React.memo(({ start, end, width, color, config }) => {
   const { position, rotation, length } = useMemo(() => {
     const center: [number, number, number] = [
       (start[0] + end[0]) / 2,
@@ -30,7 +31,7 @@ const Road: React.FC<RoadProps> = React.memo(({ start, end, width, color, era })
         <meshStandardMaterial color={color} roughness={0.9} metalness={0.05} />
       </mesh>
       {/* Dashed center line for modern eras */}
-      {era >= 1985 && (
+      {config.year >= 1985 && (
         <mesh position={[position[0], 0.02, position[2]]} rotation={rotation} scale={[1, 1, length * 0.8]} receiveShadow>
           <planeGeometry args={[0.12, 1]} />
           <meshStandardMaterial color={0xffffff} roughness={0.9} emissive={0xffffff} emissiveIntensity={0.15} transparent opacity={0.5} />
