@@ -25,12 +25,12 @@ const Trees: React.FC<TreesProps> = React.memo(({ config }) => {
             </mesh>
             {/* Foliage */}
             <mesh position={[0, 2.8, 0]} castShadow>
-              <sphereGeometry args={[1.2, 8, 6]} />
+              <sphereGeometry args={[1.2, 16, 12]} />
               <meshStandardMaterial color={config.treeColor} roughness={0.8} />
             </mesh>
             {/* Second foliage layer for fuller look */}
             <mesh position={[0.3, 3.2, 0.3]} castShadow scale={[0.7, 0.6, 0.7]}>
-              <sphereGeometry args={[0.8, 6, 4]} />
+              <sphereGeometry args={[0.8, 12, 8]} />
               <meshStandardMaterial color={config.treeColor} roughness={0.8} />
             </mesh>
           </group>
