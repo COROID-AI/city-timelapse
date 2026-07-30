@@ -6,6 +6,7 @@ import { Bloom } from '@react-three/postprocessing';
 import { Vignette } from '@react-three/postprocessing';
 import { useEra } from '../contexts/EraContext';
 import { useAudioContext } from '../contexts/AudioContext';
+import { useSfx } from '../hooks/useSfx';
 import { AtmosphereSystem } from './atmosphere';
 import { BuildingSystem } from './buildings';
 import { PedestrianSystem } from './pedestrians';
@@ -183,11 +184,36 @@ function AudioToggle() {
   );
 }
 
+function SfxController() {
+  const { year } = useEra();
+  const { audioContextRef, gainNodeRef, isMuted } = useAudioContext();
+  const { startSfx, stopSfx, transitionSfx, prevEraRef } = useSfx();
+
+  useEffect(() => {
+    if (isMuted) return;
+    const ctx = audioContextRef.current;
+    const outputGain = gainNodeRef.current;
+    if (!ctx || !outputGain) return;
+    const prev = prevEraRef.current;
+    if (prev === null) {
+      startSfx(ctx, year, outputGain);
+    } else if (prev !== year) {
+      transitionSfx(ctx, prev, year, 0.6);
+    }
+    return () => {
+      stopSfx();
+    };
+  }, [year, audioContextRef, gainNodeRef, startSfx, stopSfx, transitionSfx, prevEraRef, isMuted]);
+
+  return null;
+}
+
 export default function CityScene() {
   return (
     <div className="city-scene-root">
       <EraSlider />
       <AudioToggle />
+      <SfxController />
       <SceneGraph />
     </div>
   );

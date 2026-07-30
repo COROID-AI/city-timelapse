@@ -12,3 +12,10 @@ export interface AudioContextType {
   isMuted: boolean;
   toggleMute: () => void;
 }
+
+export interface SfxManagerRef {
+  getCurrentContext: () => AudioContext | null;
+  start: (audioContext: AudioContext, era: EraYear, outputGain: GainNode) => void;
+  stop: () => void;
+  transition: (audioContext: AudioContext, from: EraYear, to: EraYear, durationSeconds: number) => void;
+}
