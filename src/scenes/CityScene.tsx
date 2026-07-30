@@ -14,6 +14,7 @@ import { PedestrianSystem } from './pedestrians';
 import { StorefrontSystem } from './storefronts';
 import { VehicleSystem } from './vehicles';
 import type { EraYear } from '../types';
+import TimelineSlider from '../ui/TimelineSlider';
 
 function SceneContent() {
   const { fromYear, toYear, easedProgress } = useEraTransition();
@@ -111,28 +112,8 @@ function SceneGraph() {
   );
 }
 
-const YEARS: EraYear[] = [1945, 1965, 1985, 2005, 2025, 2055];
-
 function EraSlider() {
-  const { year, setYear } = useEra();
-
-  return (
-    <div className="era-slider-container">
-      <div className="era-slider">
-        {YEARS.map((y) => (
-          <button
-            key={y}
-            className={`era-btn ${year === y ? 'era-btn-active' : ''}`}
-            onClick={() => setYear(y)}
-            aria-label={`Select year ${y}`}
-          >
-            {y}
-          </button>
-        ))}
-      </div>
-      <span className="era-label">{year}</span>
-    </div>
-  );
+  return <TimelineSlider />;
 }
 
 function AudioToggle() {
