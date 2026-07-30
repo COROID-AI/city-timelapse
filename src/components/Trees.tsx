@@ -8,7 +8,7 @@ interface TreesProps {
 
 const Trees: React.FC<TreesProps> = React.memo(({ config }) => {
   const trees = React.useMemo(() => {
-    const treeGroup: JSX.Element[] = [];
+    const treeGroup: React.ReactElement[] = [];
     for (let i = 0; i < config.treeCount; i++) {
       const angle = (i / config.treeCount) * Math.PI * 2;
       const radius = 35 + Math.sin(i * 3) * 15;

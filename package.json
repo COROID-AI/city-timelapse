@@ -10,8 +10,8 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@react-three/drei": "^9.121.0",
-    "@react-three/fiber": "^8.18.0",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.1.0",
     "@react-three/postprocessing": "^3.0.4",
     "@types/three": "^0.185.1",
     "postprocessing": "^6.39.4",

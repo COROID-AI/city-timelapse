@@ -57,19 +57,16 @@ const EraTransitionManager: React.FC<EraTransitionManagerProps> = ({ currentEra,
 
     // Walk lights and interpolate
     scene.traverse((child) => {
-      if ('isLight' in child) {
-        const light = child as THREE.Light;
-        if (light.isAmbientLight) {
-          light.intensity = from.ambientIntensity + (to.ambientIntensity - from.ambientIntensity) * ease;
-        }
-        if (light.isDirectionalLight) {
-          light.position.set(
-            from.sunPosition[0],
-            from.sunPosition[1] + (to.sunPosition[1] - from.sunPosition[1]) * ease,
-            from.sunPosition[2]
-          );
-          light.intensity = from.sunIntensity + (to.sunIntensity - from.sunIntensity) * ease;
-        }
+      if (child instanceof THREE.AmbientLight) {
+        child.intensity = from.ambientIntensity + (to.ambientIntensity - from.ambientIntensity) * ease;
+      }
+      if (child instanceof THREE.DirectionalLight) {
+        child.position.set(
+          from.sunPosition[0],
+          from.sunPosition[1] + (to.sunPosition[1] - from.sunPosition[1]) * ease,
+          from.sunPosition[2]
+        );
+        child.intensity = from.sunIntensity + (to.sunIntensity - from.sunIntensity) * ease;
       }
     });
   });

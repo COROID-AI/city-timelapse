@@ -26,7 +26,11 @@ const TimelineSlider: React.FC<TimelineSliderProps> = React.memo(({ currentEra, 
           max={years.length - 1}
           step={1}
           value={years.indexOf(currentEra)}
-          onChange={(e) => onEraChange(years[parseInt(e.target.value, 10)])}
+          onChange={(e) => {
+            const idx = parseInt(e.target.value, 10);
+            const era = years[idx];
+            if (era) onEraChange(era);
+          }}
           className="timeline-slider"
           aria-label="City era timeline"
         />
