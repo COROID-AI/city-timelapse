@@ -4,6 +4,7 @@ import { OrbitControls } from '@react-three/drei';
 import { useEra } from '../contexts/EraContext';
 import { useAudioContext } from '../contexts/AudioContext';
 import { VehicleSystem } from './vehicles';
+import { PedestrianSystem } from './pedestrians';
 import type { EraYear } from '../types';
 
 function getEraConfig(year: EraYear) {
@@ -37,6 +38,7 @@ function SceneContent() {
       {/* Scene graph root — child subsystems render beneath this */}
       <group />
       <VehicleSystem />
+      <PedestrianSystem />
     </>
   );
 }
