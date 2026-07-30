@@ -1,14 +1,50 @@
 import { useRef, useEffect, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
+import { EffectComposer } from '@react-three/postprocessing';
+import { Bloom } from '@react-three/postprocessing';
+import { Vignette } from '@react-three/postprocessing';
 import { useEra } from '../contexts/EraContext';
 import { useAudioContext } from '../contexts/AudioContext';
-<<<<<<< HEAD
-import { VehicleSystem } from './vehicles';
-=======
+import { AtmosphereSystem } from './atmosphere';
+import { BuildingSystem } from './buildings';
+import { PedestrianSystem } from './pedestrians';
 import { StorefrontSystem } from './storefronts';
->>>>>>> origin/feature/coroid-7e464c-implement-era-driven-storefronts
+import { VehicleSystem } from './vehicles';
 import type { EraYear } from '../types';
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+function lerpColor(a: number, b: number, t: number): number {
+  const ar = (a >> 16) & 0xff, ag = (a >> 8) & 0xff, ab = a & 0xff;
+  const br = (b >> 16) & 0xff, bg = (b >> 8) & 0xff, bb = b & 0xff;
+  const r = Math.round(lerp(ar, br, t));
+  const g = Math.round(lerp(ag, bg, t));
+  const bl = Math.round(lerp(ab, bb, t));
+  return (r << 16) | (g << 8) | bl;
+}
+
+const ERA_ORDER: EraYear[] = [1945, 1965, 1985, 2005, 2025, 2055];
+
+function interpolateEraData(year: EraYear) {
+  const idx = ERA_ORDER.indexOf(year);
+  const lo = ERA_ORDER[Math.max(0, idx)];
+  const hi = ERA_ORDER[Math.min(ERA_ORDER.length - 1, idx + 1)];
+  const t = lo === hi ? 0 : (year - lo) / (hi - lo);
+  const loFog = getEraConfig(lo);
+  const hiFog = getEraConfig(hi);
+  return {
+    fogColor: lerpColor(loFog.fogColor, hiFog.fogColor, t),
+    fogNear: lerp(loFog.fogNear, hiFog.fogNear, t),
+    fogFar: lerp(loFog.fogFar, hiFog.fogFar, t),
+    background: lerpColor(loFog.background, hiFog.background, t),
+    t,
+    lo,
+    hi,
+  };
+}
 
 function getEraConfig(year: EraYear) {
   switch (year) {
@@ -29,25 +65,34 @@ function getEraConfig(year: EraYear) {
 
 function SceneContent() {
   const { year } = useEra();
-  const eraConfig = useMemo(() => getEraConfig(year), [year]);
+  const eraBlend = useMemo(() => interpolateEraData(year), [year]);
 
   return (
     <>
-      <color attach="background" args={[eraConfig.background]} />
-      <fog attach="fog" args={[eraConfig.fogColor, eraConfig.fogNear, eraConfig.fogFar]} />
-      <ambientLight intensity={0.4} />
-      <directionalLight position={[10, 20, 10]} intensity={0.6} castShadow />
-      <pointLight position={[0, 10, 0]} intensity={0.3} />
-      {/* Scene graph root — child subsystems render beneath this */}
-<<<<<<< HEAD
-      <group />
-      <VehicleSystem />
-=======
-      <group>
-        <StorefrontSystem />
-      </group>
->>>>>>> origin/feature/coroid-7e464c-implement-era-driven-storefronts
+      <color attach="background" args={[eraBlend.background]} />
+      <fog attach="fog" args={[eraBlend.fogColor, eraBlend.fogNear, eraBlend.fogFar]} />
+      <ambientLight intensity={0.3} />
+      <AtmosphereSystem year={year} eraBlend={eraBlend} />
+      <BuildingSystem year={year} eraBlendT={eraBlend.t} loEra={eraBlend.lo} hiEra={eraBlend.hi} />
+      <VehicleSystem year={year} />
+      <StorefrontSystem year={year} />
+      <PedestrianSystem year={year} />
     </>
+  );
+}
+
+function PostProcessing({ year }: { year: EraYear }) {
+  const eraBlend = useMemo(() => interpolateEraData(year), [year]);
+
+  return (
+    <EffectComposer>
+      <Bloom
+        strength={0.3}
+        radius={0.4}
+        threshold={0.6}
+      />
+      <Vignette offset={0.3} darkness={0.4} />
+    </EffectComposer>
   );
 }
 
