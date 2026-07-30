@@ -1,0 +1,16 @@
+{
+  "name": "repository",
+  "version": "1.0.0",
+  "description": "Create a 3D scene of a city block. Emphasis on detail is very important.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}
