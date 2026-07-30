@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { useEra } from '../contexts/EraContext';
 import { useAudioContext } from '../contexts/AudioContext';
+import { VehicleSystem } from './vehicles';
 import type { EraYear } from '../types';
 
 function getEraConfig(year: EraYear) {
@@ -35,6 +36,7 @@ function SceneContent() {
       <pointLight position={[0, 10, 0]} intensity={0.3} />
       {/* Scene graph root — child subsystems render beneath this */}
       <group />
+      <VehicleSystem />
     </>
   );
 }
