@@ -1,5 +1,5 @@
 import React from 'react';
-import { EffectComposer, Bloom, Noise, Vignette, Scanline } from '@react-three/postprocessing';
+import { EffectComposer, Bloom, Noise, Vignette } from '@react-three/postprocessing';
 
 const CityPostProcessing: React.FC = React.memo(() => {
   return (
@@ -12,7 +12,6 @@ const CityPostProcessing: React.FC = React.memo(() => {
       />
       <Noise opacity={0.08} />
       <Vignette offset={0.5} darkness={0.35} />
-      <Scanline density={0.3} />
     </EffectComposer>
   );
 });
