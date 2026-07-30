@@ -123,7 +123,75 @@ const ERA_STYLES: Record<EraYear, EraBuildingStyle> = {
     awningColor: new THREE.Color(0x66FFFF),
     storeFrontHeight: 0.06,
   },
-};
+}
+
+/* ── Building config (from atmosphere/plan feature) ── */
+interface BuildingConfig {
+  minHeight: number;
+  maxHeight: number;
+  minWidth: number;
+  maxWidth: number;
+  facadeColor: number;
+  facadeMetalness: number;
+  facadeRoughness: number;
+  roofType: 'flat' | 'pitched' | 'domed' | 'modern';
+  windowColor: number;
+  windowRatio: number;
+  material: 'masonry' | 'concrete' | 'glass' | 'composite';
+}
+
+const eraBuildings: Record<EraYear, BuildingConfig> = {
+  1945: {
+    minHeight: 2, maxHeight: 5,
+    minWidth: 4, maxWidth: 8,
+    facadeColor: 0x8b7d6b, facadeMetalness: 0.05, facadeRoughness: 0.95,
+    roofType: 'pitched', windowColor: 0x8fa8c0, windowRatio: 0.35, material: 'masonry',
+  },
+  1965: {
+    minHeight: 3, maxHeight: 8,
+    minWidth: 5, maxWidth: 10,
+    facadeColor: 0x7a8a7a, facadeMetalness: 0.1, facadeRoughness: 0.85,
+    roofType: 'flat', windowColor: 0x8fa8c0, windowRatio: 0.45, material: 'concrete',
+  },
+  1985: {
+    minHeight: 5, maxHeight: 15,
+    minWidth: 6, maxWidth: 12,
+    facadeColor: 0x9a9aaa, facadeMetalness: 0.35, facadeRoughness: 0.55,
+    roofType: 'flat', windowColor: 0x4a6a8a, windowRatio: 0.55, material: 'glass',
+  },
+  2005: {
+    minHeight: 8, maxHeight: 25,
+    minWidth: 8, maxWidth: 16,
+    facadeColor: 0xb0c0c0, facadeMetalness: 0.55, facadeRoughness: 0.35,
+    roofType: 'modern', windowColor: 0x3a5a7a, windowRatio: 0.65, material: 'glass',
+  },
+  2025: {
+    minHeight: 10, maxHeight: 35,
+    minWidth: 10, maxWidth: 20,
+    facadeColor: 0xc0d0e0, facadeMetalness: 0.65, facadeRoughness: 0.25,
+    roofType: 'modern', windowColor: 0x2a4a6a, windowRatio: 0.75, material: 'composite',
+  },
+  2055: {
+    minHeight: 15, maxHeight: 60,
+    minWidth: 12, maxWidth: 25,
+    facadeColor: 0xd0e0f0, facadeMetalness: 0.8, facadeRoughness: 0.15,
+    roofType: 'modern', windowColor: 0x1a3a5a, windowRatio: 0.85, material: 'composite',
+  },
+}
+
+function hashCoord(x: number, z: number): number {
+  const n = Math.sin(x * 127.1 + z * 311.7) * 43758.5453;
+  return n - Math.floor(n);
+}
+
+function lerpColor(a: number, b: number, t: number): number {
+  const ar = (a >> 16) & 0xff, ag = (a >> 8) & 0xff, ab = a & 0xff;
+  const br = (b >> 16) & 0xff, bg = (b >> 8) & 0xff, bb = b & 0xff;
+  const r = Math.round(a + (br - ar) * t);
+  const g = Math.round(ag + (bg - ag) * t);
+  const bl = Math.round(ab + (bb - ab) * t);
+  return (r << 16) | (g << 8) | bl;
+}
 
 /* ── Building block layout ── */
 interface BuildingBlock {
@@ -157,98 +225,113 @@ function buildBlockLayout(): BuildingBlock[] {
   return blocks;
 }
 
-/* ── Create a shared high-poly box geometry for morph targets ── */
+/* ── Building geometry utilities ── */
 function createBuildingGeometry(
-  w: number,
-  d: number,
-  h: number,
+  width: number,
+  depth: number,
+  height: number,
   windowRows: number,
   windowCols: number,
 ): THREE.BoxGeometry {
-  const geo = new THREE.BoxGeometry(
-    Math.max(0.1, w),
-    Math.max(0.1, h),
-    Math.max(0.1, d),
-    Math.max(1, windowCols),
-    Math.max(1, windowRows),
-    1,
-  );
+  const geo = new THREE.BoxGeometry(width, height, depth, windowCols, windowRows, 1);
+  const pos = geo.attributes.position;
+  const blockWidth = width / windowCols;
+  const blockDepth = depth / 1;
+  const blockHeight = height / windowRows;
+
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+
+    const col = Math.floor((x / blockWidth) + windowCols / 2);
+    const row = Math.floor((y / blockHeight) + windowRows / 2);
+    const isWindow = col >= 0 && col < windowCols && row >= 0 && row < windowRows;
+
+    if (isWindow) {
+      const wx = (col - windowCols / 2 + 0.5) * blockWidth;
+      const wy = (row - windowRows / 2 + 0.5) * blockHeight;
+      const wobbleX = (Math.random() - 0.5) * blockWidth * 0.3;
+      const wobbleY = (Math.random() - 0.5) * blockHeight * 0.3;
+      pos.setX(i, wx + wobbleX);
+      pos.setY(i, wy + wobbleY);
+    }
+  }
+
+  geo.computeVertexNormals();
   return geo;
 }
 
-/* ── Compute building vertex positions for a given era style ── */
+/* ── Morph target position computation ── */
 function computeMorphPositions(
   baseGeo: THREE.BoxGeometry,
   style: EraBuildingStyle,
   blockWidth: number,
   blockDepth: number,
-  blockBaseHeight: number,
+  blockHeight: number,
 ): Float32Array {
   const positions = baseGeo.attributes.position.array.slice();
-  const count = positions.length / 3;
+  const posAttr = baseGeo.attributes.position;
 
-  for (let i = 0; i < count; i++) {
-    const i3 = i * 3;
-    const x = positions[i3];
-    const y = positions[i3 + 1];
-    const z = positions[i3 + 2];
+  for (let i = 0; i < posAttr.count; i++) {
+    const x = positions[i * 3];
+    const y = positions[i * 3 + 1];
+    const z = positions[i * 3 + 2];
 
-    // Scale height
-    const heightScale = style.height;
-    const newY = y * heightScale;
+    let newY = y;
 
-    // Store-front section: keep lower portion at original scale
-    const storeFrontH = blockBaseHeight * style.storeFrontHeight;
-    if (newY < storeFrontH) {
-      positions[i3 + 1] = newY;
-      continue;
-    }
+    const roofDisp = computeRoofDisp(style.roofType, x, z, blockWidth, blockDepth, style.roofHeight);
 
-    // Roof displacement based on roof type
-    let roofDisp = 0;
-    const roofBase = blockBaseHeight * style.height;
-    const relY = y - storeFrontH / heightScale;
+    newY += roofDisp;
 
-    switch (style.roofType) {
-      case 'flat':
-        roofDisp = style.roofHeight;
-        break;
-      case 'gable':
-        // Gable: peak at center, sloped sides
-        if (Math.abs(x) < blockWidth * 0.3) {
-          roofDisp = style.roofHeight * (1 - Math.abs(x) / (blockWidth * 0.5));
-        }
-        break;
-      case 'hip':
-        // Hip roof: pyramid shape
-        roofDisp = style.roofHeight * Math.max(0, 1 - (Math.abs(x) + Math.abs(z)) / (blockWidth * 0.7));
-        break;
-      case 'dome':
-        // Semi-sphere dome
-        const dx = x / (blockWidth * 0.4);
-        const dz = z / (blockDepth * 0.4);
-        const d2 = dx * dx + dz * dz;
-        if (d2 < 1) {
-          roofDisp = style.roofHeight * Math.sqrt(Math.max(0, 1 - d2));
-        }
-        break;
-      case 'parabolic':
-        // Parabolic curving roof
-        roofDisp = style.roofHeight * Math.max(0, 1 - (x * x + z * z) / (blockWidth * blockDepth * 0.3));
-        break;
-      case 'spire':
-        // Tall spire with taper
-        const distFromCenter = Math.sqrt(x * x + z * z);
-        const maxDist = Math.max(0.01, Math.min(blockWidth, blockDepth) * 0.4);
-        const taper = Math.max(0, 1 - distFromCenter / maxDist);
-        roofDisp = style.roofHeight * taper * taper;
-        break;
-    }
-
-    positions[i3 + 1] = newY + roofDisp;
+    positions[i * 3 + 1] = newY;
   }
 
   return new Float32Array(positions);
+}
+
+function computeRoofDisp(
+  roofType: string,
+  x: number,
+  z: number,
+  blockWidth: number,
+  blockDepth: number,
+  roofHeight: number,
+): number {
+  let roofDisp = 0;
+
+  switch (roofType) {
+    case 'flat':
+      roofDisp = 0;
+      break;
+    case 'gable':
+      const gableSlope = 0.3;
+      roofDisp = Math.max(0, roofHeight * (1 - Math.abs(x) / (blockWidth * 0.5))) * gableSlope;
+      break;
+    case 'hip':
+      const hipDist = Math.max(Math.abs(x) / (blockWidth * 0.5), Math.abs(z) / (blockDepth * 0.5));
+      roofDisp = Math.max(0, roofHeight * (1 - hipDist));
+      break;
+    case 'dome':
+      const dx = x / (blockWidth * 0.4);
+      const dz = z / (blockDepth * 0.4);
+      const d2 = dx * dx + dz * dz;
+      if (d2 < 1) {
+        roofDisp = roofHeight * Math.sqrt(Math.max(0, 1 - d2));
+      }
+      break;
+    case 'parabolic':
+      roofDisp = roofHeight * Math.max(0, 1 - (x * x + z * z) / (blockWidth * blockDepth * 0.3));
+      break;
+    case 'spire':
+      const distFromCenter = Math.sqrt(x * x + z * z);
+      const maxDist = Math.max(0.01, Math.min(blockWidth, blockDepth) * 0.4);
+      const taper = Math.max(0, 1 - distFromCenter / maxDist);
+      roofDisp = roofHeight * taper * taper;
+      break;
+  }
+
+  return roofDisp;
 }
 
 /* ── Compute morph normals (simple: recompute face normals) ── */
@@ -256,7 +339,6 @@ function computeMorphNormals(
   baseGeo: THREE.BoxGeometry,
   targetPositions: Float32Array,
 ): Float32Array {
-  // Derive positions array, compute per-vertex normals via cross products
   const positions = targetPositions;
   const count = positions.length / 3;
   const normals = new Float32Array(count * 3);
@@ -290,7 +372,6 @@ function computeMorphNormals(
       normals[c + 2] += nz / len;
     }
   } else {
-    // No index buffer — every 3 consecutive vertices is a triangle
     for (let i = 0; i < count; i += 3) {
       const a = i * 3;
       const b = (i + 1) * 3;
@@ -324,12 +405,10 @@ function getEraInterp(year: EraYear): { lower: number; upper: number; t: number 
   if (idx < 0) return { lower: 0, upper: 0, t: 0 };
   if (idx === 0) return { lower: 0, upper: 0, t: 0 };
   if (idx === ERA_COUNT - 1) return { lower: idx - 1, upper: idx, t: 1 };
-  // We are at a discrete year — snap to nearest era but allow smooth visual
-  // transition when year changes. t=1 means fully at 'upper'.
   return { lower: idx - 1, upper: idx, t: 1 };
 }
 
-function lerpColor(a: THREE.Color, b: THREE.Color, t: number): THREE.Color {
+function lerpColor3(a: THREE.Color, b: THREE.Color, t: number): THREE.Color {
   return new THREE.Color(
     a.r + (b.r - a.r) * t,
     a.g + (b.g - a.g) * t,
@@ -389,7 +468,7 @@ function BuildingMesh({ block }: BuildingProps) {
     coreGeo.morphAttributes.normal.forEach((attr) => {
       attr.needsUpdate = true;
     });
-    coreGeo.morphTargetsRelative = false; // absolute positions
+    coreGeo.morphTargetsRelative = false;
     coreGeo.computeBoundingSphere();
   }, [coreGeo, morphAttrs]);
 
@@ -412,7 +491,6 @@ function BuildingMesh({ block }: BuildingProps) {
 
     const { lower, upper, t } = getEraInterp(year);
 
-    // Set morph influences — influence on both surrounding eras
     const influences = new Array(ERA_COUNT).fill(0);
     if (lower === upper) {
       influences[lower] = 1;
@@ -423,11 +501,10 @@ function BuildingMesh({ block }: BuildingProps) {
     mesh.morphTargetInfluences = influences;
     mesh.updateMorphTargets();
 
-    // Lerp material properties between eras
     const lowerStyle = ERA_STYLES[ERA_YEARS[lower]];
     const upperStyle = ERA_STYLES[ERA_YEARS[upper]];
 
-    mat.color.copy(lerpColor(lowerStyle.facadeColor, upperStyle.facadeColor, t));
+    mat.color.copy(lerpColor3(lowerStyle.facadeColor, upperStyle.facadeColor, t));
     mat.roughness = lerpNum(lowerStyle.roughness, upperStyle.roughness, t);
     mat.metalness = lerpNum(lowerStyle.metalness, upperStyle.metalness, t);
     mat.needsUpdate = true;
@@ -453,8 +530,8 @@ function BuildingMesh({ block }: BuildingProps) {
     const lowerStyle = ERA_STYLES[ERA_YEARS[lower]];
     const upperStyle = ERA_STYLES[ERA_YEARS[upper]];
 
-    signageMat.color.copy(lerpColor(lowerStyle.signageColor, upperStyle.signageColor, t));
-    signageMat.emissive.copy(lerpColor(lowerStyle.signageColor, upperStyle.signageColor, t).multiplyScalar(0.3));
+    signageMat.color.copy(lerpColor3(lowerStyle.signageColor, upperStyle.signageColor, t));
+    signageMat.emissive.copy(lerpColor3(lowerStyle.signageColor, upperStyle.signageColor, t).multiplyScalar(0.3));
     signageMat.needsUpdate = true;
   });
 
@@ -513,8 +590,8 @@ function BuildingWindows({ block }: { block: BuildingBlock }) {
   const upperStyle = ERA_STYLES[ERA_YEARS[upper]];
 
   const windowMat = useMemo(() => new THREE.MeshStandardMaterial({
-    color: lerpColor(lowerStyle.windowColor, upperStyle.windowColor, t),
-    emissive: lerpColor(lowerStyle.windowColor, upperStyle.windowColor, t).multiplyScalar(0.4),
+    color: lerpColor3(lowerStyle.windowColor, upperStyle.windowColor, t),
+    emissive: lerpColor3(lowerStyle.windowColor, upperStyle.windowColor, t).multiplyScalar(0.4),
     roughness: 0.2,
     metalness: 0.1,
     transparent: true,
@@ -523,192 +600,25 @@ function BuildingWindows({ block }: { block: BuildingBlock }) {
 
   // Re-create material color per frame
   useFrame(() => {
-    const { lower: l, upper: u, t: lt } = getEraInterp(year);
-    windowMat.color.copy(lerpColor(ERA_STYLES[ERA_YEARS[l]].windowColor, ERA_STYLES[ERA_YEARS[u]].windowColor, lt));
-    windowMat.emissive.copy(lerpColor(ERA_STYLES[ERA_YEARS[l]].windowColor, ERA_STYLES[ERA_YEARS[u]].windowColor, lt).multiplyScalar(0.4));
-    windowMat.roughness = lerpNum(ERA_STYLES[ERA_YEARS[l]].roughness, ERA_STYLES[ERA_YEARS[u]].roughness, lt) * 0.3;
+    const { lower, upper, t } = getEraInterp(year);
+    const lowerStyle = ERA_STYLES[ERA_YEARS[lower]];
+    const upperStyle = ERA_STYLES[ERA_YEARS[upper]];
+    windowMat.color.copy(lerpColor3(lowerStyle.windowColor, upperStyle.windowColor, t));
+    windowMat.emissive.copy(lerpColor3(lowerStyle.windowColor, upperStyle.windowColor, t).multiplyScalar(0.4));
     windowMat.needsUpdate = true;
   });
 
-  const windowSize = lerpNum(lowerStyle.windowSize, upperStyle.windowSize, t);
-  const rows = Math.round(lerpNum(lowerStyle.windowRows, upperStyle.windowRows, t));
-  const spacing = lerpNum(lowerStyle.windowSpacing, upperStyle.windowSpacing, t);
-
-  const windows: React.ReactElement[] = [];
-  for (let row = 0; row < rows; row++) {
-    for (let col = -1; col <= 1; col++) {
-      if (row === Math.floor(rows / 2) && block.x === 0 && block.z === 0) continue; // skip center for street-facing variety
-      windows.push(
-        <mesh
-          key={`win-${row}-${col}`}
-          position={[
-            col * block.width * spacing,
-            block.height * (0.2 + row * (0.7 + row * 0.08)),
-            block.depth / 2 + 0.01,
-          ]}
-          scale={[windowSize * block.width * 0.7, windowSize * block.height * 0.5, 0.05]}
-          castShadow={row === rows - 1}
-        >
-          <boxGeometry args={[1, 1, 1]} />
-          <primitive object={windowMat} />
-        </mesh>,
-      );
-    }
-  }
-
-  return <group>{windows}</group>;
-}
-
-/* ── Pedestrian and street elements ── */
-function StreetsAndPedestrians() {
-  const { year } = useEra();
-
-  // Street planes
-  const streetMat = useMemo(() => new THREE.MeshStandardMaterial({
-    color: new THREE.Color(ERA_YEARS.includes(year) ? 0x555555 : 0x444444),
-    roughness: 0.85,
-    metalness: 0.05,
-  }), []);
-
-  // Ground plane that receives shadows
-  const groundGeo = useMemo(() => new THREE.PlaneGeometry(100, 100), []);
-
   return (
-    <group>
+    <group position={[block.x, 0, block.z]}>
+      {/* Simple window plane on front face */}
       <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, -0.01, 0]}
-        receiveShadow
-        geometry={groundGeo}
-        material={streetMat}
-      />
-      {/* Street markings — era-dependent */}
-      <mesh position={[0, 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[80, 0.15]} />
-        <meshBasicMaterial color={0xCCCCCC} transparent opacity={0.3} />
+        position={[0, block.height * 0.5, block.depth / 2 + 0.02]}
+        scale={[block.width * 0.8, block.height * 0.6, 1]}
+      >
+        <planeGeometry args={[1, 1]} />
+        <primitive object={windowMat} />
       </mesh>
     </group>
-  );
-}
-
-/* ── Era-aware directional light for shadows ── */
-function EraShadowLight() {
-  const { year } = useEra();
-  const lightRef = useRef<THREE.DirectionalLight>(null);
-
-  useFrame(() => {
-    const light = lightRef.current;
-    if (!light) return;
-
-    switch (year) {
-      case 1945: // Late afternoon golden hour — low sun
-        light.position.set(15, 8, 10);
-        light.intensity = 1.2;
-        light.color.set(0xFFD090);
-        break;
-      case 1965: // Sunset deep amber
-        light.position.set(18, 5, 12);
-        light.intensity = 1.4;
-        light.color.set(0xFFAA44);
-        break;
-      case 1985: // Twilight neon bloom
-        light.position.set(10, 12, 5);
-        light.intensity = 0.5;
-        light.color.set(0x8A6AFF);
-        break;
-      case 2005: // Overcast midday — soft, even
-        light.position.set(10, 25, 10);
-        light.intensity = 0.8;
-        light.color.set(0xCCCCDD);
-        break;
-      case 2025: // Clear noon — sharp shadows
-        light.position.set(5, 30, 8);
-        light.intensity = 1.3;
-        light.color.set(0xFFFFFF);
-        break;
-      case 2055: // High sun with cirrus
-        light.position.set(8, 28, 6);
-        light.intensity = 1.2;
-        light.color.set(0xDDDDFF);
-        break;
-    }
-    light.castShadow = true;
-    light.shadow.mapSize.width = 2048;
-    light.shadow.mapSize.height = 2048;
-    light.shadow.camera.left = -40;
-    light.shadow.camera.right = 40;
-    light.shadow.camera.top = 40;
-    light.shadow.camera.bottom = -40;
-    light.shadow.camera.near = 0.5;
-    light.shadow.camera.far = 120;
-    light.shadow.bias = -0.001;
-    light.shadow.normalBias = 0.02;
-  });
-
-  return (
-    <directionalLight ref={lightRef} castShadow />
-  );
-}
-
-/* ── Ambient + fill lights per era ── */
-function EraAmbientLight() {
-  const { year } = useEra();
-
-  const ambient = useMemo(() => new THREE.AmbientLight(0x404040, 0.4), []);
-  const fill = useMemo(() => new THREE.PointLight(0xFFFFFF, 0.15, 80), []);
-
-  useFrame(() => {
-    switch (year) {
-      case 1945:
-        ambient.intensity = 0.3;
-        ambient.color.set(0xFFCC88);
-        fill.position.set(0, 8, 0);
-        fill.intensity = 0.2;
-        fill.color.set(0xFFCC66);
-        break;
-      case 1965:
-        ambient.intensity = 0.35;
-        ambient.color.set(0xFFDDAA);
-        fill.position.set(0, 10, 0);
-        fill.intensity = 0.25;
-        fill.color.set(0xFFBB88);
-        break;
-      case 1985:
-        ambient.intensity = 0.15;
-        ambient.color.set(0x6644AA);
-        fill.position.set(0, 12, 0);
-        fill.intensity = 0.3;
-        fill.color.set(0xFF00FF);
-        break;
-      case 2005:
-        ambient.intensity = 0.4;
-        ambient.color.set(0xCCCCCC);
-        fill.position.set(0, 10, 0);
-        fill.intensity = 0.2;
-        fill.color.set(0xFFFFFF);
-        break;
-      case 2025:
-        ambient.intensity = 0.45;
-        ambient.color.set(0xCCEEFF);
-        fill.position.set(0, 10, 0);
-        fill.intensity = 0.2;
-        fill.color.set(0x00CCFF);
-        break;
-      case 2055:
-        ambient.intensity = 0.35;
-        ambient.color.set(0xAA88FF);
-        fill.position.set(0, 10, 0);
-        fill.intensity = 0.25;
-        fill.color.set(0xCC88FF);
-        break;
-    }
-  });
-
-  return (
-    <>
-      <primitive object={ambient} />
-      <primitive object={fill} />
-    </>
   );
 }
 
@@ -720,9 +630,6 @@ export function BuildingGroup() {
 
   return (
     <group>
-      <EraShadowLight />
-      <EraAmbientLight />
-      <StreetsAndPedestrians />
       {blocks.map((block, i) => (
         <BuildingMesh key={`bldg-${i}`} block={block} />
       ))}
@@ -732,3 +639,159 @@ export function BuildingGroup() {
     </group>
   );
 }
+
+/* ── BuildingSystem (grid-based, for atmosphere/plan integration) ── */
+interface BuildingBlock_ {
+  x: number;
+  z: number;
+  width: number;
+  depth: number;
+  height: number;
+  config: BuildingConfig;
+}
+
+interface BuildingSystemProps {
+  year?: EraYear;
+  eraBlendT?: number;
+  loEra?: EraYear;
+  hiEra?: EraYear;
+}
+
+export function BuildingSystem({ year: yearProp, eraBlendT, loEra, hiEra }: BuildingSystemProps) {
+  const { year } = useEra();
+  const effectiveYear = yearProp ?? year;
+
+  const allYears: EraYear[] = [1945, 1965, 1985, 2005, 2025, 2055];
+  const currentIdx = allYears.indexOf(effectiveYear);
+  const lo = allYears[Math.max(0, currentIdx)];
+  const hi = allYears[Math.min(allYears.length - 1, currentIdx + 1)];
+  const t = lo === hi ? 1 : (eraBlendT ?? (effectiveYear - lo) / (hi - lo));
+
+  const loConfig = eraBuildings[lo];
+  const hiConfig = eraBuildings[hi];
+
+  const blendedConfig = useMemo(() => {
+    if (t <= 0) return loConfig;
+    if (t >= 1) return hiConfig;
+    return {
+      minHeight: loConfig.minHeight + (hiConfig.minHeight - loConfig.minHeight) * t,
+      maxHeight: loConfig.maxHeight + (hiConfig.maxHeight - loConfig.maxHeight) * t,
+      minWidth: loConfig.minWidth + (hiConfig.minWidth - loConfig.minWidth) * t,
+      maxWidth: loConfig.maxWidth + (hiConfig.maxWidth - loConfig.maxWidth) * t,
+      facadeColor: lerpColor(loConfig.facadeColor, hiConfig.facadeColor, t),
+      facadeMetalness: loConfig.facadeMetalness + (hiConfig.facadeMetalness - loConfig.facadeMetalness) * t,
+      facadeRoughness: loConfig.facadeRoughness + (hiConfig.facadeRoughness - loConfig.facadeRoughness) * t,
+      roofType: t < 0.5 ? loConfig.roofType : hiConfig.roofType,
+      windowColor: lerpColor(loConfig.windowColor, hiConfig.windowColor, t),
+      windowRatio: loConfig.windowRatio + (hiConfig.windowRatio - loConfig.windowRatio) * t,
+      material: t < 0.5 ? loConfig.material : hiConfig.material,
+    };
+  }, [t, loConfig, hiConfig]);
+
+  const blocks = useMemo(() => {
+    const result: BuildingBlock_[] = [];
+    const gridSize = 35;
+    for (let x = -gridSize; x <= gridSize; x += 6) {
+      for (let z = -gridSize; z <= gridSize; z += 6) {
+        const h = hashCoord(x, z);
+        if (h < 0.25) continue;
+        const width = blendedConfig.minWidth + (blendedConfig.maxWidth - blendedConfig.minWidth) * hashCoord(x + 1, z);
+        const depth = width * (0.5 + hashCoord(x, z + 1) * 0.5);
+        const height = blendedConfig.minHeight + (blendedConfig.maxHeight - blendedConfig.minHeight) * h;
+        result.push({ x, z, width, depth, height, config: blendedConfig });
+      }
+    }
+    return result;
+  }, [effectiveYear, blendedConfig]);
+
+  return (
+    <group name="buildings">
+      {blocks.map((block, i) => (
+        <group key={`building-${i}`} name={`building-${i}`}>
+          <mesh
+            position={[block.x, block.height / 2, block.z]}
+            castShadow
+            receiveShadow
+          >
+            <boxGeometry args={[block.width, block.height, block.depth]} />
+            <meshStandardMaterial
+              color={block.config.facadeColor}
+              metalness={block.config.facadeMetalness}
+              roughness={block.config.facadeRoughness}
+            />
+          </mesh>
+          {/* Roof variants */}
+          {block.config.roofType === 'pitched' && (
+            <mesh position={[block.x, block.height + 0.5, block.z]}>
+              <coneGeometry args={[block.width * 0.6, 1.2, 4]} />
+              <meshStandardMaterial color={0x555555} roughness={0.9} />
+            </mesh>
+          )}
+          {block.config.roofType === 'domed' && (
+            <mesh position={[block.x, block.height + 0.3, block.z]}>
+              <sphereGeometry args={[block.width * 0.35, 16, 12]} />
+              <meshStandardMaterial color={0x555555} roughness={0.8} />
+            </mesh>
+          )}
+          {block.config.roofType === 'flat' && block.height > 6 && (
+            <mesh position={[block.x, block.height + 0.12, block.z]}>
+              <boxGeometry args={[block.width * 0.9, 0.25, block.depth * 0.9]} />
+              <meshStandardMaterial color={0x444444} roughness={0.7} />
+            </mesh>
+          )}
+          {block.config.roofType === 'modern' && block.height > 8 && (
+            <>
+              <mesh position={[block.x, block.height + 0.15, block.z]}>
+                <boxGeometry args={[block.width * 0.95, 0.3, block.depth * 0.95]} />
+                <meshStandardMaterial color={0x333333} roughness={0.6} />
+              </mesh>
+              <mesh position={[block.x, block.height + 0.3, block.z]}>
+                <boxGeometry args={[block.width * 0.3, 1.5, block.depth * 0.3]} />
+                <meshStandardMaterial color={0x224466} metalness={0.8} roughness={0.2} />
+              </mesh>
+            </>
+          )}
+          {/* Windows */}
+          {block.config.windowRatio > 0 && block.height > 2 && block.config.windowRatio > 0.2 && (
+            <group>
+              {Array.from({ length: Math.max(1, Math.round(block.config.windowRatio * 3)) }, (_, row) => {
+                const wy = (row + 0.5) * (block.height / (Math.round(block.config.windowRatio * 3) + 1));
+                return (
+                  <mesh key={`win-${i}-${row}`} position={[block.x, wy, block.z + block.depth / 2 + 0.01]}>
+                    <planeGeometry args={[block.width * 0.85, block.height * block.config.windowRatio * 0.22]} />
+                    <meshStandardMaterial
+                      color={block.config.windowColor}
+                      emissive={block.config.windowColor}
+                      emissiveIntensity={0.3}
+                      metalness={0.5}
+                    />
+                  </mesh>
+                );
+              })}
+            </group>
+          )}
+        </group>
+      ))}
+      {blocks.map((block, i) => (
+        <group key={`bldg-glow-${i}`} name={`building-glow-${i}`}>
+          <mesh
+            position={[block.x, block.height / 2, block.z]}
+            castShadow={false}
+            receiveShadow={false}
+          >
+            <boxGeometry args={[block.width, block.height, block.depth]} />
+            <meshStandardMaterial
+              color={block.config.facadeColor}
+              metalness={0.9}
+              roughness={0.1}
+              transparent={true}
+              opacity={0.08}
+            />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
+export default BuildingSystem;

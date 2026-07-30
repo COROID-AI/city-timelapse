@@ -165,13 +165,14 @@ function vehicleDimensions(
 }
 
 // ── VehicleSystem component ────────────────────────
-export function VehicleSystem({ streetPaths }: { streetPaths?: StreetPath[] }) {
+export function VehicleSystem({ year: yearProp, streetPaths }: { year?: EraYear; streetPaths?: StreetPath[] }) {
   const { year } = useEra();
+  const effectiveYear = yearProp ?? year;
   const [, setTick] = useState(0);
   const vehicleRefs = useRef<Map<string, { progress: number; direction: number }>>(new Map());
   const streets = useMemo(() => streetPaths ?? MAIN_STREETS, [streetPaths]);
-  const streetGeometryConfig = useMemo(() => getEraStreetGeometry(year), [year]);
-  const fleet = useMemo(() => getEraVehicleFleet(year), [year]);
+  const streetGeometryConfig = useMemo(() => getEraStreetGeometry(effectiveYear), [effectiveYear]);
+  const fleet = useMemo(() => getEraVehicleFleet(effectiveYear), [effectiveYear]);
 
   // Advance vehicle progress each frame and trigger re-render for smooth animation
   useFrame((_state, delta) => {
@@ -301,7 +302,7 @@ export function VehicleSystem({ streetPaths }: { streetPaths?: StreetPath[] }) {
             {street.hasRail && (
               <>
                 {[-1, 1].map((side, si) => {
-                  const railColor = year === 1945 ? 0x888888 : year === 2055 ? 0x4488ff : 0xaaaaaa;
+                  const railColor = effectiveYear === 1945 ? 0x888888 : effectiveYear === 2055 ? 0x4488ff : 0xaaaaaa;
                   const railX = (p0[0] + p1[0]) / 2 - side * (effectiveLaneCount * laneWidth / 2 + effectiveSidewalkWidth * 0.3);
                   return (
                     <mesh

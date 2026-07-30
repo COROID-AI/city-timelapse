@@ -511,15 +511,17 @@ interface StorefrontRowProps {
   count?: number;
   spacing?: number;
   yOffset?: number;
+  year?: EraYear;
 }
 
-function StorefrontRow({ count = 6, spacing = 10, yOffset = 0 }: StorefrontRowProps) {
+function StorefrontRow({ count = 6, spacing = 10, yOffset = 0, year: yearProp }: StorefrontRowProps) {
   const { year } = useEra();
+  const effectiveYear = yearProp ?? year;
 
   return (
     <group position={[0, yOffset, 0]}>
       {Array.from({ length: count }).map((_, idx) => {
-        const config = eraStorefronts[year];
+        const config = eraStorefronts[effectiveYear];
         const xOffset = (idx - (count - 1) / 2) * spacing;
         return (
           <group key={`storefront-${idx}`} position={[xOffset, 0, 0]}>
@@ -533,10 +535,13 @@ function StorefrontRow({ count = 6, spacing = 10, yOffset = 0 }: StorefrontRowPr
 
 // ─── StorefrontSystem: the main entry point for the storefront subsystem ────
 
-export function StorefrontSystem() {
+export function StorefrontSystem({ year: yearProp }: { year?: EraYear }) {
+  const { year } = useEra();
+  const effectiveYear = yearProp ?? year;
+
   return (
     <group>
-      <StorefrontRow count={6} spacing={10} yOffset={0} />
+      <StorefrontRow count={6} spacing={10} yOffset={0} year={effectiveYear} />
     </group>
   );
 }

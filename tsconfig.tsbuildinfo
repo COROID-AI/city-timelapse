@@ -1,5 +1,1 @@
-<<<<<<< HEAD
-{"root":["./src/App.tsx","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/contexts/AudioContext.tsx","./src/contexts/EraContext.tsx","./src/scenes/CityScene.tsx","./src/scenes/eras.ts","./src/scenes/vehicles.tsx","./src/test/city-scene.test.ts","./src/test/setup.ts"],"version":"5.7.3"}
-=======
-{"root":["./src/App.tsx","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/contexts/AudioContext.tsx","./src/contexts/EraContext.tsx","./src/scenes/CityScene.tsx","./src/scenes/eras.ts","./src/scenes/storefronts.tsx","./src/test/city-scene.test.ts","./src/test/setup.ts"],"version":"5.7.3"}
->>>>>>> origin/feature/coroid-7e464c-implement-era-driven-storefronts
+{"root":["./src/App.tsx","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/contexts/AudioContext.tsx","./src/contexts/EraContext.tsx","./src/scenes/CityScene.tsx","./src/scenes/atmosphere.tsx","./src/scenes/buildings.tsx","./src/scenes/eras.ts","./src/scenes/pedestrians.tsx","./src/scenes/storefronts.tsx","./src/scenes/vehicles.tsx","./src/test/city-scene.test.ts","./src/test/setup.ts"],"version":"5.7.3"}
