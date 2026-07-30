@@ -100,12 +100,12 @@ interface Pedestrian {
 
 interface PedestrianSystemProps {
   year?: EraYear;
+  transitionFromYear?: EraYear;
+  transitionToYear?: EraYear;
+  transitionT?: number;
 }
 
-export function PedestrianSystem({ year: yearProp }: PedestrianSystemProps) {
-  const { year } = useEra();
-  const effectiveYear = yearProp ?? year;
-
+function PedestriansLayer({ effectiveYear, opacity }: { effectiveYear: EraYear; opacity: number }) {
   const config = useMemo(() => eraPedestrians[effectiveYear], [effectiveYear]);
 
   const pedestrians = useMemo((): Pedestrian[] => {
@@ -125,21 +125,50 @@ export function PedestrianSystem({ year: yearProp }: PedestrianSystemProps) {
     });
   }, [config]);
 
-  useFrame((_, delta) => {
-    // Pedestrian animation is handled via per-frame transforms
-    // in the group below; the useFrame hook ensures smooth animation loop
-  });
+  // Pedestrian animation is handled via per-frame transforms
+  useFrame(() => {});
 
   return (
     <group name="pedestrians">
       {pedestrians.map((p, i) => (
-        <Pedestrian key={`ped-${i}`} pedestrian={p} deltaMultiplier={0.5} />
+        <Pedestrian key={`ped-${effectiveYear}-${i}`} pedestrian={p} deltaMultiplier={0.5} opacity={opacity} />
       ))}
     </group>
   );
 }
 
-function Pedestrian({ pedestrian: p, deltaMultiplier }: { pedestrian: Pedestrian; deltaMultiplier: number }) {
+export function PedestrianSystem({ year: yearProp, transitionFromYear, transitionToYear, transitionT }: PedestrianSystemProps) {
+  const { year } = useEra();
+  const effectiveYear = yearProp ?? year;
+
+  const hasTransition =
+    transitionFromYear !== undefined &&
+    transitionToYear !== undefined &&
+    transitionT !== undefined &&
+    transitionFromYear !== transitionToYear;
+
+  if (!hasTransition) {
+    return <PedestriansLayer effectiveYear={effectiveYear} opacity={1} />;
+  }
+
+  const t = Math.max(0, Math.min(1, transitionT ?? 0));
+  return (
+    <group name="pedestrians">
+      <PedestriansLayer effectiveYear={transitionFromYear!} opacity={1 - t} />
+      <PedestriansLayer effectiveYear={transitionToYear!} opacity={t} />
+    </group>
+  );
+}
+
+function Pedestrian({
+  pedestrian: p,
+  deltaMultiplier,
+  opacity,
+}: {
+  pedestrian: Pedestrian;
+  deltaMultiplier: number;
+  opacity: number;
+}) {
   const groupRef = useRef<THREE.Group>(null);
 
   useFrame((_, delta) => {
@@ -156,12 +185,12 @@ function Pedestrian({ pedestrian: p, deltaMultiplier }: { pedestrian: Pedestrian
       {/* Body */}
       <mesh castShadow>
         <boxGeometry args={[0.25, p.height * 0.5, 0.15]} />
-        <meshStandardMaterial color={p.color} roughness={0.8} />
+        <meshStandardMaterial color={p.color} roughness={0.8} transparent opacity={opacity} />
       </mesh>
       {/* Head */}
       <mesh position={[0, p.height * 0.5 + p.headRadius, 0]} castShadow>
         <sphereGeometry args={[p.headRadius, 8, 8]} />
-        <meshStandardMaterial color={p.color} roughness={0.9} />
+        <meshStandardMaterial color={p.color} roughness={0.9} transparent opacity={opacity} />
       </mesh>
     </group>
   );

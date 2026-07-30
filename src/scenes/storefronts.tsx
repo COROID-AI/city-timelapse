@@ -346,7 +346,7 @@ const eraStorefronts: Record<EraYear, StorefrontConfig> = {
 
 // ─── Advertisement Component ───────────────────────────────────────
 
-function Advertisement({ ad }: { ad: AdConfig }) {
+function Advertisement({ ad, opacity }: { ad: AdConfig; opacity: number }) {
   return (
     <group position={[0, 0, ad.width / 2 + 0.02]}>
       {/* Back panel */}
@@ -358,6 +358,8 @@ function Advertisement({ ad }: { ad: AdConfig }) {
           metalness={0.3}
           emissive={ad.backgroundColor}
           emissiveIntensity={0.3}
+          transparent
+          opacity={opacity}
         />
       </mesh>
 
@@ -370,6 +372,7 @@ function Advertisement({ ad }: { ad: AdConfig }) {
         anchorY="middle"
         maxWidth={ad.width - 0.2}
         lineHeight={1.2}
+        fillOpacity={opacity}
       >
         {ad.text}
       </Text>
@@ -383,6 +386,7 @@ function Advertisement({ ad }: { ad: AdConfig }) {
         anchorY="middle"
         maxWidth={ad.width - 0.2}
         lineHeight={1.2}
+        fillOpacity={opacity}
       >
         {ad.subtitle}
       </Text>
@@ -394,6 +398,7 @@ function Advertisement({ ad }: { ad: AdConfig }) {
         color={ad.color}
         anchorX="center"
         anchorY="middle"
+        fillOpacity={opacity}
       >
         {`[${ad.medium}]`}
       </Text>
@@ -403,7 +408,7 @@ function Advertisement({ ad }: { ad: AdConfig }) {
 
 // ─── Storefront Facade ─────────────────────────────────────────────
 
-function StorefrontFacade({ config }: { config: StorefrontConfig }) {
+function StorefrontFacade({ config, opacity }: { config: StorefrontConfig; opacity: number }) {
   const awningY = config.facadeHeight + config.roofHeight;
   const windowTop = awningY - 0.3;
   const windowBottom = 0.5;
@@ -418,6 +423,8 @@ function StorefrontFacade({ config }: { config: StorefrontConfig }) {
           color={config.facadeColor}
           roughness={0.7}
           metalness={0.1}
+          transparent
+          opacity={opacity}
         />
       </mesh>
 
@@ -428,6 +435,8 @@ function StorefrontFacade({ config }: { config: StorefrontConfig }) {
           color={config.facadeColor}
           roughness={0.5}
           metalness={0.3}
+          transparent
+          opacity={opacity}
         />
       </mesh>
 
@@ -440,6 +449,8 @@ function StorefrontFacade({ config }: { config: StorefrontConfig }) {
           metalness={0.2}
           emissive={config.awning.color}
           emissiveIntensity={0.1}
+          transparent
+          opacity={opacity}
         />
       </mesh>
 
@@ -468,7 +479,7 @@ function StorefrontFacade({ config }: { config: StorefrontConfig }) {
                 roughness={0.1}
                 metalness={0.5}
                 transparent
-                opacity={0.7}
+                opacity={0.7 * opacity}
               />
             </mesh>
           );
@@ -482,6 +493,8 @@ function StorefrontFacade({ config }: { config: StorefrontConfig }) {
           color={config.door.color}
           roughness={0.3}
           metalness={0.6}
+          transparent
+          opacity={opacity}
         />
       </mesh>
 
@@ -495,12 +508,14 @@ function StorefrontFacade({ config }: { config: StorefrontConfig }) {
             metalness={0.3}
             emissive={item.color}
             emissiveIntensity={0.05}
+            transparent
+            opacity={opacity}
           />
         </mesh>
       ))}
 
       {/* Advertisement mounted above awning */}
-      <Advertisement ad={config.advertisement} />
+      <Advertisement ad={config.advertisement} opacity={opacity} />
     </group>
   );
 }
@@ -512,9 +527,10 @@ interface StorefrontRowProps {
   spacing?: number;
   yOffset?: number;
   year?: EraYear;
+  opacity?: number;
 }
 
-function StorefrontRow({ count = 6, spacing = 10, yOffset = 0, year: yearProp }: StorefrontRowProps) {
+function StorefrontRow({ count = 6, spacing = 10, yOffset = 0, year: yearProp, opacity = 1 }: StorefrontRowProps) {
   const { year } = useEra();
   const effectiveYear = yearProp ?? year;
 
@@ -525,7 +541,7 @@ function StorefrontRow({ count = 6, spacing = 10, yOffset = 0, year: yearProp }:
         const xOffset = (idx - (count - 1) / 2) * spacing;
         return (
           <group key={`storefront-${idx}`} position={[xOffset, 0, 0]}>
-            <StorefrontFacade config={config} />
+            <StorefrontFacade config={config} opacity={opacity} />
           </group>
         );
       })}
@@ -535,13 +551,53 @@ function StorefrontRow({ count = 6, spacing = 10, yOffset = 0, year: yearProp }:
 
 // ─── StorefrontSystem: the main entry point for the storefront subsystem ────
 
-export function StorefrontSystem({ year: yearProp }: { year?: EraYear }) {
+interface StorefrontSystemProps {
+  year?: EraYear;
+  transitionFromYear?: EraYear;
+  transitionToYear?: EraYear;
+  transitionT?: number;
+}
+
+export function StorefrontSystem({
+  year: yearProp,
+  transitionFromYear,
+  transitionToYear,
+  transitionT,
+}: StorefrontSystemProps) {
   const { year } = useEra();
   const effectiveYear = yearProp ?? year;
 
+  const hasTransition =
+    transitionFromYear !== undefined &&
+    transitionToYear !== undefined &&
+    transitionT !== undefined &&
+    transitionFromYear !== transitionToYear;
+
+  if (!hasTransition) {
+    return (
+      <group>
+        <StorefrontRow count={6} spacing={10} yOffset={0} year={effectiveYear} opacity={1} />
+      </group>
+    );
+  }
+
+  const t = Math.max(0, Math.min(1, transitionT ?? 0));
   return (
     <group>
-      <StorefrontRow count={6} spacing={10} yOffset={0} year={effectiveYear} />
+      <StorefrontRow
+        count={6}
+        spacing={10}
+        yOffset={0}
+        year={transitionFromYear!}
+        opacity={1 - t}
+      />
+      <StorefrontRow
+        count={6}
+        spacing={10}
+        yOffset={0}
+        year={transitionToYear!}
+        opacity={t}
+      />
     </group>
   );
 }

@@ -50,7 +50,17 @@ export const MAIN_STREETS: StreetPath[] = [
 
 // ── Era-specific vehicle fleet definitions ────────────
 interface VehicleDefinition {
-  type: 'tram' | 'vintageCar' | 'muscleCar' | 'deLorean' | 'suv' | 'bus' | 'ev' | 'autonomousPod' | 'maglev' | 'flyingVehicle';
+  type:
+    | 'tram'
+    | 'vintageCar'
+    | 'muscleCar'
+    | 'deLorean'
+    | 'suv'
+    | 'bus'
+    | 'ev'
+    | 'autonomousPod'
+    | 'maglev'
+    | 'flyingVehicle';
   color: number;
   scale: [number, number, number];
   speed: number;
@@ -116,9 +126,7 @@ export interface StreetGeometryConfig {
   trackWidth: number;
 }
 
-function getEraStreetGeometry(
-  year: EraYear
-): { laneMultiplier: number; sidewalkMultiplier: number; railWidthMultiplier: number } {
+function getEraStreetGeometry(year: EraYear): { laneMultiplier: number; sidewalkMultiplier: number; railWidthMultiplier: number } {
   switch (year) {
     case 1945:
       return { laneMultiplier: 0.8, sidewalkMultiplier: 0.7, railWidthMultiplier: 1.0 };
@@ -136,10 +144,7 @@ function getEraStreetGeometry(
 }
 
 // ── Vehicle dimensions helper ──────────────────────
-function vehicleDimensions(
-  type: VehicleDefinition['type'],
-  scale: [number, number, number]
-): [number, number, number] {
+function vehicleDimensions(type: VehicleDefinition['type'], scale: [number, number, number]): [number, number, number] {
   switch (type) {
     case 'tram':
       return [scale[0], scale[1], scale[2]];
@@ -164,19 +169,27 @@ function vehicleDimensions(
   }
 }
 
-// ── VehicleSystem component ────────────────────────
-export function VehicleSystem({ year: yearProp, streetPaths }: { year?: EraYear; streetPaths?: StreetPath[] }) {
-  const { year } = useEra();
-  const effectiveYear = yearProp ?? year;
+type VehicleAnimRef = Map<string, { progress: number; direction: number }>;
+
+function VehicleLayer({
+  effectiveYear,
+  opacity,
+  streetPaths,
+  refs,
+}: {
+  effectiveYear: EraYear;
+  opacity: number;
+  streetPaths: StreetPath[];
+  refs: React.MutableRefObject<VehicleAnimRef>;
+}) {
   const [, setTick] = useState(0);
-  const vehicleRefs = useRef<Map<string, { progress: number; direction: number }>>(new Map());
-  const streets = useMemo(() => streetPaths ?? MAIN_STREETS, [streetPaths]);
+  const streets = useMemo(() => streetPaths, [streetPaths]);
   const streetGeometryConfig = useMemo(() => getEraStreetGeometry(effectiveYear), [effectiveYear]);
   const fleet = useMemo(() => getEraVehicleFleet(effectiveYear), [effectiveYear]);
 
   // Advance vehicle progress each frame and trigger re-render for smooth animation
   useFrame((_state, delta) => {
-    vehicleRefs.current.forEach((ref) => {
+    refs.current.forEach((ref) => {
       ref.progress += delta * 0.5 * ref.direction;
       if (ref.progress > 1) {
         ref.progress = 0;
@@ -214,7 +227,7 @@ export function VehicleSystem({ year: yearProp, streetPaths }: { year?: EraYear;
         const laneWidth = roadWidth / effectiveLaneCount;
 
         const key = `${defIdx}-${i}`;
-        const existingRef = vehicleRefs.current.get(key);
+        const existingRef = refs.current.get(key);
 
         placements.push({
           key,
@@ -229,128 +242,94 @@ export function VehicleSystem({ year: yearProp, streetPaths }: { year?: EraYear;
     });
 
     return placements;
-  }, [fleet, streets, streetGeometryConfig]);
+  }, [fleet, streets, streetGeometryConfig, refs]);
 
   // Initialize refs for new vehicles
   useMemo(() => {
     vehiclePlacements.forEach((p) => {
-      if (!vehicleRefs.current.has(p.key)) {
-        vehicleRefs.current.set(p.key, { progress: p.progress, direction: p.direction });
+      if (!refs.current.has(p.key)) {
+        refs.current.set(p.key, { progress: p.progress, direction: p.direction });
       }
     });
-  }, [vehiclePlacements]);
+  }, [vehiclePlacements, refs]);
 
   return (
     <>
-      {/* Street geometry: road surface, lane markings, sidewalks, rails */}
+      {/* Street geometry */}
       {streets.map((street, streetIdx) => {
         const p0 = street.points[0];
         const p1 = street.points[1];
         const dx = p1[0] - p0[0];
         const dz = p1[2] - p0[2];
-        const length = Math.max(0.01, Math.sqrt(dx * dx + dz * dz));
+        const len = Math.sqrt(dx * dx + dz * dz);
+        const dirX = dx / len;
+        const dirZ = dz / len;
+        const perpX = -dirZ;
+        const perpZ = dirX;
 
         const effectiveLaneCount = Math.max(1, Math.round(street.laneCount * streetGeometryConfig.laneMultiplier));
         const effectiveSidewalkWidth = Math.max(0.5, street.sidewalkWidth * streetGeometryConfig.sidewalkMultiplier);
         const roadWidth = effectiveLaneCount * 3 + effectiveSidewalkWidth * 2;
-        const laneWidth = roadWidth / effectiveLaneCount;
+        const roadThickness = 0.1;
+
+        const midX = (p0[0] + p1[0]) / 2;
+        const midY = 0;
+        const midZ = (p0[2] + p1[2]) / 2;
+        const rotY = Math.atan2(dx, dz);
 
         return (
-          <group key={`street-${streetIdx}`} name={`street-${streetIdx}`}>
-            {/* Road surface */}
-            <mesh
-              rotation={[-Math.PI / 2, 0, 0]}
-              position={[(p0[0] + p1[0]) / 2, 0.02, (p0[2] + p1[2]) / 2]}
-              receiveShadow
-            >
-              <planeGeometry args={[roadWidth, length]} />
-              <meshStandardMaterial color={0x333333} metalness={0.1} roughness={0.9} />
+          <group key={`street-${effectiveYear}-${streetIdx}`} name={`street-${streetIdx}`}>
+            {/* Road */}
+            <mesh position={[midX, midY, midZ]} rotation={[0, rotY, 0]}>
+              <boxGeometry args={[len, roadThickness, roadWidth]} />
+              <meshStandardMaterial color={0x222222} metalness={0.1} roughness={0.95} transparent opacity={0.7 * opacity} />
             </mesh>
 
-            {/* Lane markings */}
-            {Array.from({ length: effectiveLaneCount - 1 }, (_, l) => {
-              const markZ = -length / 2 + (l + 1) * laneWidth;
+            {/* Sidewalks */}
+            <mesh
+              position={[midX + perpX * (roadWidth / 2 - effectiveSidewalkWidth / 2), midY, midZ + perpZ * (roadWidth / 2 - effectiveSidewalkWidth / 2)]}
+              rotation={[0, rotY, 0]}
+            >
+              <boxGeometry args={[len, 0.12, effectiveSidewalkWidth]} />
+              <meshStandardMaterial color={0x555555} metalness={0.05} roughness={0.9} transparent opacity={0.55 * opacity} />
+            </mesh>
+            <mesh
+              position={[midX - perpX * (roadWidth / 2 - effectiveSidewalkWidth / 2), midY, midZ - perpZ * (roadWidth / 2 - effectiveSidewalkWidth / 2)]}
+              rotation={[0, rotY, 0]}
+            >
+              <boxGeometry args={[len, 0.12, effectiveSidewalkWidth]} />
+              <meshStandardMaterial color={0x555555} metalness={0.05} roughness={0.9} transparent opacity={0.55 * opacity} />
+            </mesh>
+
+            {/* Rails */}
+            {street.hasRail && (
+              <mesh position={[midX, midY + 0.02, midZ]} rotation={[0, rotY, 0]}>
+                <boxGeometry args={[len, 0.05, street.trackWidth]} />
+                <meshStandardMaterial color={0x333333} metalness={0.3} roughness={0.5} transparent opacity={0.8 * opacity} />
+              </mesh>
+            )}
+
+            {/* Lane markers */}
+            {Array.from({ length: Math.max(1, effectiveLaneCount - 1) }).map((_, i) => {
+              const laneXOffset = perpX * ((i + 1) * 3 - roadWidth / 2 + 1.5) * 1;
+              const laneZOffset = perpZ * ((i + 1) * 3 - roadWidth / 2 + 1.5) * 1;
               return (
-                <mesh
-                  key={`lane-mark-${streetIdx}-${l}`}
-                  rotation={[-Math.PI / 2, 0, 0]}
-                  position={[(p0[0] + p1[0]) / 2, 0.03, (p0[2] + p1[2]) / 2 + markZ]}
-                >
-                  <planeGeometry args={[0.15, length * 0.9]} />
-                  <meshBasicMaterial color={0xffffff} transparent opacity={0.6} />
+                <mesh key={`lane-${streetIdx}-${i}`} position={[midX + laneXOffset, midY + 0.03, midZ + laneZOffset]} rotation={[0, rotY, 0]}>
+                  <boxGeometry args={[len * 0.35, 0.02, 0.2]} />
+                  <meshStandardMaterial color={0xffcc66} metalness={0} roughness={1} transparent opacity={0.8 * opacity} />
                 </mesh>
               );
             })}
-
-            {/* Sidewalks */}
-            {[-1, 1].map((side, si) => (
-              <mesh
-                key={`sidewalk-${streetIdx}-${si}`}
-                rotation={[-Math.PI / 2, 0, 0]}
-                position={[
-                  (p0[0] + p1[0]) / 2 - side * (effectiveLaneCount * laneWidth / 2 + effectiveSidewalkWidth / 2),
-                  0.03,
-                  (p0[2] + p1[2]) / 2,
-                ]}
-              >
-                <planeGeometry args={[effectiveSidewalkWidth, length]} />
-                <meshStandardMaterial color={0x888888} metalness={0.05} roughness={0.8} />
-              </mesh>
-            ))}
-
-            {/* Rails / tracks */}
-            {street.hasRail && (
-              <>
-                {[-1, 1].map((side, si) => {
-                  const railColor = effectiveYear === 1945 ? 0x888888 : effectiveYear === 2055 ? 0x4488ff : 0xaaaaaa;
-                  const railX = (p0[0] + p1[0]) / 2 - side * (effectiveLaneCount * laneWidth / 2 + effectiveSidewalkWidth * 0.3);
-                  return (
-                    <mesh
-                      key={`rail-${streetIdx}-${si}`}
-                      position={[railX, 0.1, (p0[2] + p1[2]) / 2]}
-                    >
-                      <boxGeometry
-                        args={[
-                          Math.max(0.01, street.trackWidth * streetGeometryConfig.railWidthMultiplier),
-                          0.15,
-                          length * 0.95,
-                        ]}
-                      />
-                      <meshStandardMaterial color={railColor} metalness={0.7} roughness={0.3} />
-                    </mesh>
-                  );
-                })}
-
-                {/* Cross ties */}
-                {(() => {
-                  const tieCount = Math.max(1, Math.round(length * 0.2));
-                  const tieGeoArgs: [number, number, number] = [
-                    Math.max(0.01, street.trackWidth * 1.1),
-                    0.08,
-                    0.3,
-                  ];
-                  return Array.from({ length: tieCount }, (_, t) => {
-                    const tieZ = (p0[2] + p1[2]) / 2 - length * 0.45 + (t * length * 0.9) / tieCount;
-                    return (
-                      <mesh key={`tie-${streetIdx}-${t}`} position={[(p0[0] + p1[0]) / 2, 0.09, tieZ]}>
-                        <boxGeometry args={tieGeoArgs} />
-                        <meshStandardMaterial color={0x555555} />
-                      </mesh>
-                    );
-                  });
-                })()}
-              </>
-            )}
           </group>
         );
       })}
 
-      {/* Era-specific vehicles moving along street paths */}
+      {/* Vehicles */}
       {vehiclePlacements.map((placement) => {
         const street = streets[placement.streetIndex];
         const p0 = street.points[0];
         const p1 = street.points[1];
-        const ref = vehicleRefs.current.get(placement.key);
+        const ref = refs.current.get(placement.key);
         const progress = ref?.progress ?? placement.progress;
         const t = Math.max(0, Math.min(1, progress));
         const x = p0[0] + (p1[0] - p0[0]) * t;
@@ -361,20 +340,62 @@ export function VehicleSystem({ year: yearProp, streetPaths }: { year?: EraYear;
         const rotationY = Math.atan2(dx, dz);
 
         return (
-          <group key={placement.key} name={`vehicle-${placement.key}`}>
-            <mesh
-              position={[x, h / 2 + placement.definition.scale[1] * 0.25, z]}
-              rotation={[0, rotationY, 0]}
-              castShadow
-              receiveShadow
-            >
+          <group key={`${effectiveYear}-${placement.key}`} name={`vehicle-${placement.key}`}>
+            <mesh position={[x, h / 2 + placement.definition.scale[1] * 0.25, z]} rotation={[0, rotationY, 0]} castShadow receiveShadow>
               <boxGeometry args={[w, h, d]} />
-              <meshStandardMaterial color={placement.definition.color} metalness={0.3} roughness={0.6} />
+              <meshStandardMaterial color={placement.definition.color} metalness={0.3} roughness={0.6} transparent opacity={opacity} />
             </mesh>
           </group>
         );
       })}
     </>
+  );
+}
+
+// ── VehicleSystem component ────────────────────────
+export function VehicleSystem({
+  year: yearProp,
+  streetPaths,
+  transitionFromYear,
+  transitionToYear,
+  transitionT,
+}: {
+  year?: EraYear;
+  streetPaths?: StreetPath[];
+  transitionFromYear?: EraYear;
+  transitionToYear?: EraYear;
+  transitionT?: number;
+}) {
+  const { year } = useEra();
+  const effectiveYear = yearProp ?? year;
+
+  const streets = useMemo(() => streetPaths ?? MAIN_STREETS, [streetPaths]);
+
+  const fromYear = transitionFromYear;
+  const toYear = transitionToYear;
+
+  const fromRefs = useRef<VehicleAnimRef>(new Map());
+  const toRefs = useRef<VehicleAnimRef>(new Map());
+
+  const hasTransition = fromYear !== undefined && toYear !== undefined && transitionT !== undefined && fromYear !== toYear;
+
+  if (!hasTransition) {
+    return (
+      <group name="vehicles">
+        <VehicleLayer effectiveYear={effectiveYear} opacity={1} streetPaths={streets} refs={fromRefs} />
+      </group>
+    );
+  }
+
+  const t = Math.max(0, Math.min(1, transitionT ?? 0));
+  const fromOpacity = 1 - t;
+  const toOpacity = t;
+
+  return (
+    <group name="vehicles">
+      <VehicleLayer effectiveYear={fromYear!} opacity={fromOpacity} streetPaths={streets} refs={fromRefs} />
+      <VehicleLayer effectiveYear={toYear!} opacity={toOpacity} streetPaths={streets} refs={toRefs} />
+    </group>
   );
 }
 

@@ -7,6 +7,7 @@ import { Vignette } from '@react-three/postprocessing';
 import { useEra } from '../contexts/EraContext';
 import { useAudioContext } from '../contexts/AudioContext';
 import { useSfx } from '../hooks/useSfx';
+import { EraTransitionProvider, useEraTransition, interpolateEraData } from './transitions';
 import { AtmosphereSystem } from './atmosphere';
 import { BuildingSystem } from './buildings';
 import { PedestrianSystem } from './pedestrians';
@@ -14,84 +15,46 @@ import { StorefrontSystem } from './storefronts';
 import { VehicleSystem } from './vehicles';
 import type { EraYear } from '../types';
 
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
-
-function lerpColor(a: number, b: number, t: number): number {
-  const ar = (a >> 16) & 0xff, ag = (a >> 8) & 0xff, ab = a & 0xff;
-  const br = (b >> 16) & 0xff, bg = (b >> 8) & 0xff, bb = b & 0xff;
-  const r = Math.round(lerp(ar, br, t));
-  const g = Math.round(lerp(ag, bg, t));
-  const bl = Math.round(lerp(ab, bb, t));
-  return (r << 16) | (g << 8) | bl;
-}
-
-const ERA_ORDER: EraYear[] = [1945, 1965, 1985, 2005, 2025, 2055];
-
-function interpolateEraData(year: EraYear) {
-  const idx = ERA_ORDER.indexOf(year);
-  const lo = ERA_ORDER[Math.max(0, idx)];
-  const hi = ERA_ORDER[Math.min(ERA_ORDER.length - 1, idx + 1)];
-  const t = lo === hi ? 0 : (year - lo) / (hi - lo);
-  const loFog = getEraConfig(lo);
-  const hiFog = getEraConfig(hi);
-  return {
-    fogColor: lerpColor(loFog.fogColor, hiFog.fogColor, t),
-    fogNear: lerp(loFog.fogNear, hiFog.fogNear, t),
-    fogFar: lerp(loFog.fogFar, hiFog.fogFar, t),
-    background: lerpColor(loFog.background, hiFog.background, t),
-    t,
-    lo,
-    hi,
-  };
-}
-
-function getEraConfig(year: EraYear) {
-  switch (year) {
-    case 1945:
-      return { fogColor: 0x3a3a3a, fogNear: 20, fogFar: 80, background: 0x2a2a2a };
-    case 1965:
-      return { fogColor: 0x5a6a5a, fogNear: 20, fogFar: 100, background: 0x4a5a4a };
-    case 1985:
-      return { fogColor: 0x6a7a8a, fogNear: 20, fogFar: 120, background: 0x5a6a7a };
-    case 2005:
-      return { fogColor: 0x8a9aaa, fogNear: 20, fogFar: 140, background: 0x7a8a9a };
-    case 2025:
-      return { fogColor: 0xaabbcc, fogNear: 20, fogFar: 160, background: 0x9aabbc };
-    case 2055:
-      return { fogColor: 0xccddee, fogNear: 20, fogFar: 200, background: 0xbbcdde };
-  }
-}
-
 function SceneContent() {
-  const { year } = useEra();
-  const eraBlend = useMemo(() => interpolateEraData(year), [year]);
+  const { fromYear, toYear, easedProgress } = useEraTransition();
+  const eraBlend = useMemo(
+    () => interpolateEraData(fromYear, toYear, easedProgress),
+    [fromYear, toYear, easedProgress]
+  );
 
   return (
     <>
       <color attach="background" args={[eraBlend.background]} />
       <fog attach="fog" args={[eraBlend.fogColor, eraBlend.fogNear, eraBlend.fogFar]} />
       <ambientLight intensity={0.3} />
-      <AtmosphereSystem year={year} eraBlend={eraBlend} />
-      <BuildingSystem year={year} eraBlendT={eraBlend.t} loEra={eraBlend.lo} hiEra={eraBlend.hi} />
-      <VehicleSystem year={year} />
-      <StorefrontSystem year={year} />
-      <PedestrianSystem year={year} />
+      <AtmosphereSystem year={toYear} eraBlend={eraBlend} />
+      <BuildingSystem year={toYear} eraBlendT={eraBlend.t} loEra={eraBlend.lo} hiEra={eraBlend.hi} />
+      <VehicleSystem
+        year={toYear}
+        transitionFromYear={eraBlend.lo}
+        transitionToYear={eraBlend.hi}
+        transitionT={eraBlend.t}
+      />
+      <StorefrontSystem
+        year={toYear}
+        transitionFromYear={eraBlend.lo}
+        transitionToYear={eraBlend.hi}
+        transitionT={eraBlend.t}
+      />
+      <PedestrianSystem
+        year={toYear}
+        transitionFromYear={eraBlend.lo}
+        transitionToYear={eraBlend.hi}
+        transitionT={eraBlend.t}
+      />
     </>
   );
 }
 
-function PostProcessing({ year }: { year: EraYear }) {
-  const eraBlend = useMemo(() => interpolateEraData(year), [year]);
-
+function PostProcessing() {
   return (
     <EffectComposer>
-      <Bloom
-        strength={0.3}
-        radius={0.4}
-        threshold={0.6}
-      />
+      <Bloom strength={0.3} radius={0.4} threshold={0.6} />
       <Vignette offset={0.3} darkness={0.4} />
     </EffectComposer>
   );
@@ -130,7 +93,9 @@ function SceneGraph() {
         gl={{ powerPreference: 'high-performance', antialias: true }}
         style={{ width: '100%', height: '100%' }}
       >
-        <SceneContent />
+        <EraTransitionProvider>
+          <SceneContent />
+        </EraTransitionProvider>
         <OrbitControls
           enableDamping
           dampingFactor={0.08}

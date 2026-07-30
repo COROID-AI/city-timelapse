@@ -659,137 +659,145 @@ interface BuildingSystemProps {
 
 export function BuildingSystem({ year: yearProp, eraBlendT, loEra, hiEra }: BuildingSystemProps) {
   const { year } = useEra();
+
   const effectiveYear = yearProp ?? year;
+  const hasTransition = loEra !== undefined && hiEra !== undefined && eraBlendT !== undefined && loEra !== hiEra;
 
-  const allYears: EraYear[] = [1945, 1965, 1985, 2005, 2025, 2055];
-  const currentIdx = allYears.indexOf(effectiveYear);
-  const lo = allYears[Math.max(0, currentIdx)];
-  const hi = allYears[Math.min(allYears.length - 1, currentIdx + 1)];
-  const t = lo === hi ? 1 : (eraBlendT ?? (effectiveYear - lo) / (hi - lo));
+  const renderBuildingsForConfig = (cfg: BuildingConfig, fadeOpacity: number, scale: number) => {
+    const blocks = buildBlocks(cfg);
+    return (
+      <group
+        name="buildings-morph"
+        scale={[scale, scale, scale]}
+        // Slightly prefer deterministic ordering during crossfade; meshes handle ordering.
+      >
+        {blocks.map((block, i) => (
+          <group key={`building-${cfg.facadeColor}-${i}`} name={`building-${i}`}>
+            <mesh position={[block.x, block.height / 2, block.z]} castShadow receiveShadow>
+              <boxGeometry args={[block.width, block.height, block.depth]} />
+              <meshStandardMaterial
+                color={block.config.facadeColor}
+                metalness={block.config.facadeMetalness}
+                roughness={block.config.facadeRoughness}
+                transparent
+                opacity={fadeOpacity}
+              />
+            </mesh>
 
-  const loConfig = eraBuildings[lo];
-  const hiConfig = eraBuildings[hi];
+            {/* Roof variants */}
+            {block.config.roofType === 'pitched' && (
+              <mesh position={[block.x, block.height + 0.5, block.z]}>
+                <coneGeometry args={[block.width * 0.6, 1.2, 4]} />
+                <meshStandardMaterial color={0x555555} roughness={0.9} transparent opacity={fadeOpacity} />
+              </mesh>
+            )}
+            {block.config.roofType === 'domed' && (
+              <mesh position={[block.x, block.height + 0.3, block.z]}>
+                <sphereGeometry args={[block.width * 0.35, 16, 12]} />
+                <meshStandardMaterial color={0x555555} roughness={0.8} transparent opacity={fadeOpacity} />
+              </mesh>
+            )}
+            {block.config.roofType === 'flat' && block.height > 6 && (
+              <mesh position={[block.x, block.height + 0.12, block.z]}>
+                <boxGeometry args={[block.width * 0.9, 0.25, block.depth * 0.9]} />
+                <meshStandardMaterial color={0x444444} roughness={0.7} transparent opacity={fadeOpacity} />
+              </mesh>
+            )}
+            {block.config.roofType === 'modern' && block.height > 8 && (
+              <>
+                <mesh position={[block.x, block.height + 0.15, block.z]}>
+                  <boxGeometry args={[block.width * 0.95, 0.3, block.depth * 0.95]} />
+                  <meshStandardMaterial color={0x333333} roughness={0.6} transparent opacity={fadeOpacity} />
+                </mesh>
+                <mesh position={[block.x, block.height + 0.3, block.z]}>
+                  <boxGeometry args={[block.width * 0.3, 1.5, block.depth * 0.3]} />
+                  <meshStandardMaterial color={0x224466} metalness={0.8} roughness={0.2} transparent opacity={fadeOpacity} />
+                </mesh>
+              </>
+            )}
 
-  const blendedConfig = useMemo(() => {
-    if (t <= 0) return loConfig;
-    if (t >= 1) return hiConfig;
-    return {
-      minHeight: loConfig.minHeight + (hiConfig.minHeight - loConfig.minHeight) * t,
-      maxHeight: loConfig.maxHeight + (hiConfig.maxHeight - loConfig.maxHeight) * t,
-      minWidth: loConfig.minWidth + (hiConfig.minWidth - loConfig.minWidth) * t,
-      maxWidth: loConfig.maxWidth + (hiConfig.maxWidth - loConfig.maxWidth) * t,
-      facadeColor: lerpColor(loConfig.facadeColor, hiConfig.facadeColor, t),
-      facadeMetalness: loConfig.facadeMetalness + (hiConfig.facadeMetalness - loConfig.facadeMetalness) * t,
-      facadeRoughness: loConfig.facadeRoughness + (hiConfig.facadeRoughness - loConfig.facadeRoughness) * t,
-      roofType: t < 0.5 ? loConfig.roofType : hiConfig.roofType,
-      windowColor: lerpColor(loConfig.windowColor, hiConfig.windowColor, t),
-      windowRatio: loConfig.windowRatio + (hiConfig.windowRatio - loConfig.windowRatio) * t,
-      material: t < 0.5 ? loConfig.material : hiConfig.material,
-    };
-  }, [t, loConfig, hiConfig]);
+            {/* Windows */}
+            {block.config.windowRatio > 0 && block.height > 2 && block.config.windowRatio > 0.2 && (
+              <group>
+                {Array.from({ length: Math.max(1, Math.round(block.config.windowRatio * 3)) }, (_, row) => {
+                  const wy = (row + 0.5) * (block.height / (Math.round(block.config.windowRatio * 3) + 1));
+                  return (
+                    <mesh
+                      key={`win-${cfg.facadeColor}-${i}-${row}`}
+                      position={[block.x, wy, block.z + block.depth / 2 + 0.01]}
+                    >
+                      <planeGeometry args={[block.width * 0.85, block.height * block.config.windowRatio * 0.22]} />
+                      <meshStandardMaterial
+                        color={block.config.windowColor}
+                        emissive={block.config.windowColor}
+                        emissiveIntensity={0.3}
+                        metalness={0.5}
+                        transparent
+                        opacity={fadeOpacity}
+                      />
+                    </mesh>
+                  );
+                })}
+              </group>
+            )}
+          </group>
+        ))}
 
-  const blocks = useMemo(() => {
+        {/* Glow layer */}
+        {blocks.map((block, i) => (
+          <group key={`bldg-glow-${cfg.facadeColor}-${i}`} name={`building-glow-${i}`}>
+            <mesh position={[block.x, block.height / 2, block.z]} castShadow={false} receiveShadow={false}>
+              <boxGeometry args={[block.width, block.height, block.depth]} />
+              <meshStandardMaterial
+                color={block.config.facadeColor}
+                metalness={0.9}
+                roughness={0.1}
+                transparent
+                opacity={0.08 * fadeOpacity}
+              />
+            </mesh>
+          </group>
+        ))}
+      </group>
+    );
+  };
+
+  const buildBlocks = (cfg: BuildingConfig) => {
     const result: BuildingBlock_[] = [];
     const gridSize = 35;
     for (let x = -gridSize; x <= gridSize; x += 6) {
       for (let z = -gridSize; z <= gridSize; z += 6) {
         const h = hashCoord(x, z);
         if (h < 0.25) continue;
-        const width = blendedConfig.minWidth + (blendedConfig.maxWidth - blendedConfig.minWidth) * hashCoord(x + 1, z);
+        const width = cfg.minWidth + (cfg.maxWidth - cfg.minWidth) * hashCoord(x + 1, z);
         const depth = width * (0.5 + hashCoord(x, z + 1) * 0.5);
-        const height = blendedConfig.minHeight + (blendedConfig.maxHeight - blendedConfig.minHeight) * h;
-        result.push({ x, z, width, depth, height, config: blendedConfig });
+        const height = cfg.minHeight + (cfg.maxHeight - cfg.minHeight) * h;
+        result.push({ x, z, width, depth, height, config: cfg });
       }
     }
     return result;
-  }, [effectiveYear, blendedConfig]);
+  };
+
+  if (!hasTransition) {
+    const cfg = eraBuildings[effectiveYear];
+    // No transition: render fully opaque at 1.0 scale
+    return renderBuildingsForConfig(cfg, 1, 1);
+  }
+
+  const t = Math.max(0, Math.min(1, eraBlendT ?? 0));
+  const fromCfg = eraBuildings[loEra!];
+  const toCfg = eraBuildings[hiEra!];
+
+  // Buildings scale/opacity morph
+  const fromOpacity = 1 - t;
+  const toOpacity = t;
+  const fromScale = 0.985 + (1 - t) * 0.015;
+  const toScale = 0.985 + t * 0.015;
 
   return (
     <group name="buildings">
-      {blocks.map((block, i) => (
-        <group key={`building-${i}`} name={`building-${i}`}>
-          <mesh
-            position={[block.x, block.height / 2, block.z]}
-            castShadow
-            receiveShadow
-          >
-            <boxGeometry args={[block.width, block.height, block.depth]} />
-            <meshStandardMaterial
-              color={block.config.facadeColor}
-              metalness={block.config.facadeMetalness}
-              roughness={block.config.facadeRoughness}
-            />
-          </mesh>
-          {/* Roof variants */}
-          {block.config.roofType === 'pitched' && (
-            <mesh position={[block.x, block.height + 0.5, block.z]}>
-              <coneGeometry args={[block.width * 0.6, 1.2, 4]} />
-              <meshStandardMaterial color={0x555555} roughness={0.9} />
-            </mesh>
-          )}
-          {block.config.roofType === 'domed' && (
-            <mesh position={[block.x, block.height + 0.3, block.z]}>
-              <sphereGeometry args={[block.width * 0.35, 16, 12]} />
-              <meshStandardMaterial color={0x555555} roughness={0.8} />
-            </mesh>
-          )}
-          {block.config.roofType === 'flat' && block.height > 6 && (
-            <mesh position={[block.x, block.height + 0.12, block.z]}>
-              <boxGeometry args={[block.width * 0.9, 0.25, block.depth * 0.9]} />
-              <meshStandardMaterial color={0x444444} roughness={0.7} />
-            </mesh>
-          )}
-          {block.config.roofType === 'modern' && block.height > 8 && (
-            <>
-              <mesh position={[block.x, block.height + 0.15, block.z]}>
-                <boxGeometry args={[block.width * 0.95, 0.3, block.depth * 0.95]} />
-                <meshStandardMaterial color={0x333333} roughness={0.6} />
-              </mesh>
-              <mesh position={[block.x, block.height + 0.3, block.z]}>
-                <boxGeometry args={[block.width * 0.3, 1.5, block.depth * 0.3]} />
-                <meshStandardMaterial color={0x224466} metalness={0.8} roughness={0.2} />
-              </mesh>
-            </>
-          )}
-          {/* Windows */}
-          {block.config.windowRatio > 0 && block.height > 2 && block.config.windowRatio > 0.2 && (
-            <group>
-              {Array.from({ length: Math.max(1, Math.round(block.config.windowRatio * 3)) }, (_, row) => {
-                const wy = (row + 0.5) * (block.height / (Math.round(block.config.windowRatio * 3) + 1));
-                return (
-                  <mesh key={`win-${i}-${row}`} position={[block.x, wy, block.z + block.depth / 2 + 0.01]}>
-                    <planeGeometry args={[block.width * 0.85, block.height * block.config.windowRatio * 0.22]} />
-                    <meshStandardMaterial
-                      color={block.config.windowColor}
-                      emissive={block.config.windowColor}
-                      emissiveIntensity={0.3}
-                      metalness={0.5}
-                    />
-                  </mesh>
-                );
-              })}
-            </group>
-          )}
-        </group>
-      ))}
-      {blocks.map((block, i) => (
-        <group key={`bldg-glow-${i}`} name={`building-glow-${i}`}>
-          <mesh
-            position={[block.x, block.height / 2, block.z]}
-            castShadow={false}
-            receiveShadow={false}
-          >
-            <boxGeometry args={[block.width, block.height, block.depth]} />
-            <meshStandardMaterial
-              color={block.config.facadeColor}
-              metalness={0.9}
-              roughness={0.1}
-              transparent={true}
-              opacity={0.08}
-            />
-          </mesh>
-        </group>
-      ))}
+      {renderBuildingsForConfig(fromCfg, fromOpacity, fromScale)}
+      {renderBuildingsForConfig(toCfg, toOpacity, toScale)}
     </group>
   );
 }
