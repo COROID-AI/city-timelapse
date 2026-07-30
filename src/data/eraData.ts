@@ -1,0 +1,231 @@
+export type Era = 1945 | 1965 | 1985 | 2005 | 2025 | 2055;
+
+export interface EraConfig {
+  year: Era;
+  label: string;
+  buildingColors: [number, number, number][];
+  buildingHeightMultiplier: number;
+  windowFrameColor: number;
+  windowGlassColor: number;
+  roadColor: number;
+  sidewalkColor: number;
+  skyColor: number;
+  fogColor: number;
+  fogDensity: number;
+  ambientIntensity: number;
+  ambientColor: [number, number, number];
+  sunIntensity: number;
+  sunColor: number;
+  sunPosition: [number, number, number];
+  vehicleColor: number;
+  vehicleType: 'car' | 'truck' | 'auto' | 'hover' | 'drone';
+  vehicleCount: number;
+  pedestrianColor: number;
+  pedestrianCount: number;
+  storefrontColor: number;
+  storefrontSignColor: number;
+  treeColor: number;
+  treeCount: number;
+  billboardCount: number;
+  billboardColor: number;
+  audioAmbient: string;
+  audioTraffic: string;
+  audioVoice: string;
+}
+
+export const eraConfigs: Record<Era, EraConfig> = {
+  1945: {
+    year: 1945,
+    label: '1945',
+    buildingColors: [[0.55, 0.48, 0.38], [0.6, 0.53, 0.42], [0.45, 0.4, 0.35], [0.5, 0.44, 0.34]],
+    buildingHeightMultiplier: 0.6,
+    windowFrameColor: 0x333333,
+    windowGlassColor: 0x8899aa,
+    roadColor: 0x333333,
+    sidewalkColor: 0x999999,
+    skyColor: 0x667788,
+    fogColor: 0x556677,
+    fogDensity: 0.018,
+    ambientIntensity: 0.4,
+    ambientColor: [0.5, 0.5, 0.6],
+    sunIntensity: 0.8,
+    sunColor: 0xffeedd,
+    sunPosition: [50, 60, 30],
+    vehicleColor: 0x2244aa,
+    vehicleType: 'car',
+    vehicleCount: 8,
+    pedestrianColor: 0x333355,
+    pedestrianCount: 12,
+    storefrontColor: 0x554433,
+    storefrontSignColor: 0xccaa33,
+    treeColor: 0x2a5a1a,
+    treeCount: 6,
+    billboardCount: 0,
+    billboardColor: 0xccaa33,
+    audioAmbient: 'war-era',
+    audioTraffic: 'trolley-1945',
+    audioVoice: 'radio-1945',
+  },
+  1965: {
+    year: 1965,
+    label: '1965',
+    buildingColors: [[0.5, 0.45, 0.35], [0.55, 0.5, 0.4], [0.48, 0.43, 0.33], [0.52, 0.47, 0.37]],
+    buildingHeightMultiplier: 0.8,
+    windowFrameColor: 0x444444,
+    windowGlassColor: 0x8899aa,
+    roadColor: 0x333333,
+    sidewalkColor: 0xaaaaaa,
+    skyColor: 0x778899,
+    fogColor: 0x667788,
+    fogDensity: 0.015,
+    ambientIntensity: 0.45,
+    ambientColor: [0.55, 0.55, 0.65],
+    sunIntensity: 0.9,
+    sunColor: 0xfff0dd,
+    sunPosition: [50, 70, 30],
+    vehicleColor: 0xaa3333,
+    vehicleType: 'car',
+    vehicleCount: 15,
+    pedestrianColor: 0x444466,
+    pedestrianCount: 20,
+    storefrontColor: 0x665544,
+    storefrontSignColor: 0xffcc33,
+    treeColor: 0x2a6a1a,
+    treeCount: 10,
+    billboardCount: 1,
+    billboardColor: 0xffcc33,
+    audioAmbient: 'retro-1965',
+    audioTraffic: 'car-1965',
+    audioVoice: 'mod-voice',
+  },
+  1985: {
+    year: 1985,
+    label: '1985',
+    buildingColors: [[0.45, 0.42, 0.38], [0.5, 0.47, 0.43], [0.42, 0.39, 0.35], [0.48, 0.45, 0.41]],
+    buildingHeightMultiplier: 1.1,
+    windowFrameColor: 0x555555,
+    windowGlassColor: 0x778899,
+    roadColor: 0x2a2a2a,
+    sidewalkColor: 0xbbbbbb,
+    skyColor: 0x8899aa,
+    fogColor: 0x556677,
+    fogDensity: 0.012,
+    ambientIntensity: 0.5,
+    ambientColor: [0.6, 0.6, 0.7],
+    sunIntensity: 1.0,
+    sunColor: 0xffffee,
+    sunPosition: [50, 80, 30],
+    vehicleColor: 0x3366cc,
+    vehicleType: 'car',
+    vehicleCount: 25,
+    pedestrianColor: 0x555577,
+    pedestrianCount: 30,
+    storefrontColor: 0x445566,
+    storefrontSignColor: 0xff3366,
+    treeColor: 0x2a6a1a,
+    treeCount: 12,
+    billboardCount: 3,
+    billboardColor: 0xff3366,
+    audioAmbient: 'synth-1985',
+    audioTraffic: 'traffic-1985',
+    audioVoice: '80s-voice',
+  },
+  2005: {
+    year: 2005,
+    label: '2005',
+    buildingColors: [[0.4, 0.42, 0.48], [0.45, 0.47, 0.53], [0.38, 0.4, 0.46], [0.42, 0.44, 0.5]],
+    buildingHeightMultiplier: 1.3,
+    windowFrameColor: 0x666666,
+    windowGlassColor: 0x88aacc,
+    roadColor: 0x222222,
+    sidewalkColor: 0xcccccc,
+    skyColor: 0x8899bb,
+    fogColor: 0x445566,
+    fogDensity: 0.01,
+    ambientIntensity: 0.55,
+    ambientColor: [0.65, 0.65, 0.75],
+    sunIntensity: 1.1,
+    sunColor: 0xffffff,
+    sunPosition: [50, 85, 30],
+    vehicleColor: 0xdddddd,
+    vehicleType: 'car',
+    vehicleCount: 35,
+    pedestrianColor: 0x666688,
+    pedestrianCount: 40,
+    storefrontColor: 0x334455,
+    storefrontSignColor: 0x00ccff,
+    treeColor: 0x2a7a2a,
+    treeCount: 14,
+    billboardCount: 5,
+    billboardColor: 0x00ccff,
+    audioAmbient: 'city-2005',
+    audioTraffic: 'traffic-2005',
+    audioVoice: 'digital-voice',
+  },
+  2025: {
+    year: 2025,
+    label: '2025',
+    buildingColors: [[0.35, 0.38, 0.45], [0.4, 0.43, 0.5], [0.33, 0.36, 0.43], [0.37, 0.4, 0.47]],
+    buildingHeightMultiplier: 1.6,
+    windowFrameColor: 0x333333,
+    windowGlassColor: 0x99bbdd,
+    roadColor: 0x1a1a1a,
+    sidewalkColor: 0xdddddd,
+    skyColor: 0x7788cc,
+    fogColor: 0x334455,
+    fogDensity: 0.008,
+    ambientIntensity: 0.5,
+    ambientColor: [0.6, 0.6, 0.7],
+    sunIntensity: 1.2,
+    sunColor: 0xffeedd,
+    sunPosition: [50, 90, 30],
+    vehicleColor: 0xeeeeee,
+    vehicleType: 'auto',
+    vehicleCount: 40,
+    pedestrianColor: 0x777799,
+    pedestrianCount: 45,
+    storefrontColor: 0x223344,
+    storefrontSignColor: 0x00ffaa,
+    treeColor: 0x2a8a3a,
+    treeCount: 16,
+    billboardCount: 8,
+    billboardColor: 0x00ffaa,
+    audioAmbient: 'city-2025',
+    audioTraffic: 'electric-traffic',
+    audioVoice: 'clean-voice',
+  },
+  2055: {
+    year: 2055,
+    label: '2055',
+    buildingColors: [[0.3, 0.35, 0.45], [0.35, 0.4, 0.5], [0.28, 0.33, 0.43], [0.32, 0.37, 0.47]],
+    buildingHeightMultiplier: 2.0,
+    windowFrameColor: 0x222222,
+    windowGlassColor: 0x88ccff,
+    roadColor: 0x111111,
+    sidewalkColor: 0xeeeeee,
+    skyColor: 0x5566aa,
+    fogColor: 0x223344,
+    fogDensity: 0.006,
+    ambientIntensity: 0.4,
+    ambientColor: [0.5, 0.55, 0.7],
+    sunIntensity: 0.7,
+    sunColor: 0xccddff,
+    sunPosition: [50, 70, 30],
+    vehicleColor: 0x4488ff,
+    vehicleType: 'hover',
+    vehicleCount: 30,
+    pedestrianColor: 0x8899bb,
+    pedestrianCount: 35,
+    storefrontColor: 0x1a2a3a,
+    storefrontSignColor: 0x66ffcc,
+    treeColor: 0x3a9a4a,
+    treeCount: 18,
+    billboardCount: 10,
+    billboardColor: 0x66ffcc,
+    audioAmbient: 'future-2055',
+    audioTraffic: 'hover-traffic',
+    audioVoice: 'ai-voice',
+  },
+};
+
+export const eraYears: Era[] = [1945, 1965, 1985, 2005, 2025, 2055];
