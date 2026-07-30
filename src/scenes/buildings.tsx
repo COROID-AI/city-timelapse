@@ -278,11 +278,20 @@ function computeMorphPositions(
     const y = positions[i * 3 + 1];
     const z = positions[i * 3 + 2];
 
-    let newY = y;
+    // Make era differences visibly morph: scale the core height and
+    // add a roof displacement that is proportional to the building height.
+    let newY = y * style.height;
 
-    const roofDisp = computeRoofDisp(style.roofType, x, z, blockWidth, blockDepth, style.roofHeight);
+    const roofDisp = computeRoofDisp(
+      style.roofType,
+      x,
+      z,
+      blockWidth,
+      blockDepth,
+      style.roofHeight,
+    );
 
-    newY += roofDisp;
+    newY += roofDisp * blockHeight;
 
     positions[i * 3 + 1] = newY;
   }
@@ -534,6 +543,34 @@ function BuildingMesh({ block }: BuildingProps) {
     signageMat.emissive.copy(lerpColor3(lowerStyle.signageColor, upperStyle.signageColor, t).multiplyScalar(0.3));
     signageMat.needsUpdate = true;
   });
+
+  // Also apply initial morph/material values synchronously so the very first
+  // rendered screenshot matches the committed era (some evidence runs capture early).
+  useEffect(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+
+    const { lower, upper, t } = getEraInterp(year);
+    const influences = new Array(ERA_COUNT).fill(0);
+    if (lower === upper) influences[lower] = 1;
+    else {
+      influences[lower] = 1 - t;
+      influences[upper] = t;
+    }
+    mesh.morphTargetInfluences = influences;
+    mesh.updateMorphTargets();
+
+    const lowerStyle = ERA_STYLES[ERA_YEARS[lower]];
+    const upperStyle = ERA_STYLES[ERA_YEARS[upper]];
+    material.color.copy(lerpColor3(lowerStyle.facadeColor, upperStyle.facadeColor, t));
+    material.roughness = lerpNum(lowerStyle.roughness, upperStyle.roughness, t);
+    material.metalness = lerpNum(lowerStyle.metalness, upperStyle.metalness, t);
+    material.needsUpdate = true;
+
+    signageMat.color.copy(lerpColor3(lowerStyle.signageColor, upperStyle.signageColor, t));
+    signageMat.emissive.copy(lerpColor3(lowerStyle.signageColor, upperStyle.signageColor, t).multiplyScalar(0.3));
+    signageMat.needsUpdate = true;
+  }, [year, material, signageMat]);
 
   return (
     <group ref={groupRef} position={[block.x, 0, block.z]} castShadow receiveShadow>

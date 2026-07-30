@@ -234,7 +234,9 @@ export function AtmosphereSystem({ year, eraBlend }: AtmosphereSystemProps) {
         <meshBasicMaterial
           color={cfg.hazeColor}
           transparent
-          opacity={cfg.hazeDensity * 800}
+          // Clamp haze overlay so it doesn't fully wash out the scene.
+          // (AI evidence previously showed only dark terrain without era details.)
+          opacity={Math.min(1, cfg.hazeDensity * 35)}
           depthWrite={false}
         />
       </mesh>

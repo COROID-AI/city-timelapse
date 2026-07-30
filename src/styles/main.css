@@ -171,7 +171,8 @@
   transform: translate(-50%, -50%);
   transition: left 90ms linear, box-shadow 160ms ease, background 160ms ease;
   box-shadow: 0 0 0 6px rgba(255, 200, 50, 0.12), 0 0 18px rgba(255, 200, 50, 0.24);
-  z-index: 2;
+  /* Keep thumb visually below tick labels to avoid covering era text. */
+  z-index: 1;
 }
 
 .timeline-slider-container--active .timeline-slider-thumb {
@@ -194,6 +195,7 @@
   pointer-events: none;
   transition: opacity 120ms ease;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+  z-index: 20;
 }
 
 .era-slider {

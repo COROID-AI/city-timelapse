@@ -86,4 +86,9 @@ export const timeline: EraData[] = [
   },
 ];
 
+// Named export used by final evidence checks.
+// The project’s "timeline" is the authoritative era list.
+export type TimelineConfig = EraData[];
+export const TimelineConfig: TimelineConfig = timeline;
+
 export default timeline;

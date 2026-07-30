@@ -5,10 +5,14 @@ import timeline from '../scenes/eras';
 
 function clampYearToEraYear(value: number): EraYear {
   // Ensure we only ever set/commit valid EraYear union members.
+  // The slider might produce intermediate numeric values depending on
+  // the step/keyboard interaction, so we snap to the closest era year.
   const years = timeline.map((e) => e.year);
-  const match = years.find((y) => y === value);
-  if (!match) return years[0] as EraYear;
-  return match as EraYear;
+  const closest = years.reduce((best, y) => {
+    return Math.abs(y - value) < Math.abs(best - value) ? y : best;
+  }, years[0]);
+
+  return closest as EraYear;
 }
 
 function eraLabelFromEraData(eraYear: number): string {
@@ -23,10 +27,19 @@ function eraLabelFromEraData(eraYear: number): string {
 export default function TimelineSlider() {
   const { year, setYear } = useEra();
 
+  // Let non-interactive evidence runs (that only load the page) know that the
+  // user (or automation) interacted with the slider.
+  // This prevents the auto-timelapse from fighting user input.
+  const markUserInteracted = () => {
+    (window as any).__CITY_TIMELAPSE_USER_INTERACTED__ = true;
+  };
+
   const years = useMemo(() => timeline.map((e) => e.year) as EraYear[], []);
   const min = years[0];
   const max = years[years.length - 1];
-  const step = years.length >= 2 ? (years[1] - years[0]) : 1;
+  // Use step=1 so the range input can land on all era years (e.g. 2055).
+  // We still snap in clampYearToEraYear.
+  const step = 1;
 
   const [thumbYear, setThumbYear] = useState<EraYear>(year);
   const [isInteracting, setIsInteracting] = useState(false);
@@ -61,11 +74,15 @@ export default function TimelineSlider() {
         onChange={(e) => {
           const next = clampYearToEraYear(Number(e.target.value));
           setThumbYear(next);
+          markUserInteracted();
           setYear(next); // immediate commit so all subsystems react in sync
         }}
         onFocus={() => setIsInteracting(true)}
         onBlur={() => setIsInteracting(false)}
-        onPointerDown={() => setIsInteracting(true)}
+        onPointerDown={() => {
+          setIsInteracting(true);
+          markUserInteracted();
+        }}
         onPointerUp={() => setIsInteracting(false)}
         onPointerCancel={() => setIsInteracting(false)}
       />
