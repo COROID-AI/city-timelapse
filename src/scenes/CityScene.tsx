@@ -3,7 +3,11 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { useEra } from '../contexts/EraContext';
 import { useAudioContext } from '../contexts/AudioContext';
+<<<<<<< HEAD
 import { VehicleSystem } from './vehicles';
+=======
+import { StorefrontSystem } from './storefronts';
+>>>>>>> origin/feature/coroid-7e464c-implement-era-driven-storefronts
 import type { EraYear } from '../types';
 
 function getEraConfig(year: EraYear) {
@@ -35,8 +39,14 @@ function SceneContent() {
       <directionalLight position={[10, 20, 10]} intensity={0.6} castShadow />
       <pointLight position={[0, 10, 0]} intensity={0.3} />
       {/* Scene graph root — child subsystems render beneath this */}
+<<<<<<< HEAD
       <group />
       <VehicleSystem />
+=======
+      <group>
+        <StorefrontSystem />
+      </group>
+>>>>>>> origin/feature/coroid-7e464c-implement-era-driven-storefronts
     </>
   );
 }
