@@ -1,6 +1,7 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
+import CityPostProcessing from './components/PostProcessing';
 import { Era, eraConfigs, eraYears } from './data/eraData';
 import CityScene from './components/CityScene';
 import TimelineSlider from './components/TimelineSlider';
@@ -11,7 +12,13 @@ import './App.css';
 function App() {
   const [era, setEra] = useState<Era>(1945);
   const [targetEra, setTargetEra] = useState<Era | null>(null);
+  const [loading, setLoading] = useState(true);
   const config = eraConfigs[era];
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 800);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleEraChange = useCallback((year: Era) => {
     if (year !== era) {
@@ -28,6 +35,13 @@ function App() {
 
   return (
     <div className="app-container">
+      {loading && (
+        <div className="loading-screen" id="loading-screen">
+          <div className="loading-title">City Era</div>
+          <div className="loading-bar"><div className="loading-bar-inner" /></div>
+        </div>
+      )}
+
       <Canvas
         shadows
         camera={{ position: [60, 40, 60], fov: 50, near: 0.1, far: 500 }}
@@ -72,6 +86,7 @@ function App() {
         <OrbitControls
           enableDamping
           dampingFactor={0.05}
+          minPolarAngle={0.1}
           minDistance={15}
           maxDistance={200}
           maxPolarAngle={Math.PI / 2.05}
@@ -79,11 +94,13 @@ function App() {
         />
 
         <Environment preset="city" />
+        <CityPostProcessing />
       </Canvas>
 
       <TimelineSlider currentEra={era} onEraChange={handleEraChange} years={eraYears} />
       <AudioManager era={era} />
       <div className="era-label">{config.label}</div>
+      <div className="control-hint">Drag to orbit · Scroll to zoom · Use timeline to travel between eras</div>
     </div>
   );
 }
