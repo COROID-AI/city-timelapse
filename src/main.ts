@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { generateCity } from './city';
+import { createDaytimeLighting, updateSkyDome } from './lighting';
 import {
   createHud,
   handleModeToggleKey,
@@ -14,16 +15,14 @@ if (!app) {
   throw new Error('Missing #app mount element in index.html');
 }
 
-// Scene and lighting.
+// Scene.
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb);
 
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.55);
-scene.add(ambientLight);
-
-const sunLight = new THREE.DirectionalLight(0xffffff, 1.4);
-sunLight.position.set(80, 140, 50);
-scene.add(sunLight);
+// Daytime atmosphere: gradient sky dome with a visible sun, a directional sun
+// light that casts building shadows onto the streets, and ambient/hemisphere
+// fill bright enough to read street-level detail in shade.
+const lighting = createDaytimeLighting(scene);
+const { sky } = lighting;
 
 const camera = new THREE.PerspectiveCamera(
   75,
@@ -37,11 +36,24 @@ camera.lookAt(0, 1.6, 0);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 app.appendChild(renderer.domElement);
 
 // Procedural city generation (deterministic seeded RNG).
 const city = generateCity({ seed: 20260804 });
 scene.add(city.group);
+
+// Shadow participation: buildings cast shadows; ground, roads and sidewalks
+// receive them. Applied at the scene level so city-generation stays untouched.
+city.group.traverse((object) => {
+  if (object instanceof THREE.Mesh) {
+    if (object.name !== 'skyDome') {
+      object.castShadow = true;
+      object.receiveShadow = true;
+    }
+  }
+});
 
 // ---- Controls ----------------------------------------------------------
 // First-person walk controls with collision against the building bounding
@@ -109,6 +121,7 @@ function animate(): void {
   timer.update();
   const delta = Math.min(timer.getDelta(), 0.05);
   modeSwitch.update(delta);
+  updateSkyDome(sky, camera);
   renderer.render(scene, camera);
 }
 animate();
