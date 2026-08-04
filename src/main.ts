@@ -2,13 +2,8 @@ import * as THREE from 'three';
 import { generateCity } from './city';
 import { createDaytimeLighting, updateSkyDome } from './lighting';
 import { createStreetProps, TrafficSystem } from './detail';
-import {
-  createHud,
-  handleModeToggleKey,
-  ModeSwitch,
-  updateHudMode,
-  WalkControls,
-} from './controls';
+import { handleModeToggleKey, ModeSwitch, WalkControls } from './controls';
+import { createOverlay, updateOverlayMode } from './overlay';
 
 // Mount target for the renderer canvas.
 const app = document.querySelector<HTMLDivElement>('#app');
@@ -87,15 +82,17 @@ const modeSwitch = new ModeSwitch(camera, renderer.domElement, walk, {
   orbitTarget: new THREE.Vector3(0, 0, 0),
 });
 
-const hud = createHud();
-app.appendChild(hud);
+// In-experience HUD: centered crosshair, controls hint and a minimap that
+// shares city-generation's street grid coordinate system.
+const overlay = createOverlay(city.grid);
+app.appendChild(overlay.root);
 
-// Keep the on-screen prompt in sync with the active control mode.
+// Keep the controls hint in sync with the active control mode.
 modeSwitch.setCallbacks({
-  onModeChange: (mode) => updateHudMode(hud, mode),
+  onModeChange: (mode) => updateOverlayMode(overlay.root, mode),
 });
 walk.setCallbacks({
-  onUnlock: () => updateHudMode(hud, 'walk'),
+  onUnlock: () => updateOverlayMode(overlay.root, 'walk'),
 });
 
 // Clicking the canvas requests pointer lock; browsers that block it fire the
@@ -134,6 +131,7 @@ function animate(): void {
   const delta = Math.min(timer.getDelta(), 0.05);
   traffic.update(delta);
   modeSwitch.update(delta);
+  overlay.minimap.update(camera);
   updateSkyDome(sky, camera);
   renderer.render(scene, camera);
 }

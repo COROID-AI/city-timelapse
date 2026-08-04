@@ -1,2 +1,9 @@
 export { generateCity } from './generateCity';
-export type { CityOptions, CityResult, CollisionBox, CityGridLayout } from './types';
+export type {
+  CityOptions,
+  CityResult,
+  CollisionBox,
+  CityGrid,
+  CityGridLayout,
+  StreetSegment,
+} from './types';

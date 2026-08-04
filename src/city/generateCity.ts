@@ -1,6 +1,12 @@
 import * as THREE from 'three';
 import { createRng, pick, randRange } from './rng';
-import type { CityGridLayout, CityOptions, CityResult, CollisionBox } from './types';
+import type {
+  CityGrid,
+  CityGridLayout,
+  CityOptions,
+  CityResult,
+  CollisionBox,
+} from './types';
 
 const FACADE_COLORS: readonly number[] = [
   0x8d6e63, 0xa1887f, 0xbc9b7a, 0xbcaaa4, 0xcdc9c3, 0xc8a97e, 0x9e9d8b,
@@ -58,7 +64,12 @@ export function generateCity(options: CityOptions = {}): CityResult {
   // Length of each road strip / sidewalk strip (covers the outer sidewalks).
   const stripLength = 2 * (halfCity + streetWidth + sidewalkWidth);
 
-  const grid: CityGridLayout = {
+  const group = new THREE.Group();
+  const collisionBoxes: THREE.Box3[] = [];
+  const collisionData: CollisionBox[] = [];
+  // Layout constants (detail placement: props, markings, traffic) plus the
+  // top-down road/sidewalk segments (HUD minimap) share one grid object.
+  const grid: CityGrid & CityGridLayout = {
     blocksPerSide,
     blockStride,
     halfCity,
@@ -66,11 +77,9 @@ export function generateCity(options: CityOptions = {}): CityResult {
     sidewalkWidth,
     roadLines,
     stripLength,
+    segments: [],
+    halfExtent: halfCity,
   };
-
-  const group = new THREE.Group();
-  const collisionBoxes: THREE.Box3[] = [];
-  const collisionData: CollisionBox[] = [];
 
   // ---- Ground ---------------------------------------------------------
   const ground = new THREE.Mesh(
@@ -114,6 +123,13 @@ export function generateCity(options: CityOptions = {}): CityResult {
       placement.updateMatrix();
       roadMeshes.setMatrixAt(roadIndex, placement.matrix);
       roadIndex++;
+      grid.segments.push({
+        kind: 'road',
+        x: axis === 0 ? 0 : line,
+        z: axis === 0 ? line : 0,
+        width: axis === 0 ? stripLength : streetWidth,
+        depth: axis === 0 ? streetWidth : stripLength,
+      });
 
       // Sidewalks: two strips bordering this road, offset to each side.
       for (const side of [-1, 1]) {
@@ -124,11 +140,18 @@ export function generateCity(options: CityOptions = {}): CityResult {
           1,
           axis === 0 ? sidewalkWidth : stripLength,
         );
-        placement.position.x = axis === 0 ? side * sidewalkOffset : line;
-        placement.position.z = axis === 0 ? line : side * sidewalkOffset;
+        placement.position.x = axis === 0 ? 0 : line + side * sidewalkOffset;
+        placement.position.z = axis === 0 ? line + side * sidewalkOffset : 0;
         placement.updateMatrix();
         sidewalkMeshes.setMatrixAt(sidewalkIndex, placement.matrix);
         sidewalkIndex++;
+        grid.segments.push({
+          kind: 'sidewalk',
+          x: axis === 0 ? 0 : line + side * sidewalkOffset,
+          z: axis === 0 ? line + side * sidewalkOffset : 0,
+          width: axis === 0 ? stripLength : sidewalkWidth,
+          depth: axis === 0 ? sidewalkWidth : stripLength,
+        });
       }
     }
   }
@@ -321,4 +344,10 @@ function createInstancedMesh(
   return mesh;
 }
 
-export type { CityOptions, CityResult, CollisionBox, CityGridLayout } from './types';
+export type {
+  CityOptions,
+  CityResult,
+  CollisionBox,
+  CityGrid,
+  CityGridLayout,
+} from './types';
