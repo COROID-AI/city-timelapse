@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { generateCity } from './city';
 import { createDaytimeLighting, updateSkyDome } from './lighting';
+import { createStreetProps, TrafficSystem } from './detail';
 import {
   createHud,
   handleModeToggleKey,
@@ -54,6 +55,17 @@ city.group.traverse((object) => {
     }
   }
 });
+
+// ---- Environmental detail -------------------------------------------------
+// Street props are instanced per type along every sidewalk; traffic is two
+// InstancedMeshes (vehicles + pedestrians) animated in the render loop. Both
+// reuse the city seed and street grid so everything stays aligned, and both
+// are decorative only — the walk-controls collision data is untouched.
+const props = createStreetProps({ seed: city.seed, grid: city.grid });
+scene.add(props.group);
+
+const traffic = new TrafficSystem({ seed: city.seed, grid: city.grid });
+scene.add(traffic.group);
 
 // ---- Controls ----------------------------------------------------------
 // First-person walk controls with collision against the building bounding
@@ -120,6 +132,7 @@ function animate(): void {
   requestAnimationFrame(animate);
   timer.update();
   const delta = Math.min(timer.getDelta(), 0.05);
+  traffic.update(delta);
   modeSwitch.update(delta);
   updateSkyDome(sky, camera);
   renderer.render(scene, camera);

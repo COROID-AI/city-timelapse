@@ -77,6 +77,7 @@ describe('generateCity', () => {
     const buildingMesh = group.children.find(
       (child): child is THREE.InstancedMesh =>
         child instanceof THREE.InstancedMesh
+        && child.instanceColor !== null
         && child.position.equals(new THREE.Vector3(0, 0, 0)),
     );
     if (buildingMesh) {
