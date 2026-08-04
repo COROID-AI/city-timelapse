@@ -20,3 +20,17 @@ npm run build # type-check and build for production (emits dist/)
 npm run preview # preview the production build
 npm test      # run the Vitest test suite
 ```
+
+## Controls
+
+First-person exploration with Pointer Lock:
+
+- Click the canvas to lock the pointer and look around with the mouse
+- `W` / `A` / `S` / `D` (or arrow keys) walk through the streets; movement is
+  collision-aware against the building bounding boxes and stays on the ground
+- `Shift` sprints, `Space` jumps
+- `R` toggles between walk mode and the OrbitControls fallback view (drag to
+  rotate, scroll to zoom), so the city stays viewable even when the browser
+  blocks Pointer Lock
+
+An on-screen prompt in the top-left shows the active controls at all times.
