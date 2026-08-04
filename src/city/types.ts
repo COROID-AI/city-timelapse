@@ -27,6 +27,35 @@ export interface CityOptions {
   buildingFootprint?: readonly [number, number];
 }
 
+/**
+ * A single street rectangle in world coordinates (top-down XZ). Mirrors the
+ * road/sidewalk boxes placed by the generator, so the minimap shares the
+ * exact same coordinate system as the rendered city.
+ */
+export interface StreetSegment {
+  kind: 'road' | 'sidewalk';
+  /** Center X of the segment (world units). */
+  x: number;
+  /** Center Z of the segment (world units). */
+  z: number;
+  /** Full width along X (world units). */
+  width: number;
+  /** Full depth along Z (world units). */
+  depth: number;
+}
+
+/** Top-down street grid layout used by the in-experience minimap. */
+export interface CityGrid {
+  /** Every road/sidewalk rectangle placed by city-generation. */
+  segments: StreetSegment[];
+  /**
+   * Half side of the block grid square the streets run through. The minimap
+   * uses this as its viewport so buildings and the walkable area stay in
+   * frame while streets beyond the block grid are clipped at the edges.
+   */
+  halfExtent: number;
+}
+
 export interface CityResult {
   /** The THREE.Group containing ground, streets, sidewalks and buildings. */
   group: Group;
@@ -36,4 +65,6 @@ export interface CityResult {
   collisionData: CollisionBox[];
   /** The seed used for generation (normalized to uint32). */
   seed: number;
+  /** Top-down street grid (roads + sidewalks) for overlay maps. */
+  grid: CityGrid;
 }

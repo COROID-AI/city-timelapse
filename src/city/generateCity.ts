@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createRng, pick, randRange } from './rng';
-import type { CityOptions, CityResult, CollisionBox } from './types';
+import type { CityGrid, CityOptions, CityResult, CollisionBox } from './types';
 
 const FACADE_COLORS: readonly number[] = [
   0x8d6e63, 0xa1887f, 0xbc9b7a, 0xbcaaa4, 0xcdc9c3, 0xc8a97e, 0x9e9d8b,
@@ -37,6 +37,7 @@ export function generateCity(options: CityOptions = {}): CityResult {
   const group = new THREE.Group();
   const collisionBoxes: THREE.Box3[] = [];
   const collisionData: CollisionBox[] = [];
+  const grid: CityGrid = { segments: [], halfExtent: halfCity };
 
   // ---- Ground ---------------------------------------------------------
   const ground = new THREE.Mesh(
@@ -87,6 +88,13 @@ export function generateCity(options: CityOptions = {}): CityResult {
       placement.updateMatrix();
       roadMeshes.setMatrixAt(roadIndex, placement.matrix);
       roadIndex++;
+      grid.segments.push({
+        kind: 'road',
+        x: axis === 0 ? center : 0,
+        z: axis === 0 ? 0 : center,
+        width: axis === 0 ? roadLength : streetWidth,
+        depth: axis === 0 ? streetWidth : roadLength,
+      });
 
       // Sidewalks: two strips bordering this road, offset to each side.
       for (const side of [-1, 1]) {
@@ -102,6 +110,13 @@ export function generateCity(options: CityOptions = {}): CityResult {
         placement.updateMatrix();
         sidewalkMeshes.setMatrixAt(sidewalkIndex, placement.matrix);
         sidewalkIndex++;
+        grid.segments.push({
+          kind: 'sidewalk',
+          x: axis === 0 ? center : side * (streetWidth / 2 + sidewalkWidth / 2),
+          z: axis === 0 ? side * (streetWidth / 2 + sidewalkWidth / 2) : center,
+          width: axis === 0 ? roadLength : sidewalkWidth,
+          depth: axis === 0 ? sidewalkWidth : roadLength,
+        });
       }
     }
   }
@@ -186,7 +201,7 @@ export function generateCity(options: CityOptions = {}): CityResult {
     }
   }
 
-  return { group, collisionBoxes, collisionData, seed };
+  return { group, collisionBoxes, collisionData, seed, grid };
 }
 
-export type { CityOptions, CityResult, CollisionBox } from './types';
+export type { CityOptions, CityResult, CollisionBox, CityGrid } from './types';
