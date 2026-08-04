@@ -10,3 +10,13 @@ The point of the scene is to be able to select any of the 5 different years, and
 Time period should affect all aspects of the city block. The buildings, the vehicles, the storefronts, advertisements, outfits of the pedestrians, everything.
 
 This must be a polished high end scene with SFX, ability to navigate around and look at things, etc. Go all out.
+
+## Running
+
+```sh
+npm install   # install dependencies
+npm run dev   # start the Vite dev server
+npm run build # type-check and build for production (emits dist/)
+npm run preview # preview the production build
+npm test      # run the Vitest test suite
+```
