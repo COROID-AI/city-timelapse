@@ -5,6 +5,7 @@ import { createCityScene } from './scene/createScene';
 import { CameraControls } from './core/cameraControls';
 import { ERA_YEARS } from './eras';
 import { createEraTransitionEngine } from './transition/eraTransition';
+import { TimelineSlider } from './ui/timelineSlider';
 
 const container = document.getElementById('app');
 if (!container) {
@@ -40,10 +41,27 @@ const updateStatus = (year: number | null): void => {
 // Reflect the automatically-loaded initial era (1945) in the status overlay.
 updateStatus(transition.getEra());
 
-// Wire keyboard era hotkeys (1-5) to the transition engine.
+// Top-of-screen timeline slider. On user selection it dispatches the
+// era-selection event (transition.selectEra) that the engine listens to.
+const sliderMount = document.getElementById('timeline-slider');
+let slider: TimelineSlider | null = null;
+if (sliderMount) {
+  slider = new TimelineSlider({
+    container: sliderMount,
+    initialYear: transition.getEra() ?? 1945,
+    onSelect: (year) => {
+      transition.selectEra(year);
+      updateStatus(year);
+    },
+  });
+}
+
+// Wire keyboard era hotkeys (1-5) to the transition engine and keep the
+// slider position in sync with the selected era.
 controls.onEraSelect((year) => {
   transition.selectEra(year);
   updateStatus(year);
+  slider?.setYear(year);
 });
 
 // Animate loop
@@ -73,6 +91,7 @@ if (hintsEl) {
 window.addEventListener('beforeunload', () => {
   controls.dispose();
   transition.dispose();
+  slider?.dispose();
   dispose();
   window.removeEventListener('resize', onResize);
 });
