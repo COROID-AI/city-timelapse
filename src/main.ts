@@ -3,7 +3,8 @@ import * as THREE from 'three';
 import WebGL from 'three/addons/capabilities/WebGL.js';
 import { createCityScene } from './scene/createScene';
 import { CameraControls } from './core/cameraControls';
-import { ERA_YEARS, setActiveEra } from './eras';
+import { ERA_YEARS } from './eras';
+import { createEraTransitionEngine } from './transition/eraTransition';
 
 const container = document.getElementById('app');
 if (!container) {
@@ -22,6 +23,13 @@ const controls = new CameraControls({
   camera,
 });
 
+// Era-transition engine: loads the initial era (1945) and animates era switches.
+const transition = createEraTransitionEngine({
+  scene,
+  camera,
+  initialEra: 1945,
+});
+
 // Status overlay
 const statusEl = document.getElementById('era-status');
 const updateStatus = (year: number | null): void => {
@@ -29,11 +37,12 @@ const updateStatus = (year: number | null): void => {
     statusEl.textContent = year === null ? 'No era loaded' : `Era: ${year}`;
   }
 };
-updateStatus(null);
+// Reflect the automatically-loaded initial era (1945) in the status overlay.
+updateStatus(transition.getEra());
 
-// Wire keyboard era hotkeys (1-5) to the timeline state.
+// Wire keyboard era hotkeys (1-5) to the transition engine.
 controls.onEraSelect((year) => {
-  setActiveEra(year);
+  transition.selectEra(year);
   updateStatus(year);
 });
 
@@ -42,6 +51,7 @@ const timer = new THREE.Timer();
 renderer.setAnimationLoop(() => {
   const delta = Math.min(timer.getDelta(), 0.05);
   controls.update(delta);
+  transition.update(delta);
   renderer.render(scene, camera);
 });
 
@@ -62,6 +72,7 @@ if (hintsEl) {
 // Best-effort teardown on page unload.
 window.addEventListener('beforeunload', () => {
   controls.dispose();
+  transition.dispose();
   dispose();
   window.removeEventListener('resize', onResize);
 });
