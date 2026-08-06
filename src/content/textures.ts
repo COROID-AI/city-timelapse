@@ -332,3 +332,178 @@ export function makeAwningTexture(
   }
   return finalize(canvas, opts.repeat);
 }
+
+/** Cobblestone paving with rounded, tone-varied stones. */
+export function makeCobblestoneTexture(
+  opts: { base?: number; mortar?: number; size?: number; repeat?: [number, number] } = {},
+): THREE.CanvasTexture {
+  const size = opts.size ?? 256;
+  const base = opts.base ?? 0x8a8178;
+  const mortar = opts.mortar ?? 0x6e655c;
+  const rng = new PRNG(0x1945d01);
+  const [canvas, ctx] = makeCanvas(size);
+
+  ctx.fillStyle = rgb(mortar);
+  ctx.fillRect(0, 0, size, size);
+
+  const cols = 5;
+  const rows = 5;
+  const cw = size / cols;
+  const ch = size / rows;
+  const [br, bg, bb] = hexToRgb(base);
+
+  for (let row = 0; row < rows; row++) {
+    const offset = row % 2 === 0 ? 0 : cw / 2;
+    for (let col = -1; col < cols; col++) {
+      const shade = 0.82 + rng.next() * 0.32;
+      ctx.fillStyle = `rgb(${Math.min(255, br * shade) | 0},${Math.min(255, bg * shade) | 0},${Math.min(255, bb * shade) | 0})`;
+      ctx.beginPath();
+      ctx.ellipse(
+        col * cw + offset + cw / 2,
+        row * ch + ch / 2,
+        cw * 0.42,
+        ch * 0.42,
+        0,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+    }
+  }
+  return finalize(canvas, opts.repeat);
+}
+
+/** Asphalt road surface with noise; `cracked` adds weathered crack lines. */
+export function makeAsphaltTexture(
+  opts: { base?: number; cracked?: boolean; size?: number; repeat?: [number, number] } = {},
+): THREE.CanvasTexture {
+  const size = opts.size ?? 256;
+  const base = opts.base ?? 0x3c4147;
+  const rng = new PRNG(opts.cracked ? 0x1985d01 : 0x1965d01);
+  const [canvas, ctx] = makeCanvas(size);
+
+  ctx.fillStyle = rgb(base);
+  ctx.fillRect(0, 0, size, size);
+
+  const [br, bg, bb] = hexToRgb(base);
+  for (let i = 0; i < 2600; i++) {
+    const shade = 0.78 + rng.next() * 0.44;
+    ctx.fillStyle = `rgba(${Math.min(255, br * shade) | 0},${Math.min(255, bg * shade) | 0},${Math.min(255, bb * shade) | 0},0.5)`;
+    ctx.fillRect(rng.next() * size, rng.next() * size, 1.5, 1.5);
+  }
+
+  if (opts.cracked) {
+    ctx.strokeStyle = 'rgba(12,14,16,0.75)';
+    ctx.lineWidth = 1.2;
+    for (let i = 0; i < 16; i++) {
+      let x = rng.next() * size;
+      let y = rng.next() * size;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      const segs = 4 + Math.floor(rng.next() * 4);
+      for (let s = 0; s < segs; s++) {
+        x += (rng.next() - 0.5) * 44;
+        y += (rng.next() - 0.5) * 44;
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  }
+  return finalize(canvas, opts.repeat);
+}
+
+/** Permeable (porous) pavement grid for the smart-city 2025 era. */
+export function makePermeablePavementTexture(
+  opts: { base?: number; size?: number; repeat?: [number, number] } = {},
+): THREE.CanvasTexture {
+  const size = opts.size ?? 256;
+  const base = opts.base ?? 0x9aa0a4;
+  const rng = new PRNG(0x2025d01);
+  const [canvas, ctx] = makeCanvas(size);
+
+  ctx.fillStyle = rgb(0x6f767b);
+  ctx.fillRect(0, 0, size, size);
+
+  const cols = 4;
+  const rows = 4;
+  const cw = size / cols;
+  const ch = size / rows;
+  const [br, bg, bb] = hexToRgb(base);
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const shade = 0.84 + rng.next() * 0.26;
+      ctx.fillStyle = `rgb(${Math.min(255, br * shade) | 0},${Math.min(255, bg * shade) | 0},${Math.min(255, bb * shade) | 0})`;
+      ctx.fillRect(c * cw + 1.5, r * ch + 1.5, cw - 3, ch - 3);
+      // porous voids
+      ctx.fillStyle = 'rgba(45,50,55,0.5)';
+      for (let d = 0; d < 9; d++) {
+        ctx.fillRect(
+          c * cw + 4 + rng.next() * (cw - 10),
+          r * ch + 4 + rng.next() * (ch - 10),
+          1.3,
+          1.3,
+        );
+      }
+    }
+  }
+  return finalize(canvas, opts.repeat);
+}
+
+/** Concrete sidewalk slabs with joints and subtle wear. */
+export function makeSidewalkTexture(
+  opts: { base?: number; size?: number; repeat?: [number, number] } = {},
+): THREE.CanvasTexture {
+  const size = opts.size ?? 256;
+  const base = opts.base ?? 0xb8b4ac;
+  const rng = new PRNG(0x1999d01);
+  const [canvas, ctx] = makeCanvas(size);
+
+  ctx.fillStyle = rgb(base);
+  ctx.fillRect(0, 0, size, size);
+
+  const [br, bg, bb] = hexToRgb(base);
+  for (let i = 0; i < 1400; i++) {
+    const shade = 0.9 + rng.next() * 0.22;
+    ctx.fillStyle = `rgba(${Math.min(255, br * shade) | 0},${Math.min(255, bg * shade) | 0},${Math.min(255, bb * shade) | 0},0.4)`;
+    ctx.fillRect(rng.next() * size, rng.next() * size, 1.5, 1.5);
+  }
+
+  ctx.strokeStyle = 'rgba(80,78,72,0.55)';
+  ctx.lineWidth = 2;
+  const cols = 4;
+  const rows = 4;
+  for (let c = 1; c < cols; c++) {
+    ctx.beginPath();
+    ctx.moveTo((c * size) / cols, 0);
+    ctx.lineTo((c * size) / cols, size);
+    ctx.stroke();
+  }
+  for (let r = 1; r < rows; r++) {
+    ctx.beginPath();
+    ctx.moveTo(0, (r * size) / rows);
+    ctx.lineTo(size, (r * size) / rows);
+    ctx.stroke();
+  }
+  return finalize(canvas, opts.repeat);
+}
+
+/** Vertical sky gradient from a zenith color to a horizon color. */
+export function makeSkyGradientTexture(
+  top: number,
+  bottom: number,
+  opts: { size?: number } = {},
+): THREE.CanvasTexture {
+  const size = opts.size ?? 256;
+  const [canvas, ctx] = makeCanvas(size);
+
+  const grad = ctx.createLinearGradient(0, 0, 0, size);
+  grad.addColorStop(0, rgb(top));
+  grad.addColorStop(1, rgb(bottom));
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
