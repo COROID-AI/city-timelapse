@@ -6,6 +6,7 @@ import { CameraControls } from './core/cameraControls';
 import { ERA_YEARS } from './eras';
 import { createEraTransitionEngine } from './transition/eraTransition';
 import { SfxEngine } from './audio/sfx';
+import { TimelineSlider } from './ui/timelineSlider';
 
 const container = document.getElementById('app');
 if (!container) {
@@ -44,12 +45,29 @@ const updateStatus = (year: number | null): void => {
 // Reflect the automatically-loaded initial era (1945) in the status overlay.
 updateStatus(transition.getEra());
 
-// Wire keyboard era hotkeys (1-5) to the transition engine + SFX.
+// Top-of-screen timeline slider. On user selection it dispatches the
+// era-selection event (transition.selectEra) that the engine listens to.
+const sliderMount = document.getElementById('timeline-slider');
+let slider: TimelineSlider | null = null;
+if (sliderMount) {
+  slider = new TimelineSlider({
+    container: sliderMount,
+    initialYear: transition.getEra() ?? 1945,
+    onSelect: (year) => {
+      transition.selectEra(year);
+      updateStatus(year);
+    },
+  });
+}
+
+// Wire keyboard era hotkeys (1-5) to the transition engine + SFX, and keep the
+// slider position in sync with the selected era.
 controls.onEraSelect((year) => {
   transition.selectEra(year);
   sfx.setEra(year);
   sfx.playTransition();
   updateStatus(year);
+  slider?.setYear(year);
 });
 
 // Animate loop
@@ -112,6 +130,7 @@ window.addEventListener('beforeunload', () => {
   controls.dispose();
   transition.dispose();
   sfx.dispose();
+  slider?.dispose();
   dispose();
   window.removeEventListener('resize', onResize);
 });
