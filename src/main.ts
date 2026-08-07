@@ -63,13 +63,13 @@ function createTimeline(cityApp: CityApp): HTMLElement {
       <span class="eyebrow">Timeline / select a year</span>
       <span class="timeline__state" aria-live="polite">Scene ready</span>
     </div>
-    <input class="timeline__range" type="range" min="0" max="${ERA_REGISTRY.length - 1}" step="1" value="0" aria-label="Era timeline" />
+    <input class="timeline__range" type="range" min="0" max="${ERA_REGISTRY.length - 1}" step="1" value="0" aria-label="Era timeline" data-testid="era-range" />
     <div class="timeline__line" aria-hidden="true"></div>
     <ol>
       ${ERA_REGISTRY.map(
         (era) => `
           <li>
-            <button type="button" class="timeline__era" data-era="${era.id}" aria-label="View ${era.year}: ${era.label}">
+            <button type="button" class="timeline__era" data-era="${era.id}" data-testid="era-${era.id}" aria-label="View ${era.year}: ${era.label}">
               <span class="timeline__dot" aria-hidden="true"></span>
               <span class="timeline__year">${era.year}</span>
               <span class="timeline__name">${era.label}</span>
@@ -132,10 +132,10 @@ function createControlDock(cityApp: CityApp, audio: SfxMixer): HTMLElement {
   dock.setAttribute('aria-label', 'Scene controls');
   dock.innerHTML = `
     <div class="control-dock__buttons">
-      <button type="button" class="control-button" data-control="audio" aria-pressed="false">Sound off</button>
-      <button type="button" class="control-button" data-control="pause" aria-pressed="false">Pause scene</button>
-      <button type="button" class="control-button" data-control="reset">Reset view</button>
-      <button type="button" class="control-button" data-control="help" aria-expanded="false" aria-controls="scene-help">Controls</button>
+      <button type="button" class="control-button" data-control="audio" data-testid="control-audio" aria-pressed="false">Sound off</button>
+      <button type="button" class="control-button" data-control="pause" data-testid="control-pause" aria-pressed="false">Pause scene</button>
+      <button type="button" class="control-button" data-control="reset" data-testid="control-reset">Reset view</button>
+      <button type="button" class="control-button" data-control="help" data-testid="control-help" aria-expanded="false" aria-controls="scene-help">Controls</button>
     </div>
     <aside id="scene-help" class="scene-help" hidden>
       <strong>Explore the block</strong>

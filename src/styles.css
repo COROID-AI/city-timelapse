@@ -64,7 +64,7 @@ button { font: inherit; }
 .timeline__year { font: 400 1rem Georgia, serif; }
 .timeline__name { overflow: hidden; max-width: 9rem; color: #8c9aaa; font-size: 0.62rem; letter-spacing: 0.05em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
 .timeline__era.is-active .timeline__name { color: var(--accent); }
-.timeline__hint { margin: 0.75rem 0 0; color: #718294; font-size: 0.58rem; letter-spacing: 0.13em; text-align: center; text-transform: uppercase; }
+.timeline__hint { margin: 0.75rem 0 0; color: #718294; font-size: 0.72rem; letter-spacing: 0.02em; text-align: center; }
 
 @media (max-width: 680px) {
   .hud { top: 1rem; left: 1rem; right: 1rem; }
@@ -79,23 +79,23 @@ button { font: inherit; }
 /* Scene controls sit above the canvas while preserving a clear top timeline. */
 .timeline { top: 1.2rem; right: 1.7rem; bottom: auto; left: 1.7rem; padding-top: 0.78rem; }
 .timeline__heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.38rem; }
-.timeline__state { color: var(--accent); font-size: 0.58rem; letter-spacing: 0.11em; text-transform: uppercase; }
+.timeline__state { color: var(--accent); font-size: 0.72rem; letter-spacing: 0.08em; }
 .timeline__range { position: absolute; inset: 2.3rem 2.15rem auto; width: calc(100% - 4.3rem); height: 1.5rem; opacity: 0.04; cursor: ew-resize; z-index: 2; accent-color: var(--accent); }
 .timeline__range:hover, .timeline__range:focus-visible { opacity: 0.22; outline: 2px solid var(--accent); outline-offset: 3px; }
 .timeline__hint { margin-top: 0.55rem; }
 .control-dock { position: absolute; z-index: 4; right: 1.7rem; bottom: 1.5rem; width: min(25rem, calc(100% - 3.4rem)); }
 .control-dock__buttons { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.45rem; }
-.control-button { border: 1px solid rgba(219, 232, 244, 0.2); border-radius: 999px; padding: 0.48rem 0.72rem; color: #d9e4ec; background: rgba(9, 16, 28, 0.78); cursor: pointer; font-size: 0.64rem; letter-spacing: 0.05em; transition: border-color 180ms ease, color 180ms ease, background 180ms ease; }
+.control-button { border: 1px solid rgba(219, 232, 244, 0.2); border-radius: 999px; padding: 0.48rem 0.72rem; color: #d9e4ec; background: rgba(9, 16, 28, 0.78); cursor: pointer; font-size: 0.72rem; letter-spacing: 0.04em; transition: border-color 180ms ease, color 180ms ease, background 180ms ease; }
 .control-button:hover, .control-button:focus-visible { border-color: var(--accent); color: #fff; background: rgba(27, 42, 56, 0.9); }
 .control-button:focus-visible, .timeline__era:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.scene-help { margin-top: 0.55rem; border: 1px solid rgba(219, 232, 244, 0.18); padding: 0.72rem 0.82rem; color: #cad6df; background: rgba(9, 16, 28, 0.9); font-size: 0.68rem; line-height: 1.5; }
-.scene-help strong { color: var(--accent); font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; }
+.scene-help { margin-top: 0.55rem; border: 1px solid rgba(219, 232, 244, 0.18); padding: 0.72rem 0.82rem; color: #cad6df; background: rgba(9, 16, 28, 0.9); font-size: 0.78rem; line-height: 1.5; }
+.scene-help strong { color: var(--accent); font-size: 0.74rem; letter-spacing: 0.1em; text-transform: uppercase; }
 .scene-help p { margin: 0.32rem 0 0; }
 @media (max-width: 680px) {
   .timeline { top: 0.75rem; right: 0.7rem; left: 0.7rem; padding-right: 0.35rem; padding-left: 0.35rem; }
   .timeline__line { right: 1.45rem; left: 1.45rem; }
   .timeline__range { right: 1.4rem; left: 1.4rem; width: calc(100% - 2.8rem); }
-  .timeline__hint { display: block; font-size: 0.48rem; }
+  .timeline__hint { display: block; font-size: 0.7rem; }
   .control-dock { right: 0.7rem; bottom: 0.7rem; width: calc(100% - 1.4rem); }
   .control-dock__buttons { justify-content: center; }
 }

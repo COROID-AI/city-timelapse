@@ -147,6 +147,7 @@ export class CityApp {
         antialias: this.qualityTier === 'high',
         powerPreference: this.qualityTier === 'low' ? 'low-power' : 'high-performance',
       });
+      this.renderer.domElement.dataset.testid = 'scene-canvas';
       const pixelRatio = this.qualityTier === 'high' ? 2 : this.qualityTier === 'balanced' ? 1.5 : 1;
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, pixelRatio));
       this.renderer.outputColorSpace = THREE.SRGBColorSpace;
