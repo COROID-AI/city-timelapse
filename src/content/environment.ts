@@ -120,13 +120,25 @@ function buildLighting(lighting: EraConfig['lighting'], sky: EraConfig['sky']): 
   const group = new THREE.Group();
   group.name = 'environment-lights';
 
+  // Ambient fill (kept for consistent base illumination with the era config).
   const ambient = new THREE.AmbientLight(0xffffff, lighting.ambientIntensity);
   group.add(ambient);
+
+  // Hemisphere fill: a soft sky/ground gradient that lifts shadows and gives
+  // the scene a more natural, high-end ambient bounce without washing it out.
+  const hemi = new THREE.HemisphereLight(
+    lighting.sunColor,
+    0x3a3f4a,
+    lighting.ambientIntensity * 0.55,
+  );
+  group.add(hemi);
 
   const sun = new THREE.DirectionalLight(lighting.sunColor, lighting.sunIntensity);
   sun.position.set(sky.sunDirection[0], sky.sunDirection[1], sky.sunDirection[2]);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
+  // High-res shadow map + PCFShadowMap (set on the renderer) for soft,
+  // high-quality shadows. Bias/normalBias avoid shadow acne on facades.
+  sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.camera.near = 1;
   sun.shadow.camera.far = 600;
   const d = 70;
@@ -134,6 +146,8 @@ function buildLighting(lighting: EraConfig['lighting'], sky: EraConfig['sky']): 
   sun.shadow.camera.right = d;
   sun.shadow.camera.top = d;
   sun.shadow.camera.bottom = -d;
+  sun.shadow.bias = -0.0005;
+  sun.shadow.normalBias = 0.02;
   sun.shadow.radius = Math.round(lighting.shadowSoftness * 8);
   group.add(sun);
 

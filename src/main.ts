@@ -3,10 +3,11 @@ import * as THREE from 'three';
 import WebGL from 'three/addons/capabilities/WebGL.js';
 import { createCityScene } from './scene/createScene';
 import { CameraControls } from './core/cameraControls';
-import { ERA_YEARS } from './eras';
+import { ERA_YEARS, type EraYear } from './eras';
 import { createEraTransitionEngine } from './transition/eraTransition';
 import { SfxEngine } from './audio/sfx';
 import { TimelineSlider } from './ui/timelineSlider';
+import { LoadingScreen } from './ui/loadingScreen';
 
 const container = document.getElementById('app');
 if (!container) {
@@ -18,7 +19,11 @@ if (!WebGL.isWebGL2Available()) {
   throw new Error('WebGL2 is not available');
 }
 
-const { renderer, scene, camera, resize, dispose } = createCityScene(container);
+const { renderer, scene, camera, resize, render, dispose } = createCityScene(container);
+
+// Full-screen loading overlay shown while the initial era assets build. It is
+// hidden on the first rendered frame (see the animation loop below).
+const loading = new LoadingScreen();
 
 const controls = new CameraControls({
   domElement: renderer.domElement,
@@ -47,36 +52,44 @@ updateStatus(transition.getEra());
 
 // Top-of-screen timeline slider. On user selection it dispatches the
 // era-selection event (transition.selectEra) that the engine listens to.
+// Shared era-selection handler: drives the transition engine, keeps the SFX
+// engine in sync (ambient bed + transition whoosh), updates the status overlay,
+// and keeps the slider position in sync. Used by both the timeline slider and
+// the keyboard hotkeys so every selection path plays SFX.
+const selectEra = (year: EraYear): void => {
+  transition.selectEra(year);
+  sfx.setEra(year);
+  sfx.playTransition();
+  updateStatus(year);
+  slider?.setYear(year);
+};
+
 const sliderMount = document.getElementById('timeline-slider');
 let slider: TimelineSlider | null = null;
 if (sliderMount) {
   slider = new TimelineSlider({
     container: sliderMount,
     initialYear: transition.getEra() ?? 1945,
-    onSelect: (year) => {
-      transition.selectEra(year);
-      updateStatus(year);
-    },
+    onSelect: selectEra,
   });
 }
 
-// Wire keyboard era hotkeys (1-5) to the transition engine + SFX, and keep the
-// slider position in sync with the selected era.
-controls.onEraSelect((year) => {
-  transition.selectEra(year);
-  sfx.setEra(year);
-  sfx.playTransition();
-  updateStatus(year);
-  slider?.setYear(year);
-});
+// Wire keyboard era hotkeys (1-5) to the shared selection handler.
+controls.onEraSelect(selectEra);
 
 // Animate loop
 const timer = new THREE.Timer();
+let firstFrame = true;
 renderer.setAnimationLoop(() => {
   const delta = Math.min(timer.getDelta(), 0.05);
   controls.update(delta);
   transition.update(delta);
-  renderer.render(scene, camera);
+  render();
+  // The initial era is fully built by now, so hide the loading screen.
+  if (firstFrame) {
+    firstFrame = false;
+    loading.hide();
+  }
 });
 
 // Resize handling

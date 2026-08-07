@@ -944,6 +944,15 @@ export function buildEraBuildings(year: EraYear): THREE.Group {
     buildingGroup.rotation.y = lot.rotY;
     group.add(buildingGroup);
   }
+
+  // Enable shadow casting on all building meshes so the directional light's
+  // shadow map produces soft, believable shadows across the city block.
+  group.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (mesh.isMesh) {
+      mesh.castShadow = true;
+    }
+  });
   return group;
 }
 

@@ -1,23 +1,53 @@
 import * as THREE from 'three';
+import { PostProcessing, type PostProcessingOptions } from '../postprocessing/postProcessing';
 
 export interface SceneHandle {
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
+  /** Active post-processing pipeline (null when disabled). */
+  postProcessing: PostProcessing | null;
   resize: () => void;
+  /** Render the scene — through post-processing when enabled, else direct. */
+  render: () => void;
   dispose: () => void;
 }
 
+export interface CreateCitySceneOptions {
+  /**
+   * Enable post-processing (tone mapping + subtle bloom). Default true.
+   * Set to false to keep the renderer path light for low-end devices.
+   */
+  postProcessing?: boolean;
+  /** Optional post-processing tuning (strength, radius, threshold, exposure). */
+  postProcessingOptions?: PostProcessingOptions;
+}
+
 /**
- * Create the minimal neutral city scene: renderer, camera, lights, a ground
- * plane, and a "no era loaded" marker. Era-specific content is added later by
- * other tasks; this foundation only provides a runnable, inspectable stage.
+ * Create the city scene foundation: renderer, camera, lights, and (when
+ * enabled) the post-processing pipeline. Era-specific content is added later
+ * by the era-transition engine; this foundation only provides a runnable,
+ * inspectable stage.
+ *
+ * The neutral placeholder ground / "no era loaded" disc are intentionally NOT
+ * added here: the era environment always supplies its own ground planes, and
+ * a coplanar placeholder would z-fight with them (an integration seam).
  */
-export function createCityScene(container: HTMLElement): SceneHandle {
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
+export function createCityScene(
+  container: HTMLElement,
+  options: CreateCitySceneOptions = {},
+): SceneHandle {
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    powerPreference: 'high-performance',
+  });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(container.clientWidth, container.clientHeight, false);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  // ACES filmic tone mapping for a cinematic, high-end look (applied by the
+  // post-processing OutputPass when enabled, and by the renderer otherwise).
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = options.postProcessingOptions?.exposure ?? 1.0;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   container.appendChild(renderer.domElement);
@@ -34,7 +64,8 @@ export function createCityScene(container: HTMLElement): SceneHandle {
   camera.position.set(30, 22, 40);
   camera.lookAt(0, 0, 0);
 
-  // Lighting
+  // Neutral foundation lighting. The era environment adds its own per-era
+  // sun + ambient/hemisphere fill on top of this.
   const ambient = new THREE.AmbientLight(0xffffff, 0.6);
   scene.add(ambient);
 
@@ -48,37 +79,36 @@ export function createCityScene(container: HTMLElement): SceneHandle {
   sun.shadow.camera.bottom = -60;
   sun.shadow.camera.near = 1;
   sun.shadow.camera.far = 200;
+  sun.shadow.bias = -0.0005;
+  sun.shadow.normalBias = 0.02;
   scene.add(sun);
   scene.add(sun.target);
 
-  // Neutral ground plane
-  const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(200, 200),
-    new THREE.MeshStandardMaterial({ color: 0x6f7d57, roughness: 0.95 }),
-  );
-  ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
-  scene.add(ground);
-
-  // "No era loaded" marker at the origin
-  const disc = new THREE.Mesh(
-    new THREE.CircleGeometry(4, 32),
-    new THREE.MeshStandardMaterial({ color: 0x9aa5b1, roughness: 0.9 }),
-  );
-  disc.rotation.x = -Math.PI / 2;
-  disc.position.y = 0.01;
-  scene.add(disc);
+  // Optional post-processing pipeline.
+  const postProcessing =
+    options.postProcessing === false
+      ? null
+      : new PostProcessing(renderer, scene, camera, options.postProcessingOptions);
 
   const handle: SceneHandle = {
     renderer,
     scene,
     camera,
+    postProcessing,
     resize() {
       const width = container.clientWidth;
       const height = container.clientHeight;
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       renderer.setSize(width, height, false);
+      postProcessing?.setSize(width, height);
+    },
+    render() {
+      if (postProcessing) {
+        postProcessing.render();
+      } else {
+        renderer.render(scene, camera);
+      }
     },
     dispose() {
       renderer.setAnimationLoop(null);
@@ -97,6 +127,7 @@ export function createCityScene(container: HTMLElement): SceneHandle {
           material.dispose();
         }
       });
+      postProcessing?.dispose();
       renderer.dispose();
       if (renderer.domElement.parentElement === container) {
         container.removeChild(renderer.domElement);
