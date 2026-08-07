@@ -74,7 +74,8 @@ export class TimelineSlider {
            aria-valuemin="${ERA_YEARS[0]}"
            aria-valuemax="${ERA_YEARS[ERA_YEARS.length - 1]}"
            aria-valuenow="${ERA_YEARS[this.currentIndex]}"
-           aria-valuetext="${ERA_YEARS[this.currentIndex]}">
+           aria-valuetext="${ERA_YEARS[this.currentIndex]}"
+           data-testid="timeline-slider">
         <div class="timeline-rail"></div>
         <div class="timeline-fill"></div>
         <div class="timeline-handle"></div>
@@ -83,6 +84,7 @@ export class TimelineSlider {
           <button type="button"
                   class="timeline-marker"
                   data-index="${i}"
+                  data-testid="era-${year}"
                   style="left: ${(i / (ERA_YEARS.length - 1)) * 100}%"
                   aria-label="Year ${year}">
             <span class="marker-dot"></span>

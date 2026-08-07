@@ -56,6 +56,12 @@ export class PostProcessing {
       options.bloomRadius ?? 0.65,
       options.bloomThreshold ?? 0.85,
     );
+    // Render the bloom at half resolution. Bloom is a soft glow, so the
+    // internal blur target needs far fewer pixels than the final output; this
+    // is a standard optimization that keeps the look while dramatically
+    // cutting the cost of the multi-pass blur (especially on software
+    // renderers where each full-res blur pass is very expensive).
+    this.bloomPass.resolution.set(width / 2, height / 2);
     this.composer.addPass(this.bloomPass);
 
     // Applies renderer tone mapping + sRGB output conversion.

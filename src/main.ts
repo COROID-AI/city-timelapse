@@ -37,6 +37,12 @@ const transition = createEraTransitionEngine({
   initialEra: 1945,
 });
 
+// The initial era is built synchronously by the engine above, so the app is
+// fully interactive the moment construction returns. Hide the loading overlay
+// right away (rather than waiting for the first rendered frame) so it never
+// blocks the timeline controls while the first frame renders.
+loading.hide();
+
 // Procedural SFX / ambient audio engine (era-appropriate beds + transition whoosh).
 const sfx = new SfxEngine();
 
