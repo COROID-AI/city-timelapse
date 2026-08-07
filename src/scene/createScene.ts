@@ -72,7 +72,7 @@ export function createCityScene(
   const sun = new THREE.DirectionalLight(0xfff2d9, 1.6);
   sun.position.set(40, 60, 25);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.camera.left = -60;
   sun.shadow.camera.right = 60;
   sun.shadow.camera.top = 60;

@@ -19,7 +19,7 @@ const ERA_ACCENTS: Record<EraYear, string> = {
   1965: '#e08a5a', // retro amber
   1985: '#6fb3e8', // neon sky
   2005: '#7fd0a0', // digital mint
-  2025: '#c792ea', // futuristic violet
+  2025: '#3f8fd2', // smart-city blue
 };
 
 const clamp = (v: number, min: number, max: number): number =>
@@ -83,6 +83,7 @@ export class TimelineSlider {
           <button type="button"
                   class="timeline-marker"
                   data-index="${i}"
+                  style="left: ${(i / (ERA_YEARS.length - 1)) * 100}%"
                   aria-label="Year ${year}">
             <span class="marker-dot"></span>
             <span class="marker-label">${year}</span>
