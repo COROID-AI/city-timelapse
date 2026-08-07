@@ -45,7 +45,7 @@ export class CityApp {
   private pointerY = 0;
   private yaw = 0.63;
   private pitch = 0.38;
-  private radius = 14.5;
+  private radius = 20;
   private target = new THREE.Vector3(0, 1.8, 0);
   private lastFrame = 0;
 
@@ -92,7 +92,7 @@ export class CityApp {
   resetView(): void {
     this.yaw = 0.63;
     this.pitch = 0.38;
-    this.radius = 14.5;
+    this.radius = 20;
     this.target.set(0, 1.8, 0);
     this.updateCamera();
   }
