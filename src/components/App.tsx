@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react'
+import React, { ReactElement } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { useResize } from '@react-three/drei'
 import { GridHelper } from 'three'
 import { AmbientLight, DirectionalLight } from 'three'
+import { CafeShell } from './CafeShell'
 
 export const App: React.FC = () => {
   // Resize hook from drei - handles canvas responsiveness
@@ -59,6 +60,9 @@ export const App: React.FC = () => {
         color="0xffffff"
         position={[10, 10, 10]}
       />
+
+      {/* Café interior shell - permanent architectural container */}
+      <CafeShell />
     </Canvas>
   )
 }
