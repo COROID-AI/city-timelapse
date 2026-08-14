@@ -5,9 +5,15 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "jsx": "react-jsx",
+    "moduleResolution": "bundler",
+    "paths": {
+      "@/*": ["src/*"],
+      "@react-three/fiber": ["node_modules/@react-three/fiber"],
+      "@react-three/drei": ["node_modules/@react-three/drei"],
+      "@react-three": ["node_modules/@react-three"]
+    }
   },
-  "include": [
-    "src"
-  ]
+  "include": ["src"]
 }
