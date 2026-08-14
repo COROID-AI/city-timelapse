@@ -4,7 +4,8 @@ import { OrbitControls } from '@react-three/drei'
 import { useResize } from '@react-three/drei'
 import { GridHelper } from 'three'
 import { AmbientLight, DirectionalLight } from 'three'
-import { CafeShell } from './CafeShell'
+import { useEraStore } from '../store/eraStore'
+import { TablewareLighting } from './TablewareLighting'
 
 export const App: React.FC = () => {
   // Resize hook from drei - handles canvas responsiveness
@@ -22,6 +23,9 @@ export const App: React.FC = () => {
       document.body.style.padding = ''
     }
   }, [])
+
+  // Get era data from store for ambient light color
+  const eraData = useEraStore(state => state.getEraData())
 
   return (
     <Canvas
@@ -51,8 +55,11 @@ export const App: React.FC = () => {
         opacity={0.5}
       />
 
-      {/* Ambient light for basic scene illumination */}
-      <AmbientLight intensity={0.6} color="0xffffff" />
+      {/* Ambient light for basic scene illumination - color shifts with era */}
+      <AmbientLight
+        intensity={0.6}
+        color={eraData.ambientLightColor}
+      />
 
       {/* Directional light to simulate sunlight/overhead lighting */}
       <DirectionalLight
@@ -63,6 +70,9 @@ export const App: React.FC = () => {
 
       {/* Café interior shell - permanent architectural container */}
       <CafeShell />
+
+      {/* Era-specific tableware and lighting fixtures */}
+      <TablewareLighting />
     </Canvas>
   )
 }

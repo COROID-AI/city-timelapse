@@ -13,7 +13,8 @@
       "@react-three/fiber": ["node_modules/@react-three/fiber"],
       "@react-three/drei": ["node_modules/@react-three/drei"],
       "@react-three": ["node_modules/@react-three"]
-    }
+    },
+    "types": ["vite/client"]
   },
   "include": ["src"]
 }
