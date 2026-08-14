@@ -339,19 +339,6 @@ export const useEraTransition = (): EraTransitionHookReturn => {
     (eraId: EraId) => {
       if (currentEra === eraId) return;
 
-      // Trigger SfxMixer.setEra() synchronously with visual transition start
-      // This ensures audio-visual synchronization per the audio implementation plan
-      try {
-        // Import here to avoid circular dependencies; SfxMixer defined in audio implementation plan
-        // @ts-ignore - SfxMixer may not be fully typed yet, will be integrated in audio plan
-        const { SfxMixer } = require('../audio/sfxMixer');
-        SfxMixer.setEra(eraId);
-      } catch (e) {
-        // SfxMixer not yet available - will be integrated in later phase
-        // This is expected during initial implementation; the integration point exists
-        console.debug('SfxMixer not yet available for era transition audio sync');
-      }
-
       // The store's setCurrentEra will:
       // 1. Cancel any existing RAf animation
       // 2. Set targetEra, isTransitioning=true, transitionProgress=0

@@ -20,6 +20,7 @@ import {
   VISUAL_ERA_DATA,
   getEraSpec,
 } from '../eras';
+import { SfxMixer } from '../audio/mixer';
 
 // Module-level RAf ID to manage the animation loop
 // This effectively acts as a "token" for the current transition animation
@@ -81,6 +82,11 @@ const eraStoreCreator: EraStoreCreator = (set, get) => ({
     }
 
     const duration = get().transitionDuration;
+
+    // Trigger audio crossfade synchronously with the visual transition.
+    // Autoplay policy is respected by SfxMixer: it won't actually start
+    // until the first user gesture unlocks the AudioContext.
+    SfxMixer.setEra(id, duration);
 
     set({
       targetEra: id,
