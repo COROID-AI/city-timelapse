@@ -130,6 +130,7 @@ const interpolateAmbientLightColor = (
   targetColor: string,
   progress: number
 ): string => {
+  const easedProgress = easeInOutCubic(progress);
   if (
     currentColor.startsWith('#') &&
     targetColor.startsWith('#') &&
@@ -138,7 +139,7 @@ const interpolateAmbientLightColor = (
   ) {
     const from = parseInt(currentColor.slice(1), 16);
     const to = parseInt(targetColor.slice(1), 16);
-    const interpolated = Math.round(from + (to - from) * progress);
+    const interpolated = Math.round(from + (to - from) * easedProgress);
     return `#${interpolated
       .toString(16)
       .padStart(6, '0')}`;
@@ -165,15 +166,20 @@ const interpolateLightingColorTemp_between = (
 const lightingTypeToColorTemp = (lightingType: string): number => {
   switch (lightingType) {
     case 'warm_glow':
-      return 3000;
+      // Incandescent / Edison warmth
+      return 2700;
     case 'neon_tube':
-      return 5000;
+      // Neutral-warm daylight (slightly warm than full daylight)
+      return 4200;
     case 'neon_sign':
-      return 4500;
+      // Fluorescent/cool-white tube feel
+      return 6500;
     case 'cfl_spiral':
-      return 6000;
+      // Warm industrial under-cabinet feel
+      return 3000;
     case 'adaptive_led':
-      return 5500;
+      // Smart LED default neutral white
+      return 4000;
     default:
       return 6500;
   }
