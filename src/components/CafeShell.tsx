@@ -1,6 +1,7 @@
 import React, { ReactElement } from 'react'
 import { Mesh } from 'three'
 import { BoxGeometry, PlaneGeometry, MeshStandardMaterial, MeshBasicMaterial } from 'three'
+import { CounterTechnology } from './CounterTechnology'
 
 export const CafeShell: React.FC = (): ReactElement => {
   return (
@@ -83,6 +84,9 @@ export const CafeShell: React.FC = (): ReactElement => {
         <position x={0} y={0.55} z={5.35} />
         <MeshStandardMaterial color="#A0522D" />
       </Mesh>
+
+      {/* Era-specific counter payment & POS technology */}
+      <CounterTechnology />
     </>
   )
 }
