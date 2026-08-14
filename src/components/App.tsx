@@ -1,13 +1,13 @@
-import React, { ReactElement } from 'react'
+import React, { ReactElement, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
-import { useResize } from '@react-three/drei'
+import { OrbitControls, useResize } from '@react-three/drei'
 import { GridHelper } from 'three'
-import { AmbientLight, DirectionalLight } from 'three'
-import { useEraStore } from '../store/eraStore'
-import { TablewareLighting } from './TablewareLighting'
 
-export const App: React.FC = () => {
+import { CafeShell } from './CafeShell'
+import { TablewareLighting } from './TablewareLighting'
+import { AtmosphereSystem } from '../systems/AtmosphereSystem'
+
+export const App: React.FC = (): ReactElement => {
   // Resize hook from drei - handles canvas responsiveness
   const { size } = useResize()
 
@@ -24,9 +24,6 @@ export const App: React.FC = () => {
     }
   }, [])
 
-  // Get era data from store for ambient light color
-  const eraData = useEraStore(state => state.getEraData())
-
   return (
     <Canvas
       style={{
@@ -42,31 +39,16 @@ export const App: React.FC = () => {
         minDistance={1.5}
         maxDistance={15}
         minPolarAngle={Math.PI / 6} // Prevents camera from clipping through floor
-        maxPolarAngle={5 * Math.PI / 6} // Prevents camera from going below the floor/ground
+        maxPolarAngle={(5 * Math.PI) / 6} // Prevents camera from going below the floor/ground
         enablePan={false}
         screenSpacePanning={false}
       />
 
       {/* Grid helper for spatial grounding */}
-      <GridHelper
-        size={10}
-        color="0x444444"
-        divideCount={10}
-        opacity={0.5}
-      />
+      <GridHelper size={10} color="0x444444" divideCount={10} opacity={0.5} />
 
-      {/* Ambient light for basic scene illumination - color shifts with era */}
-      <AmbientLight
-        intensity={0.6}
-        color={eraData.ambientLightColor}
-      />
-
-      {/* Directional light to simulate sunlight/overhead lighting */}
-      <DirectionalLight
-        intensity={0.8}
-        color="0xffffff"
-        position={[10, 10, 10]}
-      />
+      {/* Era-specific fog + lighting temperature + ambient color */}
+      <AtmosphereSystem />
 
       {/* Café interior shell - permanent architectural container */}
       <CafeShell />
