@@ -1,9 +1,9 @@
 /// <reference types="node" />
-/**
- * Shared Era Types & Visual Era Data Registry
+/** 
+ * Shared Era Types & Visual Era Data Registry 
  * 
  * This module provides the single source of truth for all era-specific visual data
- * that drives scene transformations in the Café Time Period Timelapse project.
+ * that drives scene transformations in the Café Time Period Timelapse project. 
  * 
  * Constraints:
  * - EraId union type must exactly match: '1945' | '1965' | '1985' | '2005' | '2025'
@@ -12,7 +12,7 @@
  * - Must preserve existing audio-era type definitions from the manual implementation plan
  */
 
-// (1) EraId union type: exactly 5 values matching the era years
+/* (1) EraId union type: exactly 5 values matching the era years */
 export type EraId = '1945' | '1965' | '1985' | '2005' | '2025';
 
 // (2) EraSpec interface with id, year, label, description fields
@@ -23,7 +23,7 @@ export interface EraSpec {
   description: string;
 }
 
-// (3) ERA_REGISTRY ordered array of EraSpec objects with period-appropriate metadata
+/* (3) ERA_REGISTRY ordered array of EraSpec objects with period-appropriate metadata */
 export const ERA_REGISTRY: EraSpec[] = [
   {
     id: '1945',
@@ -57,10 +57,10 @@ export const ERA_REGISTRY: EraSpec[] = [
   },
 ];
 
-// (4) ERA_IDS readonly list of all EraId values
+/* (4) ERA_IDS readonly list of all EraId values */
 export const ERA_IDS: ReadonlyArray<EraId> = ['1945', '1965', '1985', '2005', '2025'];
 
-// (5) getEraSpec(id) lookup helper function
+/* (5) getEraSpec(id) lookup helper function */
 export function getEraSpec(id: EraId): EraSpec {
   const spec = ERA_REGISTRY.find((era) => era.id === id);
   if (!spec) {
@@ -69,8 +69,8 @@ export function getEraSpec(id: EraId): EraSpec {
   return spec;
 }
 
-// (6) VisualEraData interface defining per-era scene parameters
-// All fields must be populated with historically accurate period details for all 5 eras
+/* (6) VisualEraData interface defining per-era scene parameters
+ * All fields must be populated with historically accurate period details for all 5 eras */
 export interface VisualEraData {
   wallColor: string;
   floorMaterial: string;
@@ -114,9 +114,8 @@ export interface EquipmentType {
   posSystem: string;
 }
 
-// Historical era-specific visual data for all 5 eras
-// Each era has complete, historically researched data for every VisualEraData field
-
+/* (7) Historical era-specific visual data for all 5 eras
+ * Each era has complete, historically researched data for every VisualEraData field */
 export const VISUAL_ERA_DATA: Record<EraId, VisualEraData> = {
   '1945': {
     wallColor: '#8B4513',
@@ -126,10 +125,10 @@ export const VISUAL_ERA_DATA: Record<EraId, VisualEraData> = {
     furnitureStyle: 'vintage_wood',
     counterDesign: 'marble_top',
     menuItems: [
-      { name: 'Black Coffee', price: 0.15 },
-      { name: 'Egg Cream', price: 0.25 },
-      { name: 'Ham Sandwich', price: 0.35 },
-      { name: 'Apple Pie', price: 0.40 },
+      { name: 'Coffee', price: 0.05 },
+      { name: 'Tea', price: 0.03 },
+      { name: 'Pie Slice', price: 0.10 },
+      { name: 'Basic Sandwich', price: 0.15 },
     ],
     posterAds: [
       { text: 'Join the Army', imageUrl: '/posters/army-1945', position: 'left' },
@@ -162,15 +161,16 @@ export const VISUAL_ERA_DATA: Record<EraId, VisualEraData> = {
     furnitureStyle: 'mid_century',
     counterDesign: 'formica_counter',
     menuItems: [
-      { name: 'Café Latte', price: 0.50 },
+      { name: 'Drip Coffee', price: 0.15 },
       { name: 'Club Sandwich', price: 0.65 },
-      { name: 'Milkshake', price: 0.45 },
-      { name: 'Pumpkin Pie', price: 0.55 },
+      { name: 'Espresso', price: 0.25 },
+      { name: 'Cheesecake', price: 0.35 },
+      { name: 'Milkshake', price: 0.40 },
     ],
     posterAds: [
       { text: 'Pepsi Cola', imageUrl: '/posters/pepsi-1965', position: 'left' },
       { text: 'The Beatles', imageUrl: '/posters/beatles-1965', position: 'center' },
-      { text: 'Floyd\'s Record Store', imageUrl: '/posters/music-1965', position: 'right' },
+      { text: "Floyd's Record Store", imageUrl: '/posters/music-1965', position: 'right' },
     ],
     patronStyles: [
       { outfit: 'mod_dress', hairstyle: 'beehive' },
@@ -198,10 +198,10 @@ export const VISUAL_ERA_DATA: Record<EraId, VisualEraData> = {
     furnitureStyle: 'modular',
     counterDesign: 'chrome_counter',
     menuItems: [
-      { name: 'Cappuccino', price: 1.25 },
-      { name: 'Croissant', price: 0.85 },
-      { name: 'Iced Coffee', price: 1.00 },
-      { name: 'Cheesecake', price: 1.50 },
+      { name: 'Brewed Coffee', price: 1.25 },
+      { name: 'Latte', price: 2.00 },
+      { name: 'Croissant', price: 1.50 },
+      { name: 'Bagel Sandwich', price: 2.50 },
     ],
     posterAds: [
       { text: 'Arcade Games', imageUrl: '/posters/arcade-1985', position: 'left' },
@@ -234,10 +234,11 @@ export const VISUAL_ERA_DATA: Record<EraId, VisualEraData> = {
     furnitureStyle: 'modern',
     counterDesign: 'waterfall_edge',
     menuItems: [
-      { name: 'Café Americano', price: 2.00 },
-      { name: 'Blueberry Muffin', price: 2.25 },
-      { name: 'Hot Chocolate', price: 1.75 },
-      { name: 'Chai Latte', price: 2.50 },
+      { name: 'House Blend', price: 2.50 },
+      { name: 'Cappuccino', price: 3.25 },
+      { name: 'Muffin', price: 2.75 },
+      { name: 'Breakfast Wrap', price: 4.50 },
+      { name: 'Frappuccino', price: 4.95 },
     ],
     posterAds: [
       { text: 'WiFi Available', imageUrl: '/posters/wifi-2005', position: 'left' },
@@ -270,10 +271,11 @@ export const VISUAL_ERA_DATA: Record<EraId, VisualEraData> = {
     furnitureStyle: 'ergonomic',
     counterDesign: 'integrated_sink',
     menuItems: [
-      { name: 'Cold Brew', price: 3.50 },
-      { name: 'Avocado Toast', price: 4.75 },
-      { name: 'Oat Milk Latte', price: 4.25 },
-      { name: 'Matcha Latte', price: 4.50 },
+      { name: 'Pour-Over', price: 5.00 },
+      { name: 'Oat Milk Latte', price: 6.50 },
+      { name: 'Avocado Toast', price: 9.00 },
+      { name: 'Cold Brew', price: 5.50 },
+      { name: 'Matcha Latte', price: 6.00 },
     ],
     posterAds: [
       { text: 'AR Experience', imageUrl: '/posters/ar-2025', position: 'left' },
