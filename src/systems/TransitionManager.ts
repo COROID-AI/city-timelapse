@@ -289,7 +289,9 @@ export const useEraTransition = (): EraTransitionHookReturn => {
         targetEraData.wallColor,
         progress
       );
-      setWallColor(interpolatedColor);
+      // Cast to string since interpolate() returns number|string but
+      // we're passing string arguments, so the result will be a hex color string
+      setWallColor(interpolatedColor as string);
 
       // Fog density interpolation
       const interpolatedFog = interpolateFogDensity(
@@ -337,14 +339,25 @@ export const useEraTransition = (): EraTransitionHookReturn => {
     (eraId: EraId) => {
       if (currentEra === eraId) return;
 
+      // Trigger SfxMixer.setEra() synchronously with visual transition start
+      // This ensures audio-visual synchronization per the audio implementation plan
+      try {
+        // Import here to avoid circular dependencies; SfxMixer defined in audio implementation plan
+        // @ts-ignore - SfxMixer may not be fully typed yet, will be integrated in audio plan
+        const { SfxMixer } = require('../audio/sfxMixer');
+        SfxMixer.setEra(eraId);
+      } catch (e) {
+        // SfxMixer not yet available - will be integrated in later phase
+        // This is expected during initial implementation; the integration point exists
+        console.debug('SfxMixer not yet available for era transition audio sync');
+      }
+
       // The store's setCurrentEra will:
       // 1. Cancel any existing RAf animation
       // 2. Set targetEra, isTransitioning=true, transitionProgress=0
       // 3. Start a new 1.5s transition timer
       // This is already interruptible by design
       store.setCurrentEra(eraId);
-
-      // Trigger audio mixer setEra synchronously with visual transition start
     },
     [store, currentEra]
   );
