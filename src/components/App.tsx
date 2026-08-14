@@ -1,16 +1,14 @@
-import React, { ReactElement } from 'react'
+import React, { useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
-import { useResize } from '@react-three/drei'
 import { GridHelper } from 'three'
 import { AmbientLight, DirectionalLight } from 'three'
 import { useEraStore } from '../store/eraStore'
 import { TablewareLighting } from './TablewareLighting'
+import { Patrons } from './Patrons'
+import { CafeShell } from './CafeShell'
 
 export const App: React.FC = () => {
-  // Resize hook from drei - handles canvas responsiveness
-  const { size } = useResize()
-
   useEffect(() => {
     // Document body overflow hidden to prevent scrollbars
     document.body.style.overflow = 'hidden'
@@ -33,7 +31,6 @@ export const App: React.FC = () => {
         width: '100%',
         height: '100%',
       }}
-      resize={size}
     >
       {/* OrbitControls with constrained navigation */}
       <OrbitControls
@@ -73,6 +70,9 @@ export const App: React.FC = () => {
 
       {/* Era-specific tableware and lighting fixtures */}
       <TablewareLighting />
+
+      {/* Era-specific patron figures */}
+      <Patrons />
     </Canvas>
   )
 }
