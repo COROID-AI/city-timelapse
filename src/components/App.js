@@ -7,6 +7,7 @@ import { TablewareLighting } from './TablewareLighting';
 import { Patrons } from './Patrons';
 import { CafeShell } from './CafeShell';
 import { SfxMixer } from '../audio/mixer';
+import { AtmosphereSystem } from '../systems/AtmosphereSystem';
 import { useEraTransition } from '../systems/TransitionManager';
 import { useEraStore } from '../store/eraStore';
 import { TimelineSlider } from './TimelineSlider';
