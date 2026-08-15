@@ -60,5 +60,5 @@ export const App = () => {
     return (_jsx(_Fragment, { children: _jsxs(Canvas, { style: {
                 width: '100%',
                 height: '100%',
-            }, children: [_jsx(OrbitControls, { enableDamping: true, dampingFactor: 0.08, minDistance: 1.5, maxDistance: 15, minPolarAngle: Math.PI / 6, maxPolarAngle: (5 * Math.PI) / 6, enablePan: false, screenSpacePanning: false }), _jsx(GridHelper, { size: 10, color: "0x444444", divideCount: 10, opacity: 0.5 }), _jsx(AtmosphereSystem, {}), _jsx(CafeShell, {}), _jsx(TablewareLighting, {}), _jsx(Patrons, {}), _jsx(TimelineSlider, {}), _jsx(Stats, { position: "top-left", fps: true, ms: false, memory: true })] }) }));
+            }, children: [_jsx(OrbitControls, { enableDamping: true, dampingFactor: 0.08, minDistance: 1.5, maxDistance: 15, minPolarAngle: Math.PI / 6, maxPolarAngle: (5 * Math.PI) / 6, enablePan: false, screenSpacePanning: false }),  _jsx(AtmosphereSystem, {}), _jsx(CafeShell, {}), _jsx(TablewareLighting, {}), _jsx(Patrons, {}), _jsx(TimelineSlider, {}), _jsx(Stats, { position: "top-left", fps: true, ms: false, memory: true })] }) }));
 };

@@ -92,7 +92,7 @@ const [muted, setMuted] = useState<boolean>(isMuted)
         />
 
         {/* Grid helper for spatial grounding */}
-        <GridHelper size={10} color="0x444444" divideCount={10} opacity={0.5} />
+        
 
         {/* Era-specific fog + lighting temperature + ambient color */}
         <AtmosphereSystem />
