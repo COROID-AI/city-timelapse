@@ -2,19 +2,21 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { GridHelper } from 'three'
-import { TablewareLighting } from './TablewareLighting'
+import { AtmosphereSystem } from '../systems/AtmosphereSystem'
 import { Patrons } from './Patrons'
 import { CafeShell } from './CafeShell'
 import { SfxMixer } from '../audio/mixer'
 import { useEraTransition } from '../systems/TransitionManager'
 import { useEraStore } from '../store/eraStore'
+import { EraStoreState } from '../store/eraStore'
 import { TimelineSlider } from './TimelineSlider'
 import { Stats } from '@react-three/drei'
 
 export const App: React.FC = () => {
-  const [muted, setMuted] = useState<boolean>(SfxMixer.isMuted())
+  const isMuted = SfxMixer.isMuted()
+const [muted, setMuted] = useState<boolean>(isMuted)
 
-  const currentEra = useEraStore(s => s.currentEra)
+  const currentEra = useEraStore((s: EraStoreState) => s.currentEra)
   const currentEraRef = useRef(currentEra)
 
   useEffect(() => {
@@ -66,7 +68,7 @@ export const App: React.FC = () => {
 
   // Keep UI in sync with mute state
   useEffect(() => {
-    return SfxMixer.subscribeMute(setMuted)
+    SfxMixer.subscribeMute(setMuted)
   }, [])
 
   return (
