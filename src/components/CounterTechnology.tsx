@@ -56,24 +56,24 @@ const ApplePayMark = ({ color = 0xffffff }: { color?: number }) => (
     <mesh rotation={[0, 0, Math.PI / 2]}>
       <sphereGeometry args={[0.02, 16, 16]} />
       <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.25} />
-      <position x={-0.015} y={0.025} z={0} />
+      
     </mesh>
     <mesh rotation={[0, 0, Math.PI / 2]}>
       <sphereGeometry args={[0.018, 16, 16]} />
       <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.25} />
-      <position x={0.015} y={0.025} z={0} />
+      
     </mesh>
     {/* stem */}
     <mesh>
       <cylinderGeometry args={[0.004, 0.004, 0.05]} />
       <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.15} />
-      <position y={-0.005} x={0} />
+      
     </mesh>
     {/* small bite notch hint */}
     <mesh>
       <boxGeometry args={[0.016, 0.006, 0.006]} />
       <meshStandardMaterial color={0x000000} transparent opacity={0.35} />
-      <position x={0} y={0.02} z={0.002} />
+      
     </mesh>
   </group>
 )
@@ -89,7 +89,7 @@ const GooglePayMark = ({ color = 0x00c853 }: { color?: number }) => (
     <mesh>
       <boxGeometry args={[0.02, 0.012, 0.006]} />
       <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.25} />
-      <position x={0.02} y={0.005} z={0} />
+      
     </mesh>
   </group>
 )
@@ -132,11 +132,7 @@ const CounterTechnology = ({ era }: { era?: EraId }) => {
                 roughness={0.8}
                 metalness={0.3}
               />
-              <position
-                x={(-0.6 + i % 4) * 0.16}
-                y={0.32}
-                z={0.45}
-              />
+              
             </mesh>
           ))}
 
@@ -144,24 +140,24 @@ const CounterTechnology = ({ era }: { era?: EraId }) => {
           <mesh castShadow receiveShadow>
             <boxGeometry args={[0.3, 0.03, 0.2]} />
             <meshStandardMaterial color={0xffffff} roughness={0.3} />
-            <position x={0.15} y={0.1} z={0.41} />
+            
           </mesh>
 
           {/* Paper roll holder */}
           <mesh castShadow receiveShadow>
             <cylinderGeometry args={[0.1, 0.15, 0.4]} />
             <meshStandardMaterial color={0x8b5a2b} roughness={0.7} />
-            <position x={-0.25} y={0.2} z={0.42} />
+            
           </mesh>
 
           {/* Bell mechanism */}
           <mesh castShadow receiveShadow>
             <sphereGeometry args={[0.08]} />
             <meshStandardMaterial color={0xffffff} roughness={0.5} />
-            <position x={0.25} y={0.35} z={0.5} />
+            
             <cylinderGeometry args={[0.02, 0.02, 0.3]} />
             <meshStandardMaterial color={0xffffff} roughness={0.5} />
-            <position x={0.25} y={0.2} z={0.55} />
+            
           </mesh>
         </Group>
       )
@@ -195,11 +191,7 @@ const CounterTechnology = ({ era }: { era?: EraId }) => {
             <mesh key={i} castShadow receiveShadow>
               <boxGeometry args={[0.02, 0.02, 0.02]} />
               <meshStandardMaterial color={0x00ff00} emissive={0x00ff00} emissiveIntensity={0.3} />
-              <position
-                x={(-0.25 + (i % 10) * 0.055)}
-                y={0.05 - Math.floor(i / 10) * 0.05}
-                z={0.21}
-              />
+              
             </mesh>
           ))}
 
@@ -207,21 +199,21 @@ const CounterTechnology = ({ era }: { era?: EraId }) => {
           <mesh castShadow receiveShadow>
             <boxGeometry args={[0.45, 0.05, 0.15]} />
             <meshStandardMaterial color={0x34495e} roughness={0.4} metalness={0.3} />
-            <position x={0.1} y={0.08} z={0.45} />
+            
           </mesh>
 
           {/* Card swipe slot */}
           <mesh castShadow receiveShadow>
             <boxGeometry args={[0.35, 0.03, 0.1]} />
             <meshStandardMaterial color={0xffffff} roughness={0.3} />
-            <position x={0.15} y={0.12} z={0.5} />
+            
           </mesh>
 
           {/* Paper receipt printer */}
           <mesh castShadow receiveShadow>
             <boxGeometry args={[0.4, 0.1, 0.2]} />
             <meshStandardMaterial color={0x2c3e50} roughness={0.5} metalness={0.2} />
-            <position x={-0.25} y={0.05} z={0.45} />
+            
           </mesh>
 
           {/* Paper rolls */}
@@ -229,11 +221,7 @@ const CounterTechnology = ({ era }: { era?: EraId }) => {
             <mesh key={i} castShadow receiveShadow>
               <boxGeometry args={[0.03, 0.01, 0.15]} />
               <meshStandardMaterial color={0x000000} roughness={0.5} />
-              <position
-                x={-0.18 + (i % 5) * 0.1}
-                y={-0.02 - Math.floor(i / 5) * 0.03}
-                z={0.46}
-              />
+              
             </mesh>
           ))}
 
@@ -241,7 +229,7 @@ const CounterTechnology = ({ era }: { era?: EraId }) => {
           <mesh castShadow receiveShadow>
             <boxGeometry args={[0.25, 0.1, 0.15]} />
             <meshStandardMaterial color={0xecf0f1} roughness={0.4} />
-            <position x={0.25} y={0.1} z={0.45} />
+            
           </mesh>
 
           {/* Calculator buttons */}
@@ -249,11 +237,7 @@ const CounterTechnology = ({ era }: { era?: EraId }) => {
             <mesh key={i} castShadow receiveShadow>
               <boxGeometry args={[0.04, 0.04, 0.04]} />
               <meshStandardMaterial color={0x2c3e50} emissive={0x2c3e50} emissiveIntensity={0.2} />
-              <position
-                x={0.22 + (i % 4) * 0.08}
-                y={0.12 + Math.floor(i / 4) * 0.08}
-                z={0.48}
-              />
+              
             </mesh>
           ))}
         </Group>
@@ -293,35 +277,35 @@ const CounterTechnology = ({ era }: { era?: EraId }) => {
           <mesh castShadow receiveShadow>
             <boxGeometry args={[0.3, 0.08, 0.15]} />
             <meshStandardMaterial color={0x333333} roughness={0.5} metalness={0.3} />
-            <position x={0.1} y={0.4} z={0.35} />
+            
           </mesh>
 
           {/* Laser window */}
           <mesh castShadow receiveShadow>
             <boxGeometry args={[0.2, 0.03, 0.1]} />
             <meshStandardMaterial color={0x555555} roughness={0.3} />
-            <position x={0.15} y={0.43} z={0.38} />
+            
           </mesh>
 
           {/* Credit card swipe machine */}
           <mesh castShadow receiveShadow>
             <boxGeometry args={[0.35, 0.12, 0.2]} />
             <meshStandardMaterial color={0x2c3e50} roughness={0.5} metalness={0.3} />
-            <position x={-0.2} y={0.08} z={0.45} />
+            
           </mesh>
 
           {/* Card slot */}
           <mesh castShadow receiveShadow>
             <boxGeometry args={[0.25, 0.05, 0.1]} />
             <meshStandardMaterial color={0xffffff} roughness={0.3} />
-            <position x={-0.1} y={0.12} z={0.5} />
+            
           </mesh>
 
           {/* Thermal receipt printer */}
           <mesh castShadow receiveShadow>
             <boxGeometry args={[0.35, 0.15, 0.25]} />
             <meshStandardMaterial color={0x333333} roughness={0.5} metalness={0.2} />
-            <position x={0.2} y={0.1} z={0.5} />
+            
           </mesh>
 
           {/* Paper rolls */}
@@ -329,11 +313,7 @@ const CounterTechnology = ({ era }: { era?: EraId }) => {
             <mesh key={i} castShadow receiveShadow>
               <boxGeometry args={[0.03, 0.015, 0.2]} />
               <meshStandardMaterial color={0x000000} roughness={0.5} />
-              <position
-                x={0.12 + (i % 3) * 0.08}
-                y={0.02 - Math.floor(i / 3) * 0.03}
-                z={0.52}
-              />
+              
             </mesh>
           ))}
         </Group>
@@ -368,11 +348,7 @@ const CounterTechnology = ({ era }: { era?: EraId }) => {
             <mesh key={i} castShadow receiveShadow>
               <boxGeometry args={[0.08, 0.04, 0.02]} />
               <meshStandardMaterial color={0x00ff00} emissive={0x00ff00} emissiveIntensity={0.1} />
-              <position
-                x={-0.2 + i * 0.12}
-                y={0.3 + (i % 2) * 0.06}
-                z={0.12}
-              />
+              
             </mesh>
           ))}
 
@@ -380,7 +356,7 @@ const CounterTechnology = ({ era }: { era?: EraId }) => {
           <mesh castShadow receiveShadow>
             <boxGeometry args={[0.3, 0.1, 0.15]} />
             <meshStandardMaterial color={0x34495e} roughness={0.4} metalness={0.3} />
-            <position x={0.15} y={0.15} z={0.4} />
+            
           </mesh>
 
           {/* Contactless NFC pad */}
@@ -392,7 +368,7 @@ const CounterTechnology = ({ era }: { era?: EraId }) => {
               emissiveIntensity={0.2}
               roughness={0.3}
             />
-            <position x={-0.15} y={0.15} z={0.4} />
+            
           </mesh>
 
           {/* Early contactless symbol */}
@@ -400,10 +376,7 @@ const CounterTechnology = ({ era }: { era?: EraId }) => {
             <mesh key={i} castShadow receiveShadow>
               <circleGeometry args={[0.03]} />
               <meshStandardMaterial color={0xffffff} />
-              <position
-                x={-0.12 + (i % 3) * 0.08}
-                y={0.02 + Math.floor(i / 3) * 0.06}
-              />
+              
             </mesh>
           ))}
 
@@ -411,7 +384,7 @@ const CounterTechnology = ({ era }: { era?: EraId }) => {
           <mesh castShadow receiveShadow>
             <boxGeometry args={[0.35, 0.1, 0.05]} />
             <meshStandardMaterial color={0x1a1a2e} opacity={0.8} transparent={true} />
-            <position x={-0.25} y={0.35} z={0.11} />
+            
           </mesh>
         </Group>
       )
@@ -445,11 +418,7 @@ const CounterTechnology = ({ era }: { era?: EraId }) => {
             <mesh key={i} castShadow receiveShadow>
               <boxGeometry args={[0.06, 0.03, 0.01]} />
               <meshStandardMaterial color={0x00d4ff} emissive={0x00d4ff} emissiveIntensity={0.1} />
-              <position
-                x={-0.15 + (i % 3) * 0.12}
-                y={0.35 - Math.floor(i / 3) * 0.08}
-                z={0.06}
-              />
+              
             </mesh>
           ))}
 
@@ -492,7 +461,7 @@ const CounterTechnology = ({ era }: { era?: EraId }) => {
               emissiveIntensity={0.2}
               roughness={0.3}
             />
-            <position x={-0.25} y={0.3} z={0.2} />
+            
           </mesh>
 
           {/* QR pattern squares */}
@@ -500,11 +469,7 @@ const CounterTechnology = ({ era }: { era?: EraId }) => {
             <mesh key={i} castShadow receiveShadow>
               <boxGeometry args={[0.02, 0.02, 0.01]} />
               <meshStandardMaterial color={0x2c3e50} />
-              <position
-                x={-0.23 + (i % 6) * 0.05}
-                y={0.33 - Math.floor(i / 6) * 0.05}
-                z={0.21}
-              />
+              
             </mesh>
           ))}
 
@@ -517,7 +482,7 @@ const CounterTechnology = ({ era }: { era?: EraId }) => {
               emissiveIntensity={0.3}
               roughness={0.2}
             />
-            <position x={0.25} y={0.35} z={0.15} />
+            
           </mesh>
 
           {/* Tip amount buttons */}
@@ -525,11 +490,7 @@ const CounterTechnology = ({ era }: { era?: EraId }) => {
             <mesh key={i} castShadow receiveShadow>
               <boxGeometry args={[0.08, 0.04, 0.03]} />
               <meshStandardMaterial color={0x00ff88} emissive={0x00ff88} emissiveIntensity={0.1} />
-              <position
-                x={0.22 + i * 0.1}
-                y={0.42}
-                z={0.16}
-              />
+              
             </mesh>
           ))}
 
@@ -537,7 +498,7 @@ const CounterTechnology = ({ era }: { era?: EraId }) => {
           <mesh castShadow receiveShadow>
             <boxGeometry args={[0.15, 0.1, 0.03]} />
             <meshStandardMaterial color={0x3498db} opacity={0.6} transparent={true} />
-            <position x={0.25} y={0.2} z={0.18} />
+            
           </mesh>
         </Group>
       )
@@ -574,11 +535,7 @@ const CounterTechnology = ({ era }: { era?: EraId }) => {
                 roughness={0.8}
                 metalness={0.3}
               />
-              <position
-                x={(-0.6 + i % 4) * 0.16}
-                y={0.32}
-                z={0.45}
-              />
+              
             </mesh>
           ))}
 
@@ -586,24 +543,24 @@ const CounterTechnology = ({ era }: { era?: EraId }) => {
           <mesh castShadow receiveShadow>
             <boxGeometry args={[0.3, 0.03, 0.2]} />
             <meshStandardMaterial color={0xffffff} roughness={0.3} />
-            <position x={0.15} y={0.1} z={0.41} />
+            
           </mesh>
 
           {/* Paper roll holder */}
           <mesh castShadow receiveShadow>
             <cylinderGeometry args={[0.1, 0.15, 0.4]} />
             <meshStandardMaterial color={0x8b5a2b} roughness={0.7} />
-            <position x={-0.25} y={0.2} z={0.42} />
+            
           </mesh>
 
           {/* Bell mechanism */}
           <mesh castShadow receiveShadow>
             <sphereGeometry args={[0.08]} />
             <meshStandardMaterial color={0xffffff} roughness={0.5} />
-            <position x={0.25} y={0.35} z={0.5} />
+            
             <cylinderGeometry args={[0.02, 0.02, 0.3]} />
             <meshStandardMaterial color={0xffffff} roughness={0.5} />
-            <position x={0.25} y={0.2} z={0.55} />
+            
           </mesh>
         </Group>
       )

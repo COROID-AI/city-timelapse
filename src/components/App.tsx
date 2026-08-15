@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
-import { GridHelper } from 'three'
 import { TablewareLighting } from './TablewareLighting'
 import { Patrons } from './Patrons'
 import { CafeShell } from './CafeShell'
+import { AtmosphereSystem } from '../systems/AtmosphereSystem'
 import { SfxMixer } from '../audio/mixer'
 import { useEraTransition } from '../systems/TransitionManager'
 import { useEraStore } from '../store/eraStore'
@@ -90,8 +90,7 @@ export const App: React.FC = () => {
         />
 
         {/* Grid helper for spatial grounding */}
-        <GridHelper size={10} color="0x444444" divideCount={10} opacity={0.5} />
-
+        
         {/* Era-specific fog + lighting temperature + ambient color */}
         <AtmosphereSystem />
 
