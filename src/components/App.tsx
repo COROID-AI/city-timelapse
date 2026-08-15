@@ -1,79 +1,75 @@
-import React, { ReactElement, useEffect } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, useResize } from '@react-three/drei';
-import { GridHelper } from 'three';
-import { TimelineSlider } from './TimelineSlider';
-import { AtmosphereSystem } from '../systems/AtmosphereSystem';
-import { TablewareLighting } from './TablewareLighting';
-import { Patrons } from './Patrons';
-import { CafeShell } from './CafeShell';
+import React, { useEffect, useRef, useState } from 'react'
+import { Canvas } from '@react-three/fiber'
+import { OrbitControls } from '@react-three/drei'
+import { GridHelper } from 'three'
+import { TablewareLighting } from './TablewareLighting'
+import { Patrons } from './Patrons'
+import { CafeShell } from './CafeShell'
+import { SfxMixer } from '../audio/mixer'
+import { useEraTransition } from '../systems/TransitionManager'
+import { useEraStore } from '../store/eraStore'
+import { TimelineSlider } from './TimelineSlider'
 
-// Loading indicator component shown during initial scene build-out
-const LoadingIndicator: React.FC = () => {
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        background: 'rgba(20, 20, 20, 0.8)',
-        backdropFilter: 'blur(8px)',
-        '-webkit-backdrop-filter': 'blur(8px)',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: '16px',
-        zIndex: 999,
-        color: 'white',
-      }}
-    >
-      <div style={{ fontSize: '24px' }}>Loading scene...</div>
-      <div
-        style={{
-          border: '3px solid #ffd700',
-          borderTop: '3px solid transparent',
-          width: '40px',
-          height: '40px',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite',
-        }}
-      />
-      <p style={{ margin: '0' }} style={{ fontSize: '14px' }}>
-        Initializing time periods...
-      </p>
-    </div>
-  );
-};
+export const App: React.FC = () => {
+  const [muted, setMuted] = useState<boolean>(SfxMixer.isMuted())
 
-/* Keyframe for spin animation */
-const spin = `
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-`;
+  const currentEra = useEraStore(s => s.currentEra)
+  const currentEraRef = useRef(currentEra)
 
-export const App: React.FC = (): ReactElement => {
-  // Resize hook from drei - handles canvas responsiveness
-  useResize();
+  useEffect(() => {
+    currentEraRef.current = currentEra
+  }, [currentEra])
+
+  // Consume TransitionManager so visual transitions animate
+  // over the same ~1.5s window as audio crossfade.
+  const { ambientLightColor } = useEraTransition()
 
   useEffect(() => {
     // Document body overflow hidden to prevent scrollbars
-    document.body.style.overflow = 'hidden';
-    document.body.style.margin = '0';
-    document.body.style.padding = '0';
+    document.body.style.overflow = 'hidden'
+    document.body.style.margin = '0'
+    document.body.style.padding = '0'
 
     return () => {
-      document.body.style.overflow = '';
-      document.body.style.margin = '';
-      document.body.style.padding = '';
-    };
-  }, []);
+      document.body.style.overflow = ''
+      document.body.style.margin = ''
+      document.body.style.padding = ''
+    }
+  }, [])
+
+  // Unlock audio context on first user gesture (autoplay policy)
+  useEffect(() => {
+    let didUnlock = false
+
+    const onFirstGesture = async () => {
+      if (didUnlock) return
+      didUnlock = true
+
+      // Idempotent: safe to call multiple times.
+      const startedFromPending = await SfxMixer.unlock()
+
+      // If no era was queued before unlock, start current era now.
+      if (!startedFromPending) {
+        SfxMixer.setEra(currentEraRef.current, 1500)
+      }
+
+      document.removeEventListener('pointerdown', onFirstGesture, true)
+    }
+
+    document.addEventListener('pointerdown', onFirstGesture, { capture: true })
+
+    return () => {
+      document.removeEventListener('pointerdown', onFirstGesture, true)
+    }
+  }, [])
+
+  // Keep UI in sync with mute state
+  useEffect(() => {
+    return SfxMixer.subscribeMute(setMuted)
+  }, [])
 
   return (
     <>
-      <LoadingIndicator />
-
       <Canvas
         style={{
           width: '100%',
@@ -111,5 +107,5 @@ export const App: React.FC = (): ReactElement => {
         <TimelineSlider />
       </Canvas>
     </>
-  );
-};
+  )
+}

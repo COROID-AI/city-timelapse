@@ -1,7 +1,11 @@
 import React from 'react'
-import { Group } from '@react-three/fiber'
 import { useEraStore } from '../store/eraStore'
 import { EraId } from '../eras'
+
+// @react-three/fiber doesn't export a `Group` component in all versions.
+// We only need the JSX `group` node, so we provide a small compatibility
+// wrapper and keep the existing JSX markup intact.
+const Group: React.FC<any> = (props) => <group {...props} />
 
 /**
  * CounterTechnology - Renders era-appropriate payment and POS technology
