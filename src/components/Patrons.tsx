@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef, useEffect } from 'react'
 import { useEraStore } from '../store/eraStore'
 import type { EraId } from '../eras'
 import { useThree } from '@react-three/fiber'

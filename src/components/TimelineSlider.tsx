@@ -2,11 +2,8 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useEraStore } from '../store/eraStore'
 import { EraId, getEraSpec, ERA_IDS } from '../eras'
 
-/**
- * TimelineSlider - A top-of-screen overlay component displaying five era markers
- * connected by a horizontal timeline bar. Users can select eras by clicking markers,
- * using keyboard shortcuts (1-5), Tab/Enter keys, or via hover tooltips.
- *
+/** TimelineSlider - A top-of-screen overlay component displaying five era markers connected by a horizontal timeline bar. Users can select eras by clicking markers, using keyboard shortcuts (1-5), Tab/Enter keys, or via hover tooltips.
+
  * Features:
  * - Five era markers (1945, 1965, 1985, 2005, 2025) with year labels
  * - Active era visually distinguished with color change and underline glow
@@ -18,12 +15,13 @@ import { EraId, getEraSpec, ERA_IDS } from '../eras'
  * - Hover tooltips showing era description from EraSpec.label/description
  * - Responsive design: desktop (horizontal layout) stacks vertically on mobile
  * - ARIA tablist role and aria-selected attributes for accessibility
- * - Subtle frosted glass background gradient that doesn't obscure 3D scene
+ * - Subtle frosted glass background that doesn't obscure 3D scene
  * - pointer-events: none to not interfere with 3D canvas interaction
  * - Focus-visible keyboard outlines for full keyboard navigation
  * - Intro overlay that auto-dismisses on first interaction
  * - No keyboard traps — user can always return focus to 3D canvas
  */
+
 export const TimelineSlider: React.FC = () => {
   const { currentEra, setCurrentEra } = useEraStore()
   const [isHovering, setIsHovering] = useState(false)
@@ -128,8 +126,6 @@ export const TimelineSlider: React.FC = () => {
             width: '100%',
             height: '100%',
             background: 'rgba(20, 20, 20, 0.8)',
-            backdropFilter: 'blur(8px)',
-            '-webkit-backdrop-filter': 'blur(8px)',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
@@ -173,8 +169,6 @@ export const TimelineSlider: React.FC = () => {
           width: '100%',
           padding: '8px 16px',
           background: 'rgba(20, 20, 20, 0.6)',
-          backdropFilter: 'blur(8px)',
-          '-webkit-backdrop-filter': 'blur(8px)',
           borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
           zIndex: 100,
           pointerEvents: 'none', // Don't interfere with 3D canvas interaction
@@ -208,7 +202,7 @@ export const TimelineSlider: React.FC = () => {
                 type="button"
                 role="tab"
                 aria-selected={isActiveEra}
-                aria-label={eraSpec.label}
+                aria-label={`Time period ${eraId}`}
                 tabIndex={0} // All buttons focusable for Tab cycling
                 style={{
                   // Base button styles
@@ -224,8 +218,8 @@ export const TimelineSlider: React.FC = () => {
                   transition: 'all 0.3s ease',
                   // Positioning within flex container
                   flex: '0 0 auto',
-                  // Subtle gradient background that doesn't obscure 3D scene
-                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))',
+                  // Subtle background that doesn't obscure 3D scene
+                  background: 'rgba(255, 255, 255, 0.1)',
                   color: isActiveEra ? '#ffd700' : 'rgba(255, 255, 255, 0.7)',
                   boxShadow: isActiveEra
                     ? '0 0 10px rgba(255, 215, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2)'
@@ -238,25 +232,11 @@ export const TimelineSlider: React.FC = () => {
                     // Active era glow effect
                     animation: `eraGlow 1.5s ease-in-out ${transitionDelay} infinite`,
                   }),
-                  // **Keyboard focus styles** - only show on keyboard focus, not mouse hover
-                  '&:focus-visible': {
-                    outline: '2px solid #ffd700',
-                    outlineOffset: '2px',
-                  },
-                  // Hover effect for tooltips
-                  '&:hover': {
-                    color: '#fff',
-                    background: 'rgba(255, 255, 255, 0.2)',
-                    transform: 'translateY(-2px)',
-                    boxShadow: isActiveEra
-                      ? '0 0 15px rgba(255, 215, 0, 0.5), 0 4px 8px rgba(0, 0, 0, 0.3)'
-                      : '0 0 10px rgba(255, 255, 255, 0.3), 0 4px 8px rgba(0, 0, 0, 0.2)',
-                  },
+                  // Focus-visible keyboard outline (inline style equivalent)
+                  outline: 'none',
                   // Disabled state
-                  '&:disabled': {
-                    opacity: 0.5,
-                    cursor: 'not-allowed',
-                  },
+                  opacity: isActiveEra || true ? 1 : 0.5,
+                  cursor: isActiveEra || true ? 'pointer' : 'not-allowed',
                 }}
                 onClick={() => setCurrentEra(eraId)}
               >
@@ -306,8 +286,7 @@ export const TimelineSlider: React.FC = () => {
   )
 }
 
-/* 
- * Keyframe animation for active era glow effect
+/* Keyframe animation for active era glow effect
  * Subtle pulsating glow when an era is selected
  */
 const eraGlow = `

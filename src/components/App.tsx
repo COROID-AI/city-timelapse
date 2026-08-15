@@ -69,6 +69,27 @@ export const App: React.FC = () => {
     return SfxMixer.subscribeMute(setMuted)
   }, [])
 
+  // Timeline slider container styles - positioned outside the 3D canvas
+  const timelineSliderContainerStyle = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: '100%',
+    padding: '8px 16px',
+    background: 'rgba(20, 20, 20, 0.6)',
+    backdropFilter: 'blur(8px)',
+    '-webkit-backdrop-filter': 'blur(8px)',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+    zIndex: 100,
+    pointerEvents: 'none', // Don't interfere with 3D canvas interaction
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: '4px',
+    margin: 0,
+    fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+  }
+
   return (
     <>
       <Canvas
@@ -89,8 +110,6 @@ export const App: React.FC = () => {
           screenSpacePanning={false}
         />
 
-        {/* Grid helper for spatial grounding */}
-        
         {/* Era-specific fog + lighting temperature + ambient color */}
         <AtmosphereSystem />
 
@@ -103,12 +122,12 @@ export const App: React.FC = () => {
         {/* Era-specific patron figures with LOD */}
         <Patrons />
 
-        {/* Timeline slider for era selection */}
-        <TimelineSlider />
-
         {/* Performance monitoring overlay - FPS counter */}
         <Stats position="top-left" fps={true} ms={false} memory={true} />
       </Canvas>
+
+      {/* Timeline slider positioned outside the 3D canvas */}
+      <TimelineSlider style={timelineSliderContainerStyle} />
     </>
   )
 }
