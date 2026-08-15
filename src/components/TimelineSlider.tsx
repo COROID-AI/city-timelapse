@@ -66,7 +66,7 @@ export const TimelineSlider: React.FC = () => {
         padding: '8px 16px',
         background: 'rgba(20, 20, 20, 0.6)',
         backdropFilter: 'blur(8px)',
-        '-webkit-backdrop-filter': 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
         borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
         zIndex: 100,
         pointerEvents: 'none', // Don't interfere with 3D canvas interaction

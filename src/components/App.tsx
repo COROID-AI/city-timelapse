@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
-import { GridHelper, AmbientLight, DirectionalLight } from 'three'
 import { TablewareLighting } from './TablewareLighting'
 import { Patrons } from './Patrons'
 import { CafeShell } from './CafeShell'
@@ -113,7 +112,7 @@ export const App: React.FC = () => {
         />
 
         {/* Grid helper for spatial grounding */}
-        <GridHelper
+        <gridHelper
           size={10}
           color="0x444444"
           divideCount={10}
@@ -121,10 +120,10 @@ export const App: React.FC = () => {
         />
 
         {/* Ambient light for basic scene illumination - color shifts with era */}
-        <AmbientLight intensity={0.6} color={ambientLightColor} />
+        <ambientLight intensity={0.6} color={ambientLightColor} />
 
         {/* Directional light to simulate sunlight/overhead lighting */}
-        <DirectionalLight
+        <directionalLight
           intensity={0.8}
           color="0xffffff"
           position={[10, 10, 10]}

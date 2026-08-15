@@ -269,8 +269,11 @@ export const useEraTransition = (): EraTransitionHookReturn => {
           const currentTemp = lightingTypeToColorTemp(
             getLightingType(currentEra)
           );
-          const targetTemp = targetEraData.lightingType
-            ? lightingTypeToColorTemp(getLightingType(targetEra))
+          // If we don't have target era data, keep temperature as-is.
+          const targetTemp = targetEraData
+            ? targetEraData.lightingType
+              ? lightingTypeToColorTemp(getLightingType(targetEra))
+              : currentTemp
             : currentTemp;
           setLightingColorTemp(
             interpolateLightingColorTemp_single(currentTemp, targetTemp, 0)

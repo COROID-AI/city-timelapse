@@ -81,18 +81,18 @@ const eraStoreCreator: EraStoreCreator = (set, get) => ({
       rafId = null;
     }
 
+    set({
+      targetEra: id,
+      isTransitioning: true,
+      transitionProgress: 0,
+    });
+
     const duration = get().transitionDuration;
 
     // Trigger audio crossfade synchronously with the visual transition.
     // Autoplay policy is respected by SfxMixer: it won't actually start
     // until the first user gesture unlocks the AudioContext.
     SfxMixer.setEra(id, duration);
-
-    set({
-      targetEra: id,
-      isTransitioning: true,
-      transitionProgress: 0,
-    });
 
     const startTime = Date.now();
 
