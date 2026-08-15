@@ -1,6 +1,7 @@
 import React from 'react'
 import { useEraStore } from '../store/eraStore'
 import type { EraId } from '../eras'
+import { useThree } from '@react-three/fiber'
 
 type HairStyle =
   | 'hat'
@@ -319,7 +320,7 @@ const Accessory: React.FC<{
             <torusGeometry args={[0.095 * s, 0.015 * s, 12, 18]} />
             <meshStandardMaterial color={'#111111'} roughness={0.35} metalness={0.2} />
           </mesh>
-          <mesh position={[-0.22 * s, 0.57 * s, 0.12 * s]}>
+          <mesh position={[-0.22 * s, 0.57 * s, 0.12 *s]}> 
             <ringGeometry args={[0.055 * s, 0.065 * s, 20]} />
             <meshStandardMaterial color={'#444444'} roughness={0.6} />
           </mesh>
@@ -511,7 +512,8 @@ const Accessory: React.FC<{
   }
 }
 
-const PatronFigure: React.FC<{ config: PatronConfig }> = ({ config }) => {
+// Full-detail PatronFigure component
+const FullPatronFigure: React.FC<{ config: PatronConfig }> = ({ config }) => {
   const { position, rotationY, scale, colors, hair, accessories, outfit } = config
 
   const s = clamp(scale, 0.65, 1.35)
@@ -628,6 +630,76 @@ const PatronFigure: React.FC<{ config: PatronConfig }> = ({ config }) => {
         <boxGeometry args={[0.08 * s, 0.03 * s, 0.12 * s]} />
         <meshStandardMaterial color={outfit === 'dress_apron_headscarf' ? secondary : '#1b1b1b'} roughness={1} opacity={0} transparent />
       </mesh>
+    </group>
+  )
+}
+
+// Simplified PatronFigure for LOD - reduced geometry
+const SimplifiedPatronFigure: React.FC<{ config: PatronConfig }> = ({ config }) => {
+  const { position, rotationY, scale, colors } = config
+
+  const s = clamp(scale, 0.65, 1.35)
+
+  // Simple box body + basic hair approximation
+  return (
+    <mesh>
+      <boxGeometry args={[0.3 * s, 0.6 * s, 0.2 * s]} />
+      <meshStandardMaterial color={colors.primary} roughness={0.8} />
+      <group position={[0, 0.6 * s, 0]} rotation={[0, rotationY, 0]}>
+        {/* Simplified hair - just a basic shape */}
+        <sphereGeometry args={[0.1 * s, 12, 12]} />
+      </group>
+    </mesh>
+  )
+}
+
+// Tiny representative marker for far range
+const TinyPatronMarker: React.FC<{ position: { x: number; y: number; z: number }; rotationY: number; color: { primary: string } }> = ({ position, rotationY, color }) => (
+  <mesh position={[position.x, position.y, position.z]} rotation={[0, rotationY, 0]}>
+    <boxGeometry args={[0.05, 0.05, 0.05]} />
+    <meshStandardMaterial color={color.primary} opacity={0.3} transparent />
+  </mesh>
+)
+
+export const Patrons: React.FC = () => {
+  const currentEra = (useEraStore as any)((state: any) => state.currentEra) as EraId
+  const configs = getPatronConfigsForEra(currentEra)
+  const { camera } = useThree()
+
+  // Calculate camera distance for LOD
+  const cameraRef = useRef(0)
+  useEffect(() => {
+    const updateDistance = () => {
+      if (camera && camera.position) {
+        // Use camera z-distance as approximation
+        const camZ = Math.abs(camera.position.z)
+        cameraRef.current = camZ
+      }
+    }
+    updateDistance()
+    const handleResize = () => {
+      updateDistance()
+    }
+    window.addEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [camera])
+
+  // LOD thresholds
+  const NEAR_THRESHOLD = 8  // Full detail within 8 units
+  const FAR_THRESHOLD = 20  // Simplified within 8-20 units
+
+  return (
+    <group>
+      {configs.map((config, idx) => (
+        <group key={currentEra + '-patron-' + idx}>
+          {/* LOD: Render appropriate detail based on camera distance */}
+          {cameraRef.current < NEAR_THRESHOLD && <FullPatronFigure config={config} />}
+          {cameraRef.current >= NEAR_THRESHOLD && cameraRef.current < FAR_THRESHOLD && <SimplifiedPatronFigure config={config} />}
+          {cameraRef.current >= FAR_THRESHOLD && <TinyPatronMarker position={config.position} rotationY={config.rotationY} color={config.colors} />}
+        </group>
+      ))}
     </group>
   )
 }
@@ -829,17 +901,4 @@ const getPatronConfigsForEra = (era: EraId): PatronConfig[] => {
     default:
       return []
   }
-}
-
-export const Patrons: React.FC = () => {
-  const currentEra = (useEraStore as any)((state: any) => state.currentEra) as EraId
-  const configs = getPatronConfigsForEra(currentEra)
-
-  return (
-    <group>
-      {configs.map((config, idx) => (
-        <PatronFigure key={currentEra + '-patron-' + idx} config={config} />
-      ))}
-    </group>
-  )
 }

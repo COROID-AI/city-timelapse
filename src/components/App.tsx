@@ -9,6 +9,7 @@ import { SfxMixer } from '../audio/mixer'
 import { useEraTransition } from '../systems/TransitionManager'
 import { useEraStore } from '../store/eraStore'
 import { TimelineSlider } from './TimelineSlider'
+import { Stats } from '@react-three/drei'
 
 export const App: React.FC = () => {
   const [muted, setMuted] = useState<boolean>(SfxMixer.isMuted())
@@ -100,11 +101,14 @@ export const App: React.FC = () => {
         {/* Era-specific tableware and lighting fixtures */}
         <TablewareLighting />
 
-        {/* Era-specific patron figures */}
+        {/* Era-specific patron figures with LOD */}
         <Patrons />
 
         {/* Timeline slider for era selection */}
         <TimelineSlider />
+
+        {/* Performance monitoring overlay - FPS counter */}
+        <Stats position="top-left" fps={true} ms={false} memory={true} />
       </Canvas>
     </>
   )
