@@ -3,6 +3,7 @@ import { useEraStore } from '../store/eraStore';
 import { EraId, ERA_IDS } from '../eras';
 import { useThree } from '@react-three/fiber';
 import { useResize } from '@react-three/drei';
+import * as THREE from 'three';
 
 /**
  * CoffeeEquipment - Era-specific coffee-making equipment rendered on the counter
