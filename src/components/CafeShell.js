@@ -1,4 +1,5 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
+export { _Fragment as Group };
 import { CounterTechnology } from './CounterTechnology';
 /** CafeShell - Café architectural shell - permanent container
  * Renders the café floor, walls, windows, and counter structure.
