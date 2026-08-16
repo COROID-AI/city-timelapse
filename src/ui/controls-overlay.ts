@@ -38,6 +38,7 @@ function buildSoundToggle(): HTMLButtonElement {
   btn.setAttribute('aria-pressed', 'false');
   btn.setAttribute('aria-label', 'Toggle sound');
   btn.title = 'Toggle Sound (S)';
+  btn.dataset.testId = 'sound-toggle';
 
   const icon = document.createElement('span');
   icon.className = 'sound-mute-indicator';
@@ -59,6 +60,7 @@ function buildCameraResetBtn(): HTMLButtonElement {
   btn.id = 'camera-reset';
   btn.setAttribute('aria-label', 'Reset camera view');
   btn.title = 'Reset Camera (R)';
+  btn.dataset.testId = 'camera-reset';
 
   btn.innerHTML = `
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

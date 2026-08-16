@@ -170,20 +170,45 @@ class Animator {
 
   private applyPhase(obj: THREE.Object3D, phase: 'out' | 'in', progress: number): void {
     if (phase === 'out') {
-      // Fade out + slight scale down + sink downward
+      // Spatial out: shrink + sink + rotate slightly — objects dissolve into ground
+      const s = 1 - progress * 0.5; // scale down to half
+      obj.scale.setScalar(s);
+      // Sink downward progressively
+      const objAny = obj as any;
+      if (!objAny.__baseYSet) {
+        objAny.__baseY = obj.position.y;
+        objAny.__baseYSet = true;
+      }
+      obj.position.y = objAny.__baseY - progress * 2.0;
+      // Slight rotation for organic feel
+      obj.rotation.y += progress * 0.1;
+
+      // Also fade material
       if ('material' in obj && (obj as THREE.Mesh).material) {
         const mat = (obj as THREE.Mesh).material as THREE.Material;
-        if (mat.transparent || progress > 0.1) {
+        if (mat.transparent || progress > 0.05) {
           mat.transparent = true;
           mat.opacity = Math.max(0, (1 - progress) * ((mat.userData as Record<string, unknown>)?.origOpacity as number ?? 1));
           mat.needsUpdate = true;
         }
       }
-      const s = 1 - progress * 0.08; // subtle shrink
-      obj.scale.setScalar(s);
-      obj.position.y -= progress * 0.05; // slight sink
     } else {
-      // Fade in + rise up
+      // Spatial in: rise from below + grow + unrotate — objects assemble from ground
+      const objAny = obj as any;
+      if (!objAny.__baseYSet) {
+        objAny.__baseY = obj.position.y;
+        objAny.__baseYSet = true;
+      }
+      const baseY = objAny.__baseY;
+      // Rise up from below ground
+      obj.position.y = baseY - (1 - progress) * 2.0;
+      // Grow from half-size
+      const s = 0.5 + progress * 0.5;
+      obj.scale.setScalar(s);
+      // Unrotate
+      obj.rotation.y *= (1 - progress * 0.1);
+
+      // Fade material in
       if ('material' in obj && (obj as THREE.Mesh).material) {
         const mat = (obj as THREE.Mesh).material as THREE.Material;
         const ud = mat.userData as Record<string, unknown>;
@@ -194,16 +219,6 @@ class Animator {
         mat.opacity = progress * ((mat.userData as Record<string, unknown>)?.origOpacity as number ?? 1);
         mat.needsUpdate = true;
       }
-      const s = 0.92 + progress * 0.08; // grow from slightly smaller
-      obj.scale.setScalar(s);
-      // Rise from slightly below
-      const objAny = obj as any;
-      if (!objAny.__baseYSet) {
-        objAny.__baseY = obj.position.y;
-        objAny.__baseYSet = true;
-      }
-      const base = objAny.__baseY;
-      obj.position.y = base - (1 - progress) * 0.15;
     }
   }
 }

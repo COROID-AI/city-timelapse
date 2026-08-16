@@ -128,7 +128,28 @@ const hudEl = mountHud();
 injectTimeOfDayControl(hudEl, envManager);
 
 // Controls overlay
-mountControls();
+const controlsOverlay = mountControls();
+
+// Wire up camera reset event from controls overlay
+controlsOverlay.addEventListener('camerareset', () => {
+  controls.reset(
+    new THREE.Vector3(35, 25, 35),
+    new THREE.Vector3(0, 0, 0),
+  );
+});
+
+// Inject audio controller as SfxMixerLike for sound toggle
+const audioCtrl = (coordinator as any)._audioController;
+if (audioCtrl) {
+  // The AudioController exposes a 'mixer' property that is an SfxMixer
+  const mixer = (audioCtrl as any).mixer;
+  if (mixer && typeof mixer.muted === 'boolean') {
+    // Use injectSfxMixer to wire the muted state to the UI
+    import('./ui/controls-overlay.js').then(({ injectSfxMixer }) => {
+      injectSfxMixer(mixer);
+    });
+  }
+}
 
 // ── First-Gesture Audio Unlock ───────────────────────────────────────────
 

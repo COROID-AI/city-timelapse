@@ -280,6 +280,14 @@
   flex-direction: column;
   gap: 8px;
   align-items: flex-end;
+  /* Ensure this container does not block pointer events */
+  pointer-events: none;
+}
+
+/* Children of controls-overlay get pointer events back */
+.controls-overlay .control-btn,
+.controls-overlay button {
+  pointer-events: auto;
 }
 
 .control-btn {

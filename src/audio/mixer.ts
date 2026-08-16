@@ -68,6 +68,9 @@ export class SfxMixer {
   /** Whether we have been initialized (AudioContext created) */
   private _initialized = false;
 
+  /** Whether audio is muted */
+  private _muted = false;
+
   private opts: Required<SfxMixerOptions>;
 
   constructor(options: SfxMixerOptions = {}) {
@@ -273,7 +276,23 @@ export class SfxMixer {
     }
   }
 
-  /** Set individual layer volumes */
+  /** Whether audio is currently muted */
+  get muted(): boolean {
+    return this._muted;
+  }
+
+  set muted(v: boolean) {
+    this._muted = v;
+    if (this.masterGain && this.ctx) {
+      this.masterGain.gain.setValueAtTime(v ? 0 : this.opts.masterVolume, this.ctx.currentTime);
+    }
+  }
+
+  /** Toggle mute state and return new state */
+  setMuted(mute: boolean): void {
+    this.muted = mute;
+  }
+
   setVolumes(volumes: Partial<SfxMixerOptions>): void {
     const o = { ...this.opts, ...volumes };
     if (this.masterGain) {

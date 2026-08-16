@@ -69,6 +69,8 @@ function buildDOM(): HTMLElement {
     stop.setAttribute('aria-label', `${era.label} — ${era.year}`);
     stop.setAttribute('data-era-id', era.id);
     stop.dataset.index = String(index);
+    stop.id = `era-${era.id}`;
+    stop.dataset.testId = era.id;
 
     const dot = document.createElement('span');
     dot.className = 'timeline-stop-dot';
