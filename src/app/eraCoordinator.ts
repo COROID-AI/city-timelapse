@@ -71,6 +71,8 @@ export class EraCoordinator {
   private _pedestrianController!: PedestrianController;
   private _audioController!: AudioController;
   private _listeners: EraChangeListener[] = [];
+  /** Monotonically increasing counter to serialize era switches */
+  private _switchVersion = 0;
 
   constructor(options: EraCoordinatorOptions) {
     this._scene = options.scene;
@@ -117,6 +119,9 @@ export class EraCoordinator {
   async switchEra(newEra: EraId): Promise<void> {
     if (newEra === this._currentEra) return;
 
+    // Capture this invocation's version token — only the latest wins.
+    const myVersion = ++this._switchVersion;
+
     // Step 1: Fade out old scene elements (staggered layers)
     await runTransition(
       { scene: this._scene },
@@ -127,6 +132,9 @@ export class EraCoordinator {
         console.error('Outgoing transition failed:', err);
       }
     });
+
+    // If a newer switch happened while we were waiting, bail out now.
+    if (myVersion !== this._switchVersion) return;
 
     // Step 2: Replace all domain content (synchronous)
     this._replaceSceneContent(newEra);
@@ -140,6 +148,9 @@ export class EraCoordinator {
         console.error('Incoming transition failed:', err);
       }
     });
+
+    // Double-check after incoming fade before notifying listeners.
+    if (myVersion !== this._switchVersion) return;
 
     // Notify listeners
     this._notifyListeners(newEra);
