@@ -1,141 +1,102 @@
 import * as THREE from 'three'
-import { SceneManager } from './core/sceneManager'
+import { EraTransitionEngine } from './eraTransition'
+import { ERAS, EraKey } from './eras/eraData'
 import { TimelineSlider } from './ui/timelineSlider'
-import { erasData } from './eras/eraData'
-import { EraTransitionEngine, EraDataSnapshot } from './eraTransition'
-
-const CONTAINER_ID = 'container'
-const WIDTH = window.innerWidth
-const HEIGHT = window.innerHeight
-
-// Initialize scene manager
-const sceneManager = new SceneManager(CONTAINER_ID, WIDTH, HEIGHT)
-const renderer = sceneManager.getRenderer()
-const camera = sceneManager.getCamera()
-const controls = sceneManager.getControls()
-const scene = sceneManager.getScene()
 
 // Initialize era transition engine
 const transitionEngine = new EraTransitionEngine(scene)
 
-// Initialize timeline slider
-const timelineSlider = new TimelineSlider((year: number) => {
-  const toEra = erasData[year as keyof typeof erasData]
-  if (!toEra) return
-
-  // Get the currently selected era (default to 2025 if none transitioning)
-  const fromEraKey = '2025' as const
-  const fromEra = erasData[fromEraKey as keyof typeof erasData]
-
-  if (fromEra && toEra) {
-    const fromSnapshot: EraDataSnapshot = {
-      ambientLightColor: fromEra.ambientLightColor,
-      ambientLightIntensity: fromEra.ambientLightIntensity,
-      fogDensity: fromEra.fogDensity,
-      fogColor: fromEra.fogColor,
-      directionalLightHorizontalAngle: 0, // Will be set per-era
-      directionalLightVerticalAngle: 0,
-      buildingBaseColor: '',
-      buildingEmissive: '',
-      pedestrianDominantColors: [],
-      vehicleTypes: fromEra.vehicleTypes,
-      storefrontTemplateCount: 0,
-      signageIllumination: fromEra.signageStyle.illumination
+// Initialize timeline slider with config object (from feature branch)
+const timelineSlider = new TimelineSlider({
+  onYearChange: (year: number) => {
+    const eraKey = year as EraKey
+    const eraData = ERAS[eraKey]
+    if (eraData) {
+      // Apply era style with smooth transition
+      transitionEngine.startTransition(
+        { /* from current era snapshot */ },
+        {
+          ambientLightColor: eraData.ambientLightColor,
+          ambientLightIntensity: eraData.ambientLightIntensity,
+          fogDensity: eraData.fogDensity,
+          fogColor: eraData.fogColor,
+          directionalLightHorizontalAngle: eraData.directionalLightHorizontalAngle,
+          directionalLightVerticalAngle: eraData.directionalLightVerticalAngle,
+          buildingBaseColorBlend: 0,
+          buildingEmissiveBlend: 0,
+          pedestrianColorBlend: 0,
+          vehicleFade: 0,
+          storefrontFade: 0,
+          signageOpacity: 0,
+          progress: 0
+        },
+        2000
+      )
+      applyEraStyle(scene, year)
     }
-
-    // Build snapshot from toEra
-    const toSnapshot: EraDataSnapshot = {
-      ambientLightColor: toEra.ambientLightColor,
-      ambientLightIntensity: toEra.ambientLightIntensity,
-      fogDensity: toEra.fogDensity,
-      fogColor: toEra.fogColor,
-      directionalLightHorizontalAngle: 0,
-      directionalLightVerticalAngle: 0,
-      buildingBaseColor: '',
-      buildingEmissive: '',
-      pedestrianDominantColors: [],
-      vehicleTypes: toEra.vehicleTypes,
-      storefrontTemplateCount: 0,
-      signageIllumination: toEra.signageStyle.illumination
-    }
-
-    // Start smooth transition (2 seconds as per acceptance criteria)
-    transitionEngine.startTransition(fromSnapshot, toSnapshot, 2000, {
-      onUpdate: (progress, interpolated) => {
-        // Update will be handled in the engine's render loop
-        console.log(`Transition progress: ${Math.round(progress * 100)}%`)
-      },
-      onComplete: () => {
-        console.log('Era transition complete')
-      }
-    })
-  }
+  },
+  transitionDuration: 2,
+  accentColor: '#4a90e2'
 })
 
-// Add UI to DOM
-document.body.appendChild(timelineSlider.getElement())
+// Initialize with 2025 era snapshot directly (from HEAD)
+// (no transition on startup)
+const initialEra = '2025'
+applyEraStyle(scene, parseInt(initialEra))
 
-// Set initial era - start with 2025 as the initial state
-// No abrupt applyEraStyle - just set up the initial snapshot
+// Initialize ambient light and fog for 2025 era
+scene.background = new THREE.Color(
+  parseInt(ERAS['2025'].ambientLightColor.replace('#', ''), 16) / 255,
+  parseInt(ERAS['2025'].ambientLightColor.replace('#', ''), 16) / 255,
+  parseInt(ERAS['2025'].ambientLightColor.replace('#', ''), 16) / 255
+)
 
-// Animation loop - now includes transition engine updates
+// Animation loop - includes transition engine updates (from HEAD)
 let lastRenderTime = 0
 sceneManager.animate = () => {
   requestAnimationFrame(() => sceneManager.animate())
   const now = performance.now()
-  
   // Update transition engine (this will handle the interpolation)
-  transitionEngine.onFrame ? transitionEngine.onFrame(now) : null
-  
+  transitionEngine.onFrame?.(now)
   controls.update()
   renderer.render(scene, camera)
   lastRenderTime = now
 }
 
-// Handle resize
-window.addEventListener('resize', () => {
-  sceneManager.resize(window.innerWidth, window.innerHeight)
-  timelineSlider.resize()
+// Animation loop callback - era-specific updates (from feature branch)
+sceneManager.init((delta: number) => {
+  // Render loop callback - could era-specific updates here
+  renderer.render(scene, camera)
 })
 
-// Initialize with 2025 era snapshot directly (no transition on startup)
-const initialEra = erasData['2025']
-if (initialEra) {
-  const initialSnapshot: EraDataSnapshot = {
-    ambientLightColor: initialEra.ambientLightColor,
-    ambientLightIntensity: initialEra.ambientLightIntensity,
-    fogDensity: initialEra.fogDensity,
-    fogColor: initialEra.fogColor,
-    directionalLightHorizontalAngle: 0,
-    directionalLightVerticalAngle: 0,
-    buildingBaseColor: '',
-    buildingEmissive: '',
-    pedestrianDominantColors: [],
-    vehicleTypes: initialEra.vehicleTypes,
-    storefrontTemplateCount: 0,
-    signageIllumination: initialEra.signageStyle.illumination
-  }
+/**
+ * Apply era-specific styles to the scene based on selected year.
+ * Updates background color and logs the era being applied.
+ * @param scene Three.js scene to update
+ * @param year The selected year (1945, 1965, 1985, 2005, 2025)
+ */
+function applyEraStyle(scene: THREE.Scene, year: number): void {
+  const era = ERAS[year as keyof typeof ERAS]
+  if (!era) return
 
-  // Apply initial state directly without transition
-  scene.background = new THREE.Color(parseInt(initialEra.ambientLightColor.replace('#', ''), 16))
+  // Update scene background color based on era
+  scene.background = new THREE.Color(
+    parseInt(era.colors.sky.replace('#', ''), 16) / 255,
+    parseInt(era.colors.sky.replace('#', ''), 16) / 255,
+    parseInt(era.colors.sky.replace('#', ''), 16) / 255
+  )
 
-  // Set up initial ambient light
+  // Remove existing era-specific objects from previous transitions
   scene.traverse((child) => {
-    if (child.isLight && child.type === 'AmbientLight') {
-      ;(child as THREE.AmbientLight).intensity = initialEra.ambientLightIntensity
-    }
-    if (child.isLight && child.type === 'DirectionalLight') {
-      const light = child as THREE.DirectionalLight
-      light.position.set(5, 10, 7.5)
+    if (child.userData?.isEraObject) {
+      child.geometry.dispose()
+      child.material.dispose()
+      scene.remove(child)
     }
   })
 
-  // Set up fog
-  scene.fog = new THREE.Fog(
-    initialEra.fogColor,
-    initialEra.fogDensity,
-    500
-  )
+  // Log the era being applied
+  console.log(`Applied era: ${era.name} - ${era.description}`)
 }
 
 console.log('Era Transition Engine initialized')
