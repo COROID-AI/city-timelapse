@@ -488,6 +488,9 @@ export function applyFrustumParticleBudget(
   scene.traverse((obj) => {
     if ((obj as any)._isParticle) return;
     if (!obj.visible) return;
+    // Only objects with boundingSphere support frustum checks
+    const objAny = obj as any;
+    if (!objAny.boundingSphere && !(obj instanceof THREE.Mesh)) return;
 
     if (frustum.intersectsObject(obj)) {
       visibleCount++;
