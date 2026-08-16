@@ -8,9 +8,11 @@ import { ERA_REGISTRY, type EraId } from './eras.js';
 import { BuildingTextureBuilder } from './buildings/parts.js';
 import { PedestrianController } from './pedestrians/controller.js';
 import { EraCoordinator } from './app/eraCoordinator.js';
+import { EnvironmentManager } from './app/environment.js';
+import { AmbientParticles } from './fx/particles.js';
 import { mountTimeline, setEraById as timelineSetEraById } from './ui/timeline.js';
 import { mountControls } from './ui/controls-overlay.js';
-import { mountHud } from './ui/hud.js';
+import { mountHud, injectTimeOfDayControl } from './ui/hud.js';
 import { isTransitionRunning } from './app/transitions.js';
 
 // ── Bootstrap ────────────────────────────────────────────────────────────
@@ -31,14 +33,53 @@ camera.position.set(35, 25, 35);
 (engine.scene as any).__camera = camera;
 engine.updateCameraAspect(camera);
 
-// Lights
-setupLights(engine.scene);
+// Lights (captured for environment manager)
+const lights = setupLights(engine.scene);
 
-// Ground + buildings
+// ── Era-Aware Environment Manager ────────────────────────────────────────
+
+// Create night emissive point lights scattered across the scene
+// These will dominate at night with era-specific color temperatures
+const emissiveLights: THREE.Light[] = [];
+
+function _addEmissive(x: number, y: number, z: number): void {
+  const pl = new THREE.PointLight(0xffffff, 0, 25, 2);
+  pl.position.set(x, y, z);
+  pl.visible = false;
+  engine.scene.add(pl);
+  emissiveLights.push(pl);
+}
+
+_addEmissive(-15, 3, -10);
+_addEmissive(10, 3, 5);
+_addEmissive(-5, 3, 15);
+_addEmissive(20, 3, -5);
+_addEmissive(0, 3, -20);
+_addEmissive(-20, 3, 10);
+
+const envManager = new EnvironmentManager({
+  scene: engine.scene,
+  sunLight: lights.sunLight,
+  hemiLight: lights.hemiLight,
+  ambientLight: lights.ambientLight,
+  emissiveLights,
+});
+
+// ── Ambient Particles ────────────────────────────────────────────────────
+
+const ambientFX = new AmbientParticles({
+  scene: engine.scene,
+  initialEra: '1945',
+});
+ambientFX.start(); // auto-update via internal rAF loop
+
+// ── Ground + Buildings ───────────────────────────────────────────────────
+
 const textures = new TextureFactory();
 buildGround(engine.scene, textures);
 
-// Controls
+// ── Controls ─────────────────────────────────────────────────────────────
+
 const controls = new Controls(camera, canvas);
 
 // Per-building texture builder
@@ -66,11 +107,16 @@ window.addEventListener('erachange', (e: Event) => {
   if (detail && detail.eraId) {
     currentEra = detail.eraId;
     coordinator.handleEraChange(detail);
+    // Also update environment manager directly for smooth blending
+    envManager.setEra(detail.eraId);
   }
 });
 
 // HUD — show current era info
-mountHud();
+const hudEl = mountHud();
+
+// Inject time-of-day slider into the HUD
+injectTimeOfDayControl(hudEl, envManager);
 
 // Controls overlay
 mountControls();
@@ -88,19 +134,16 @@ async function unlockAudio(): Promise<void> {
   if (audioInitialized) return;
   audioInitialized = true;
   try {
-    // Trigger audio controller initialization
     const ac = (coordinator as any)._audioController;
     if (ac) {
       await ac.init();
       await ac.setEra(currentEra);
     }
   } catch {
-    // Audio may not be available in all environments
     console.warn('Audio init failed (autoplay policy)');
   }
 }
 
-// Listen for first user interaction anywhere on the page
 function onFirstGesture(): void {
   unlockAudio();
   document.removeEventListener('pointerdown', onFirstGesture);
@@ -119,7 +162,6 @@ function cycleEra(delta: number): void {
   currentEra = nextEra;
 
   if (isTransitionRunning()) {
-    // Already transitioning — force-sync to new target
     coordinator.forceSwitchEra(nextEra);
   } else {
     coordinator.switchEra(nextEra);
@@ -146,6 +188,7 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
     currentEra = era;
     timelineSetEraById(era);
     coordinator.switchEra(era);
+    envManager.setEra(era);
   }
 });
 
@@ -153,11 +196,18 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
 
 engine.animate((delta) => {
   controls.update();
+
   // Update pedestrian animation each frame
   const pc = (coordinator as any)._pedestrianController as PedestrianController | undefined;
   if (pc) {
     pc.update(delta);
   }
+
+  // Update environment (sky/fog/sun/day-night) every frame
+  envManager.updateFrame(delta);
+
+  // Update particles every frame
+  ambientFX.update(delta);
 });
 
 console.log('City Era Timelapse — fully assembled.');
