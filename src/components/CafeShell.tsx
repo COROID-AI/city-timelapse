@@ -57,13 +57,13 @@ export const CafeShell: React.FC = (): ReactElement => {
       {/* Left window glass: semi-transparent plane */}
       <mesh position={[-4, 2.25, 0.1]}>
         <planeGeometry args={[0.8, 1.5]} />
-        <meshBasicMaterial transparent opacity={0.3} color="#0000ffff" />
+        <meshBasicMaterial transparent opacity={0.3} color="#0000ff" />
       </mesh>
 
       {/* Right window glass: semi-transparent plane */}
       <mesh position={[4, 2.25, 0.1]}>
         <planeGeometry args={[0.8, 1.5]} />
-        <meshBasicMaterial transparent opacity={0.3} color="#0000ffff" />
+        <meshBasicMaterial transparent opacity={0.3} color="#0000ff" />
       </mesh>
 
       {/* Counter base along back wall: 4m × 1.1m high × 0.7m deep */}

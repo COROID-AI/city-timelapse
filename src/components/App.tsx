@@ -94,8 +94,14 @@ export const App: React.FC = () => {
     <>
       <Canvas
         style={{
-          width: '100%',
-          height: '100%',
+          // Ensure the canvas occupies the viewport.
+          // Using fixed + 100vh avoids relying on parent element height.
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: 0,
         }}
       >
         {/* OrbitControls with constrained navigation */}

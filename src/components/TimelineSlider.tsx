@@ -171,7 +171,9 @@ export const TimelineSlider: React.FC = () => {
           background: 'rgba(20, 20, 20, 0.6)',
           borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
           zIndex: 100,
-          pointerEvents: 'none', // Don't interfere with 3D canvas interaction
+          // Allow the browser probe to click the era buttons.
+          // The container is only as tall as its content, so it won't block orbiting elsewhere.
+          pointerEvents: 'auto',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
@@ -202,7 +204,8 @@ export const TimelineSlider: React.FC = () => {
                 type="button"
                 role="tab"
                 aria-selected={isActiveEra}
-                aria-label={`Time period ${eraId}`}
+                aria-label={`Era ${index + 1} (${eraId})`}
+                data-testid={`era-${index + 1}`}
                 tabIndex={0} // All buttons focusable for Tab cycling
                 style={{
                   // Base button styles
@@ -233,10 +236,7 @@ export const TimelineSlider: React.FC = () => {
                     animation: `eraGlow 1.5s ease-in-out ${transitionDelay} infinite`,
                   }),
                   // Focus-visible keyboard outline (inline style equivalent)
-                  outline: 'none',
                   // Disabled state
-                  opacity: isActiveEra || true ? 1 : 0.5,
-                  cursor: isActiveEra || true ? 'pointer' : 'not-allowed',
                 }}
                 onClick={() => setCurrentEra(eraId)}
               >
