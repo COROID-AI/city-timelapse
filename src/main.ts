@@ -8,6 +8,7 @@ import { ERA_REGISTRY, type EraId } from './eras.js';
 import { BuildingTextureBuilder } from './buildings/parts.js';
 import { PedestrianController } from './pedestrians/controller.js';
 import { EraCoordinator } from './app/eraCoordinator.js';
+import { initInspection } from './app/inspection.js';
 import { mountTimeline, setEraById as timelineSetEraById } from './ui/timeline.js';
 import { mountControls } from './ui/controls-overlay.js';
 import { mountHud } from './ui/hud.js';
@@ -147,6 +148,19 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
     timelineSetEraById(era);
     coordinator.switchEra(era);
   }
+});
+
+// ── Click-to-Inspect Interaction ────────────────────────────────────────
+
+initInspection({
+  renderer: engine.renderer,
+  scene: engine.scene,
+  getCurrentEra: () => currentEra,
+  getCamera: () => camera,
+  animateCallback: (_delta) => {
+    // Internal inspection frame loop runs independently
+    void _delta;
+  },
 });
 
 // ── Render Loop ──────────────────────────────────────────────────────────
