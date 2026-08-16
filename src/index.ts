@@ -1,23 +1,23 @@
-/**
- * Main entry point for the City Timelapse 3D scene.
- * Demonstrates the SceneManager initialization and render loop.
- */
+/** Main entry point for the City Timelapse 3D scene. Demonstrates the SceneManager initialization and render loop. Creates the city block ground plane with era-appropriate infrastructure. */
 
 import { SceneManager } from "./scene-manager";
+import { createCityBlockGroundPlane, EraKey, updateGroundPlaneEra } from "./CityBlockGroundPlane";
 
 // Create SceneManager instance attached to the document body
-const sceneManager = new SceneManager(
-  {
-    // AC acceptance criteria: antialiasing=true, toneMapping=ACESFilmicToneMapping
-    antialias: true,
-    shadows: true,
+const sceneManager = new SceneManager({
+  // AC acceptance criteria: antialiasing=true, toneMapping=ACESFilmicToneMapping
+  antialias: true,
+  shadows: true,
 
-    // Configure camera defaults for orbit-ready position looking at city block center
-    fov: 75,
-    cameraZ: 150,
-  },
-  "document.body"
-);
+  // Configure camera defaults for orbit-ready position looking at city block center
+  fov: 75,
+  cameraZ: 150,
+},
+"document.body");
+
+// Create the city block ground plane with era-appropriate materials
+const era: EraKey = '2025' as EraKey; // Default to 2025 era
+const groundComponents = createCityBlockGroundPlane(era, sceneManager.getScene());
 
 // Set up the render loop callback
 sceneManager.init((delta) => {
@@ -27,41 +27,11 @@ sceneManager.init((delta) => {
 });
 
 // Handle era transitions - reposition camera and dispose old resources
-function switchEra(era: "1945" | "1965" | "1985" | "2005" | "2025" | "2055") {
-  // Dispose the previous renderer/resources before switching
-  sceneManager.dispose();
-
-  // Recreate SceneManager for the new era
-  // Note: In a real app, we'd preserve the scene and just update objects
-  const newSceneManager = new SceneManager(
-    {
-      antialias: true,
-      shadows: true,
-      fov: 75,
-      cameraZ: 150,
-    },
-    "document.body"
-  );
-
-  // Set up new render loop
-  newSceneManager.init((delta) => {
-    // Era-specific per-frame logic here
-  });
-
-  console.log(`Switched to era: ${era}`);
+function switchEra(newEra: EraKey) {
+  // Update the ground plane materials for the new era
+  updateGroundPlaneEra(newEra, groundComponents);
+  console.log(`Switched to era: ${newEra}`);
 }
-
-// Example: Set camera position for a specific era
-function repositionCameraForEra(era: "1945" | "1965" | "1985" | "2005" | "2025" | "2055") {
-  // Camera stays at default orbit-ready position, but could be repositioned
-  // based on the era's expected view
-  sceneManager.setCameraPosition(0, 50, 150);
-  console.log(`Camera repositioned for era: ${era}`);
-}
-
-// Expose API for era transitions
-(window as any).switchEra = switchEra;
-(window as any).repositionCameraForEra = repositionCameraForEra;
 
 // Initial camera position verification
 console.log("Camera position:", sceneManager.getCamera().position);
