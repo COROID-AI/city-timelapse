@@ -13,6 +13,8 @@ import { SceneEngine } from './scene/engine.js';
 import { buildArmature } from './scene/armature.js';
 import { SkyRig } from './scene/sky.js';
 import { EraStage } from './scene/eraStage.js';
+import { fpsMonitor } from './scene/resources.js';
+import { DebugFPSOverlay } from './ui/components/debugOverlay.js';
 import { TimelineController, NoopAnimationDriver } from './scene/timelineController.js';
 import { SfxMixer } from './audio/mixer.js';
 import { mountTimeline, selectEra as timelineSelectEra } from './ui/timeline.js';
@@ -118,12 +120,16 @@ helpOverlay.innerHTML = `
     <li><kbd>A</kbd> / <kbd>D</kbd> Cycle eras backwards / forwards</li>
     <li><kbd>Q</kbd> / <kbd>E</kbd> Switch orbit ↔ dolly camera mode</li>
     <li><kbd>M</kbd> Mute / unmute audio</li>
+    <li><kbd>F</kbd> Toggle FPS debug overlay</li>
     <li><kbd>Click</kbd> Era stops on timeline slider</li>
   </ul>
 `;
 hud.appendChild(helpOverlay);
 
 let helpVisible = false;
+
+// ── Debug FPS Overlay ───────────────────────────────────────
+const fpsOverlay = new DebugFPSOverlay();
 
 document.addEventListener('keydown', (e: KeyboardEvent) => {
   if (e.key === 'h' || e.key === 'H') {
@@ -166,6 +172,13 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
     muted = !muted;
     sfxMixer.setMute(muted);
     audioBtn.textContent = muted ? '🔇' : '🔊';
+    return;
+  }
+
+  // FPS debug overlay with F
+  if (e.key === 'f' || e.key === 'F') {
+    fpsOverlay.toggle();
+    return;
   }
 });
 
@@ -296,6 +309,11 @@ function render(now: number): void {
 
   renderer.render(engine.scene, camera);
 
+  // Track FPS & update debug overlay
+  const fpsData = fpsMonitor.tick();
+  const info = renderer.info;
+  fpsOverlay.update(fpsData, info.render.calls, info.render.triangles);
+
   requestAnimationFrame(render);
 }
 
@@ -316,6 +334,7 @@ window.addEventListener('beforeunload', () => {
   skyRig.dispose();
   engine.dispose();
   sfxMixer.dispose();
+  fpsOverlay.dispose();
 });
 
 // ══════════════════════════════════════════════════════════════

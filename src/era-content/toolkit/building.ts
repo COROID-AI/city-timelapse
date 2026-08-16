@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { getResourceCache, createInstancedMesh } from '../../scene/resources.js';
 
 // ── Shared material cache ──────────────────────────────────────────
 const _matCache = new Map<string, THREE.Material>();
@@ -56,6 +57,54 @@ export interface BuildingResult {
 function makeBox(w: number, h: number, d: number, mat: THREE.Material): THREE.Mesh {
   const geo = new THREE.BoxGeometry(w, h, d);
   return new THREE.Mesh(geo, mat);
+}
+
+// ── Shared geometry cache (registered once, reused across eras) ─────
+const _geoCache = new Map<string, THREE.BufferGeometry>();
+
+function cachedGeo(key: string, fn: () => THREE.BufferGeometry): THREE.BufferGeometry {
+  if (!_geoCache.has(key)) {
+    _geoCache.set(key, fn());
+    // Also register in global resource cache for cross-era sharing
+    getResourceCache().registerGeometry(`bldg_${key}`, fn());
+  }
+  return _geoCache.get(key)!;
+}
+
+/** Helper to create instanced windows for repeated patterns */
+function addInstancedWindows(
+  group: THREE.Group,
+  floors: number, floorH: number, bays: number, bayW: number,
+  W: number, D: number, frameMat: THREE.Material, glassMat: THREE.Material,
+  frameSize: [w: number, h: number, d: number], glassSize: [w: number, h: number, d: number],
+  yOff: number, zOff: number, glassZOff: number,
+): void {
+  const total = floors * bays;
+  if (total < 2) return; // skip instancing for very few windows
+
+  // Create and cache shared geometries
+  const fKey = `bldg_win_${frameSize[0]}x${frameSize[1]}`;
+  const gKey = `bldg_glass_${glassSize[0]}x${glassSize[1]}`;
+  const cache = getResourceCache();
+  if (!cache.hasGeometry(fKey)) cache.registerGeometry(fKey, new THREE.BoxGeometry(frameSize[0], frameSize[1], frameSize[2]));
+  if (!cache.hasGeometry(gKey)) cache.registerGeometry(gKey, new THREE.BoxGeometry(glassSize[0], glassSize[1], glassSize[2]));
+
+  const frameTransforms: Array<{ position: THREE.Vector3; rotation: THREE.Euler; scale: THREE.Vector3 }> = [];
+  const glassTransforms: Array<{ position: THREE.Vector3; rotation: THREE.Euler; scale: THREE.Vector3 }> = [];
+
+  for (let f = 0; f < floors; f++) {
+    for (let b = 0; b < bays; b++) {
+      const wy = f * floorH + floorH * yOff;
+      const wx = -W / 2 + bayW / 2 + b * bayW;
+      frameTransforms.push({ position: new THREE.Vector3(wx, wy, D / 2 + zOff), rotation: new THREE.Euler(), scale: new THREE.Vector3(1, 1, 1) });
+      glassTransforms.push({ position: new THREE.Vector3(wx, wy, D / 2 + glassZOff), rotation: new THREE.Euler(), scale: new THREE.Vector3(1, 1, 1) });
+    }
+  }
+
+  const frameIM = createInstancedMesh('bldg_win_' + frameSize[0] + 'x' + frameSize[1], frameMat, total, frameTransforms);
+  const glassIM = createInstancedMesh('bldg_glass_' + glassSize[0] + 'x' + glassSize[1], glassMat, total, glassTransforms);
+  group.add(frameIM);
+  group.add(glassIM);
 }
 
 function hexToThree(hex: number): THREE.Color {
@@ -120,15 +169,9 @@ function buildBrickClassic(p: BuildingParams): THREE.Group {
   const wallMat = getWallMaterial(p.wallMaterial ?? 'brick', p.baseColor ?? 0x8B4513, p.condition ?? 0.6);
   const frameMat = windowFrameMaterial(p.condition ?? 0.6);
   g.add(makeBox(W, H, D, wallMat).translateY(H / 2));
-  for (let f = 0; f < (p.floors ?? 4); f++) {
-    for (let b = 0; b < bays; b++) {
-      const wy = f * (p.floorHeight ?? 3) + (p.floorHeight ?? 3) * 0.35;
-      const wx = -W / 2 + bayW / 2 + b * bayW;
-      const win = makeBox(0.8, 1.2, 0.05, frameMat); win.position.set(wx, wy, D / 2 + 0.01); g.add(win);
-      const glass = makeBox(0.6, 1.0, 0.02, glassMaterial(p.condition ?? 0.6));
-      glass.position.set(wx, wy, D / 2 + 0.04); g.add(glass);
-    }
-  }
+  // Use InstancedMesh for repeated windows (≥2 floors × bays)
+  addInstancedWindows(g, p.floors ?? 4, p.floorHeight ?? 3, bays, bayW, W, D,
+    frameMat, glassMaterial(p.condition ?? 0.6), [0.8, 1.2, 0.05], [0.6, 1.0, 0.02], 0.35, 0.01, 0.04);
   for (let f = 1; f < (p.floors ?? 4); f++) {
     const band = makeBox(W + 0.1, 0.15, D + 0.1, wallMat);
     band.position.set(0, f * (p.floorHeight ?? 3), 0); g.add(band);
@@ -152,16 +195,9 @@ function buildArtDeco(p: BuildingParams): THREE.Group {
     const step = makeBox(stepW, stepH, stepD, wallMat);
     step.position.set(0, yBase + stepH / 2, 0); g.add(step);
   }
-  for (let f = 0; f < (p.floors ?? 8); f++) {
-    const wy = f * (p.floorHeight ?? 3) + (p.floorHeight ?? 3) * 0.2;
-    for (let b = 0; b < bays; b++) {
-      const wx = -W / 2 + bayW / 2 + b * bayW;
-      const win = makeBox(0.3, (p.floorHeight ?? 3) * 0.6, 0.05, frameMat);
-      win.position.set(wx, wy, D / 2 + 0.01); g.add(win);
-      const glass = makeBox(0.2, (p.floorHeight ?? 3) * 0.5, 0.02, glassMaterial(p.condition ?? 0.7));
-      glass.position.set(wx, wy, D / 2 + 0.04); g.add(glass);
-    }
-  }
+  // InstancedMesh for art deco windows
+  addInstancedWindows(g, p.floors ?? 8, p.floorHeight ?? 3, bays, bayW, W, D,
+    frameMat, glassMaterial(p.condition ?? 0.7), [0.3, (p.floorHeight ?? 3) * 0.6, 0.05], [0.2, (p.floorHeight ?? 3) * 0.5, 0.02], 0.2, 0.01, 0.04);
   const bandMat = new THREE.MeshStandardMaterial({ color: 0xC0A060, roughness: 0.4, metalness: 0.6 });
   for (let f = 0; f < (p.floors ?? 8); f += 4) {
     const band = makeBox(W + 0.2, 0.1, D + 0.2, bandMat);
@@ -176,14 +212,12 @@ function buildModernist(p: BuildingParams): THREE.Group {
   const W = p.width ?? 12, H = (p.floors ?? 5) * (p.floorHeight ?? 3), D = p.depth ?? 8;
   const wallMat = getWallMaterial(p.wallMaterial ?? 'render', p.baseColor ?? 0xF5F5F0, p.condition ?? 0.8);
   g.add(makeBox(W, H, D, wallMat).translateY(H / 2));
-  for (let f = 0; f < (p.floors ?? 5); f++) {
-    const wy = f * (p.floorHeight ?? 3) + (p.floorHeight ?? 3) * 0.45;
-    const ribbonW = W * 0.85;
-    const ribbon = makeBox(ribbonW, 0.6, 0.05, windowFrameMaterial(p.condition ?? 0.8));
-    ribbon.position.set(0, wy, D / 2 + 0.01); g.add(ribbon);
-    const glass = makeBox(ribbonW - 0.1, 0.45, 0.02, glassMaterial(p.condition ?? 0.8));
-    glass.position.set(0, wy, D / 2 + 0.04); g.add(glass);
-  }
+  // InstancedMesh for modernist ribbon windows
+  const fm = windowFrameMaterial(p.condition ?? 0.8);
+  const gm = glassMaterial(p.condition ?? 0.8);
+  const ribbonW = W * 0.85;
+  addInstancedWindows(g, p.floors ?? 5, p.floorHeight ?? 3, 1, ribbonW, 0, D,
+    fm, gm, [ribbonW, 0.6, 0.05], [ribbonW - 0.1, 0.45, 0.02], 0.45, 0.01, 0.04);
   const canopy = makeBox(4, 0.1, 2, wallMat);
   canopy.position.set(0, 3, D / 2 + 1); g.add(canopy);
   return g;
@@ -196,17 +230,19 @@ function buildBeauxArts(p: BuildingParams): THREE.Group {
   const bays = p.bays ?? 6, bayW = W / bays;
   const wallMat = getWallMaterial(p.wallMaterial ?? 'stone', p.baseColor ?? 0xE8E0D0, p.condition ?? 0.75);
   g.add(makeBox(W, H, D, wallMat).translateY(H / 2));
+  // InstancedMesh for beaux arts windows (arches kept as individual meshes)
+  const baFm = windowFrameMaterial(p.condition ?? 0.75);
+  const baGm = glassMaterial(p.condition ?? 0.75);
+  addInstancedWindows(g, p.floors ?? 5, p.floorHeight ?? 3, bays, bayW, W, D,
+    baFm, baGm, [0.7, 1.4, 0.05], [0.55, 1.2, 0.02], 0.4, 0.01, 0.04);
+  // Arches (unique shapes per window, kept as individual meshes)
   for (let f = 0; f < (p.floors ?? 5); f++) {
     for (let b = 0; b < bays; b++) {
       const wx = -W / 2 + bayW / 2 + b * bayW;
       const wy = f * (p.floorHeight ?? 3) + (p.floorHeight ?? 3) * 0.4;
       const archGeo = new THREE.TorusGeometry(0.4, 0.06, 8, 12, Math.PI);
-      const arch = new THREE.Mesh(archGeo, windowFrameMaterial(p.condition ?? 0.75));
+      const arch = new THREE.Mesh(archGeo, baFm);
       arch.position.set(wx, wy + 0.8, D / 2 + 0.02); g.add(arch);
-      const win = makeBox(0.7, 1.4, 0.05, windowFrameMaterial(p.condition ?? 0.75));
-      win.position.set(wx, wy - 0.1, D / 2 + 0.01); g.add(win);
-      const glass = makeBox(0.55, 1.2, 0.02, glassMaterial(p.condition ?? 0.75));
-      glass.position.set(wx, wy - 0.1, D / 2 + 0.04); g.add(glass);
     }
   }
   const corniceMat = new THREE.MeshStandardMaterial({ color: 0xD0C8B8, roughness: 0.5, metalness: 0.2 });
@@ -224,16 +260,11 @@ function buildIndustrial(p: BuildingParams): THREE.Group {
   const bays = p.bays ?? 8, bayW = W / bays;
   const wallMat = getWallMaterial(p.wallMaterial ?? 'concrete', p.baseColor ?? 0x666666, p.condition ?? 0.5);
   g.add(makeBox(W, H, D, wallMat).translateY(H / 2));
-  for (let f = 0; f < (p.floors ?? 3); f++) {
-    for (let b = 0; b < bays; b++) {
-      const wx = -W / 2 + bayW / 2 + b * bayW;
-      const wy = f * (p.floorHeight ?? 4) + (p.floorHeight ?? 4) * 0.7;
-      const win = makeBox(1.5, 1.5, 0.05, windowFrameMaterial(p.condition ?? 0.5));
-      win.position.set(wx, wy, D / 2 + 0.01); g.add(win);
-      const glass = makeBox(1.3, 1.3, 0.02, glassMaterial(p.condition ?? 0.5));
-      glass.position.set(wx, wy, D / 2 + 0.04); g.add(glass);
-    }
-  }
+  // InstancedMesh for industrial windows
+  const indFm = windowFrameMaterial(p.condition ?? 0.5);
+  const indGm = glassMaterial(p.condition ?? 0.5);
+  addInstancedWindows(g, p.floors ?? 3, p.floorHeight ?? 4, bays, bayW, W, D,
+    indFm, indGm, [1.5, 1.5, 0.05], [1.3, 1.3, 0.02], 0.7, 0.01, 0.04);
   const steelMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.7, metalness: 0.8 });
   for (let b = 0; b <= bays; b += 2) {
     const colX = -W / 2 + b * bayW;
@@ -250,6 +281,12 @@ function buildGothicRevival(p: BuildingParams): THREE.Group {
   const bays = p.bays ?? 5, bayW = W / bays;
   const wallMat = getWallMaterial(p.wallMaterial ?? 'stone', p.baseColor ?? 0x808070, p.condition ?? 0.65);
   g.add(makeBox(W, H, D, wallMat).translateY(H / 2));
+  // InstancedMesh for gothic windows (arches kept as individual meshes due to unique geometry)
+  const goFm = windowFrameMaterial(p.condition ?? 0.65);
+  const goGm = glassMaterial(p.condition ?? 0.65);
+  addInstancedWindows(g, p.floors ?? 6, p.floorHeight ?? 3, bays, bayW, W, D,
+    goFm, goGm, [0.5, 1.0, 0.05], [0.5, 1.0, 0.02], 0.4, -0.2, 0.06);
+  // Unique arch shapes per window (kept as individual meshes)
   for (let f = 0; f < (p.floors ?? 6); f++) {
     for (let b = 0; b < bays; b++) {
       const wx = -W / 2 + bayW / 2 + b * bayW;
@@ -258,10 +295,8 @@ function buildGothicRevival(p: BuildingParams): THREE.Group {
       archShape.moveTo(-0.35, 0); archShape.lineTo(-0.35, 1.2);
       archShape.quadraticCurveTo(0, 1.8, 0.35, 1.2); archShape.lineTo(0.35, 0); archShape.lineTo(-0.35, 0);
       const archGeo = new THREE.ExtrudeGeometry(archShape, { depth: 0.05, bevelEnabled: false });
-      const archMesh = new THREE.Mesh(archGeo, windowFrameMaterial(p.condition ?? 0.65));
+      const archMesh = new THREE.Mesh(archGeo, goFm);
       archMesh.position.set(wx, wy - 0.2, D / 2 + 0.01); g.add(archMesh);
-      const glass = makeBox(0.5, 1.0, 0.02, glassMaterial(p.condition ?? 0.65));
-      glass.position.set(wx, wy - 0.1, D / 2 + 0.06); g.add(glass);
     }
   }
   const towerMat = getWallMaterial(p.wallMaterial ?? 'stone', p.baseColor ?? 0x707060, p.condition ?? 0.65);
@@ -279,16 +314,11 @@ function buildPostWar(p: BuildingParams): THREE.Group {
   const bays = p.bays ?? 4, bayW = W / bays;
   const wallMat = getWallMaterial(p.wallMaterial ?? 'render', p.baseColor ?? 0xC0B0A0, p.condition ?? 0.6);
   g.add(makeBox(W, H, D, wallMat).translateY(H / 2));
-  for (let f = 0; f < (p.floors ?? 4); f++) {
-    for (let b = 0; b < bays; b++) {
-      const wx = -W / 2 + bayW / 2 + b * bayW;
-      const wy = f * (p.floorHeight ?? 3) + (p.floorHeight ?? 3) * 0.45;
-      const win = makeBox(0.9, 0.9, 0.05, windowFrameMaterial(p.condition ?? 0.6));
-      win.position.set(wx, wy, D / 2 + 0.01); g.add(win);
-      const glass = makeBox(0.7, 0.7, 0.02, glassMaterial(p.condition ?? 0.6));
-      glass.position.set(wx, wy, D / 2 + 0.04); g.add(glass);
-    }
-  }
+  // InstancedMesh for post-war windows
+  const pwFm = windowFrameMaterial(p.condition ?? 0.6);
+  const pwGm = glassMaterial(p.condition ?? 0.6);
+  addInstancedWindows(g, p.floors ?? 4, p.floorHeight ?? 3, bays, bayW, W, D,
+    pwFm, pwGm, [0.9, 0.9, 0.05], [0.7, 0.7, 0.02], 0.45, 0.01, 0.04);
   return g;
 }
 
@@ -299,16 +329,50 @@ function buildBrutalist(p: BuildingParams): THREE.Group {
   const bays = p.bays ?? 7, bayW = W / bays;
   const wallMat = getWallMaterial(p.wallMaterial ?? 'concrete', p.baseColor ?? 0x555550, p.condition ?? 0.5);
   g.add(makeBox(W, H, D, wallMat).translateY(H / 2));
-  for (let f = 0; f < (p.floors ?? 6); f++) {
-    for (let b = 0; b < bays; b++) {
-      const wx = -W / 2 + bayW / 2 + b * bayW;
-      const wy = f * (p.floorHeight ?? 3) + (p.floorHeight ?? 3) * 0.35;
-      const recess = makeBox(1.0, 1.2, 0.3, wallMat);
-      recess.position.set(wx, wy, D / 2 + 0.15); g.add(recess);
-      const win = makeBox(0.6, 0.8, 0.05, windowFrameMaterial(p.condition ?? 0.5));
-      win.position.set(wx, wy, D / 2 + 0.3); g.add(win);
-      const glass = makeBox(0.45, 0.65, 0.02, glassMaterial(p.condition ?? 0.5));
-      glass.position.set(wx, wy, D / 2 + 0.33); g.add(glass);
+  // InstancedMesh for brutalist recesses + windows (3 groups per bay)
+  const brFm = windowFrameMaterial(p.condition ?? 0.5);
+  const brGm = glassMaterial(p.condition ?? 0.5);
+  const totalBrut = (p.floors ?? 6) * bays;
+  if (totalBrut >= 2) {
+    // Recesses use shared geometry
+    const recessGeo = cachedGeo('brut_recess', () => new THREE.BoxGeometry(1.0, 1.2, 0.3));
+    getResourceCache().registerGeometry('bldg_brut_recess', recessGeo);
+    // Frame windows
+    const frameGeo = cachedGeo('brut_win', () => new THREE.BoxGeometry(0.6, 0.8, 0.05));
+    getResourceCache().registerGeometry('bldg_brut_win', frameGeo);
+    // Glass
+    const glassGeo = cachedGeo('brut_glass', () => new THREE.BoxGeometry(0.45, 0.65, 0.02));
+    getResourceCache().registerGeometry('bldg_brut_glass', glassGeo);
+    const recessT: Array<{ position: THREE.Vector3; rotation: THREE.Euler; scale: THREE.Vector3 }> = [];
+    const frameT: Array<{ position: THREE.Vector3; rotation: THREE.Euler; scale: THREE.Vector3 }> = [];
+    const glassT: Array<{ position: THREE.Vector3; rotation: THREE.Euler; scale: THREE.Vector3 }> = [];
+    for (let f = 0; f < (p.floors ?? 6); f++) {
+      for (let b = 0; b < bays; b++) {
+        const wx = -W / 2 + bayW / 2 + b * bayW;
+        const wy = f * (p.floorHeight ?? 3) + (p.floorHeight ?? 3) * 0.35;
+        recessT.push({ position: new THREE.Vector3(wx, wy, D / 2 + 0.15), rotation: new THREE.Euler(), scale: new THREE.Vector3(1, 1, 1) });
+        frameT.push({ position: new THREE.Vector3(wx, wy, D / 2 + 0.3), rotation: new THREE.Euler(), scale: new THREE.Vector3(1, 1, 1) });
+        glassT.push({ position: new THREE.Vector3(wx, wy, D / 2 + 0.33), rotation: new THREE.Euler(), scale: new THREE.Vector3(1, 1, 1) });
+      }
+    }
+    const recessIM = createInstancedMesh('bldg_brut_recess', wallMat, totalBrut, recessT);
+    const frameIM = createInstancedMesh('bldg_brut_win', brFm, totalBrut, frameT);
+    const glassIM = createInstancedMesh('bldg_brut_glass', brGm, totalBrut, glassT);
+    g.add(recessIM);
+    g.add(frameIM);
+    g.add(glassIM);
+  } else {
+    for (let f = 0; f < (p.floors ?? 6); f++) {
+      for (let b = 0; b < bays; b++) {
+        const wx = -W / 2 + bayW / 2 + b * bayW;
+        const wy = f * (p.floorHeight ?? 3) + (p.floorHeight ?? 3) * 0.35;
+        const recess = makeBox(1.0, 1.2, 0.3, wallMat);
+        recess.position.set(wx, wy, D / 2 + 0.15); g.add(recess);
+        const win = makeBox(0.6, 0.8, 0.05, brFm);
+        win.position.set(wx, wy, D / 2 + 0.3); g.add(win);
+        const glass = makeBox(0.45, 0.65, 0.02, brGm);
+        glass.position.set(wx, wy, D / 2 + 0.33); g.add(glass);
+      }
     }
   }
   const balconyMat = wallMat;

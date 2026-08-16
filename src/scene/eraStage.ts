@@ -167,11 +167,25 @@ export class EraStage {
       for (const child of this._currentGroup.children) {
         if (child instanceof THREE.Group) {
           this._scene.remove(child);
+          // Dispose any InstancedMesh children (not handled by individual dispose())
+          child.traverse((obj) => {
+            if ((obj as THREE.InstancedMesh).isInstancedMesh) {
+              const im = obj as THREE.InstancedMesh;
+              im.geometry.dispose();
+              if (Array.isArray(im.material)) {
+                for (const m of im.material) m.dispose();
+              } else if (im.material) {
+                im.material.dispose();
+              }
+              im.dispose();
+            }
+          });
         }
       }
+      // Full traversal: dispose all Mesh AND InstancedMesh resources
       this._currentGroup.traverse((obj) => {
-        if ((obj as THREE.Mesh).isMesh) {
-          const mesh = obj as THREE.Mesh;
+        if ((obj as THREE.Mesh).isMesh || (obj as THREE.InstancedMesh).isInstancedMesh) {
+          const mesh = obj as THREE.Mesh | THREE.InstancedMesh;
           mesh.geometry.dispose();
           if (Array.isArray(mesh.material)) {
             for (const m of mesh.material) m.dispose();
