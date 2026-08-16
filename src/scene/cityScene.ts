@@ -66,6 +66,9 @@ export function createCityScene(config: EraContent): SceneGraphResult {
     get scene() {
       return scene;
     },
+    get atmosphere() {
+      return atmosphere;
+    },
     dispose() {
       // Remove children in reverse order
       while (scene.children.length > 0) {

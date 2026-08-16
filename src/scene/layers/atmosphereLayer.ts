@@ -11,7 +11,7 @@
 
 import * as THREE from 'three';
 import type { EraId } from '../../eras.js';
-import type { EraContent, AtmosphereSettings } from '../../content/eraConfig.js';
+import type { AtmosphereSettings } from '../../content/eraConfig.js';
 import defaultEras from '../../content/eraConfig.js';
 
 // ─── Public API ─────────────────────────────────────────────────────────
@@ -115,7 +115,8 @@ void main() {
   vec3 skyColor = mix(uHorizonColor, uZenithColor, pow(height, 0.7));
 
   // Optional mid-band
-  if (uMidFactor > 0.0 && uMidColor.r > 0.0 || uMidColor.g > 0.0 || uMidColor.b > 0.0) {
+  bool hasMid = uMidFactor > 0.0 && (uMidColor.r > 0.0 || uMidColor.g > 0.0 || uMidColor.b > 0.0);
+  if (hasMid) {
     float midBlend = smoothstep(uMidFactor - 0.15, uMidFactor + 0.15, height);
     skyColor = mix(skyColor, uMidColor, midBlend * 0.5);
   }
@@ -168,6 +169,12 @@ function copyAtmosphere(src: AtmosphereSettings): AtmosphereSettings {
   };
 }
 
+// ─── Uniform type for the sky shader ────────────────────────────────────
+
+interface SkyUniformValue {
+  value: THREE.Color | THREE.Vector3 | number;
+}
+
 // ─── Factory ────────────────────────────────────────────────────────────
 
 export function createAtmosphereLayer(scene: THREE.Scene): AtmosphereLayerResult {
@@ -178,9 +185,9 @@ export function createAtmosphereLayer(scene: THREE.Scene): AtmosphereLayerResult
   const skyRadius = 300;
   const skyGeo = new THREE.SphereGeometry(skyRadius, 32, 24);
 
-  const skyUniforms: Record<string, { value: unknown }> = {
+  const skyUniforms: Record<string, SkyUniformValue> = {
     uHorizonColor: { value: new THREE.Color(0xc4a882) },
-    uZenithColor: { value: new THREE.Color(0x8a7d6b) },
+    uZenithColor:  { value: new THREE.Color(0x8a7d6b) },
     uMidColor:     { value: new THREE.Color(0xffffff) },
     uMidFactor:    { value: 0.0 },
     uCloudOpacity: { value: 0.25 },
@@ -229,18 +236,18 @@ export function createAtmosphereLayer(scene: THREE.Scene): AtmosphereLayerResult
 
   function applySettings(settings: AtmosphereSettings): void {
     // Sky uniforms
-    skyUniforms.uHorizonColor.value.setHex(settings.sky.horizonColor);
-    skyUniforms.uZenithColor.value.setHex(settings.sky.zenithColor);
+    (skyUniforms.uHorizonColor.value as THREE.Color).setHex(settings.sky.horizonColor);
+    (skyUniforms.uZenithColor.value as THREE.Color).setHex(settings.sky.zenithColor);
     if (settings.sky.midColor !== undefined) {
-      skyUniforms.uMidColor.value.setHex(settings.sky.midColor);
+      (skyUniforms.uMidColor.value as THREE.Color).setHex(settings.sky.midColor);
       skyUniforms.uMidFactor.value = settings.sky.midFactor ?? 0.5;
     } else {
-      skyUniforms.uMidColor.value.setHex(0xffffff);
+      (skyUniforms.uMidColor.value as THREE.Color).setHex(0xffffff);
       skyUniforms.uMidFactor.value = 0.0;
     }
 
     // Sun direction
-    skyUniforms.uSunDir.value.set(settings.sun.x, settings.sun.y, settings.sun.z).normalize();
+    (skyUniforms.uSunDir.value as THREE.Vector3).set(settings.sun.x, settings.sun.y, settings.sun.z).normalize();
     skyUniforms.uSunIntensity.value = settings.dirIntensity;
 
     // Directional light
@@ -254,8 +261,10 @@ export function createAtmosphereLayer(scene: THREE.Scene): AtmosphereLayerResult
     hemiLight.intensity = settings.hemiIntensity;
 
     // Fog
-    scene.fog!.color.setHex(settings.fogColor);
-    scene.fog!.density = settings.fogDensity;
+    if (scene.fog instanceof THREE.FogExp2) {
+      scene.fog.color.setHex(settings.fogColor);
+      scene.fog.density = settings.fogDensity;
+    }
   }
 
   // ── Public methods ───────────────────────────────────────────────────
@@ -305,9 +314,9 @@ export function createAtmosphereLayer(scene: THREE.Scene): AtmosphereLayerResult
       const zenithColor = lerpColorHex(prevSettings!.sky.zenithColor, targetSettings.sky.zenithColor, eased);
 
       // Update uniforms & lights
-      skyUniforms.uHorizonColor.value.setHex(horizonColor);
-      skyUniforms.uZenithColor.value.setHex(zenithColor);
-      skyUniforms.uSunDir.value.set(sunX, sunY, sunZ).normalize();
+      (skyUniforms.uHorizonColor.value as THREE.Color).setHex(horizonColor);
+      (skyUniforms.uZenithColor.value as THREE.Color).setHex(zenithColor);
+      (skyUniforms.uSunDir.value as THREE.Vector3).set(sunX, sunY, sunZ).normalize();
       skyUniforms.uSunIntensity.value = dirIntensity;
 
       dirLight.color.setHex(sunColor);
@@ -318,15 +327,19 @@ export function createAtmosphereLayer(scene: THREE.Scene): AtmosphereLayerResult
       hemiLight.groundColor.setHex(hemiGroundColor);
       hemiLight.intensity = hemiIntensity;
 
-      scene.fog!.color.setHex(fogColor);
-      scene.fog!.density = fogDensity;
+      if (scene.fog instanceof THREE.FogExp2) {
+        scene.fog.color.setHex(fogColor);
+        scene.fog.density = fogDensity;
+      }
 
       // Update stored state
       currentSettings = {
         sky: {
           horizonColor: Number(horizonColor),
           zenithColor: Number(zenithColor),
-          midColor: prevSettings!.sky.midColor !== undefined ? lerpColorHex(prevSettings!.sky.midColor!, targetSettings.sky.midColor!, eased) : undefined,
+          midColor: prevSettings!.sky.midColor !== undefined
+            ? lerpColorHex(prevSettings!.sky.midColor!, targetSettings.sky.midColor!, eased)
+            : undefined,
         },
         fogDensity,
         fogColor: Number(fogColor),
@@ -344,12 +357,13 @@ export function createAtmosphereLayer(scene: THREE.Scene): AtmosphereLayerResult
     }
 
     // ── Subtle animated sky variation (always running) ─────────────────
-    skyUniforms.uTime.value += deltaTime;
+    const time = (skyUniforms.uTime.value as number);
+    skyUniforms.uTime.value = time + deltaTime;
 
     // Very subtle sun shimmer
     const shimmerAmount = 0.02;
-    const time = skyUniforms.uTime.value;
-    skyUniforms.uSunIntensity.value = targetSettings.dirIntensity + Math.sin(time * 2.0) * shimmerAmount * targetSettings.dirIntensity;
+    skyUniforms.uSunIntensity.value =
+      targetSettings.dirIntensity + Math.sin(time * 2.0) * shimmerAmount * targetSettings.dirIntensity;
 
     // Subtle cloud drift is handled inside the shader via uTime
   }

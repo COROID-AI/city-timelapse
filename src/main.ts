@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 
 // Era registry + SFX data
+import type { EraId } from './eras.js';
 import { ERA_REGISTRY, getEraSpec } from './eras.js';
 import defaultEras from './content/eraConfig.js';
 
@@ -52,7 +53,6 @@ const clock = new THREE.Clock();
 
 // Current scene reference
 let currentSceneResult: ReturnType<typeof createCityScene> | null = null;
-let prevEraId: EraId | null = null;
 
 /**
  * Render one frame driven by the clock delta.
@@ -115,7 +115,6 @@ subscribe((eraId) => {
   // Smooth atmosphere transition (no full scene rebuild)
   if (currentSceneResult?.atmosphere) {
     currentSceneResult.atmosphere.applyEra(eraId as EraId, 2.0);
-    prevEraId = eraId;
   } else {
     // Fallback: rebuild entire scene for new era
     currentSceneResult?.dispose();
