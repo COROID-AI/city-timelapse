@@ -48,6 +48,49 @@ export interface PedestrianConfig {
   walkingSpeed: number;
 }
 
+// ─── Atmosphere / sky / lighting config ─────────────────────────────────
+
+export interface SkyGradient {
+  /** Horizon colour (hex integer). */
+  horizonColor: number;
+  /** Zenith (top-of-sky) colour (hex integer). */
+  zenithColor: number;
+  /** Optional third band — middle sky colour (hex integer), undefined for simple two-stop gradient. */
+  midColor?: number;
+  /** Mid-band height factor 0–1 (applied only when midColor is set). Default 0.5. */
+  midFactor?: number;
+}
+
+export interface SunDirection {
+  /** Normalised x component. */
+  x: number;
+  /** Normalised y component (positive = above horizon). */
+  y: number;
+  /** Normalised z component. */
+  z: number;
+  /** Sun colour (hex integer). */
+  color: number;
+}
+
+export interface AtmosphereSettings {
+  /** Vertical sky colour gradient. */
+  sky: SkyGradient;
+  /** Exponential fog density (0 = none, ~0.008–0.02 typical). */
+  fogDensity: number;
+  /** Fog colour (hex integer). */
+  fogColor: number;
+  /** Sun position & colour. */
+  sun: SunDirection;
+  /** Upward hemisphere light colour (hex integer). */
+  hemiSkyColor: number;
+  /** Downward hemisphere light colour (hex integer). */
+  hemiGroundColor: number;
+  /** Hemisphere light intensity. */
+  hemiIntensity: number;
+  /** Directional sun light intensity. */
+  dirIntensity: number;
+}
+
 // ─── EraContent — one typed shape per era ───────────────────────────────
 
 export interface EraContent {
@@ -58,6 +101,7 @@ export interface EraContent {
   street: StreetConfig;
   vehicles: VehicleConfig;
   pedestrians: PedestrianConfig;
+  atmosphere: AtmosphereSettings;
 }
 
 // ─── Default record with all five eras present ──────────────────────────
@@ -98,6 +142,19 @@ const defaultEras: Record<EraId, EraContent> = {
       outfitStyles: ['1940s_suit', 'apron_dress', 'fedora'],
       walkingSpeed: 1.0,
     },
+    atmosphere: {
+      sky: {
+        horizonColor: 0xc4a882,
+        zenithColor: 0x8a7d6b,
+      },
+      fogDensity: 0.012,
+      fogColor: 0xbfa882,
+      sun: { x: 0.6, y: 0.35, z: 0.7, color: 0xd4b896 },
+      hemiSkyColor: 0x9e8e76,
+      hemiGroundColor: 0x4a4238,
+      hemiIntensity: 0.45,
+      dirIntensity: 0.55,
+    },
   },
   '1965': {
     id: '1965',
@@ -133,6 +190,19 @@ const defaultEras: Record<EraId, EraContent> = {
       totalCount: 20,
       outfitStyles: ['mod_suit', 'flower_power', 'casual_60s'],
       walkingSpeed: 1.2,
+    },
+    atmosphere: {
+      sky: {
+        horizonColor: 0xd4e8f0,
+        zenithColor: 0x3a8fd4,
+      },
+      fogDensity: 0.004,
+      fogColor: 0xe8dcc8,
+      sun: { x: 0.4, y: 0.75, z: 0.5, color: 0xfff0c0 },
+      hemiSkyColor: 0x87ceeb,
+      hemiGroundColor: 0x6b8e4e,
+      hemiIntensity: 0.6,
+      dirIntensity: 1.1,
     },
   },
   '1985': {
@@ -170,6 +240,19 @@ const defaultEras: Record<EraId, EraContent> = {
       outfitStyles: ['power_suit', 'punk', 'athleisure'],
       walkingSpeed: 1.4,
     },
+    atmosphere: {
+      sky: {
+        horizonColor: 0xff9944,
+        zenithColor: 0x2a1533,
+      },
+      fogDensity: 0.015,
+      fogColor: 0xcc8844,
+      sun: { x: 0.85, y: 0.15, z: 0.5, color: 0xffaa44 },
+      hemiSkyColor: 0xdd7733,
+      hemiGroundColor: 0x3a2a1a,
+      hemiIntensity: 0.5,
+      dirIntensity: 0.8,
+    },
   },
   '2005': {
     id: '2005',
@@ -206,6 +289,19 @@ const defaultEras: Record<EraId, EraContent> = {
       outfitStyles: ['business_casual', 'tech_start-up', 'jeans_and_tee'],
       walkingSpeed: 1.5,
     },
+    atmosphere: {
+      sky: {
+        horizonColor: 0xaab8c4,
+        zenithColor: 0x6a7a8a,
+      },
+      fogDensity: 0.006,
+      fogColor: 0x9aaabc,
+      sun: { x: 0.3, y: 0.6, z: 0.7, color: 0xddeeff },
+      hemiSkyColor: 0x99aabb,
+      hemiGroundColor: 0x556677,
+      hemiIntensity: 0.55,
+      dirIntensity: 0.7,
+    },
   },
   '2025': {
     id: '2025',
@@ -241,6 +337,19 @@ const defaultEras: Record<EraId, EraContent> = {
       totalCount: 35,
       outfitStyles: ['smart_wear', 'sustainable_fashion', 'adaptive_clothing'],
       walkingSpeed: 1.3,
+    },
+    atmosphere: {
+      sky: {
+        horizonColor: 0xc8ddf0,
+        zenithColor: 0x2266bb,
+      },
+      fogDensity: 0.002,
+      fogColor: 0xdde8f0,
+      sun: { x: 0.25, y: 0.8, z: 0.55, color: 0xffffff },
+      hemiSkyColor: 0x88bbee,
+      hemiGroundColor: 0x557755,
+      hemiIntensity: 0.7,
+      dirIntensity: 1.3,
     },
   },
 };

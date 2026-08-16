@@ -52,6 +52,7 @@ const clock = new THREE.Clock();
 
 // Current scene reference
 let currentSceneResult: ReturnType<typeof createCityScene> | null = null;
+let prevEraId: EraId | null = null;
 
 /**
  * Render one frame driven by the clock delta.
@@ -59,10 +60,15 @@ let currentSceneResult: ReturnType<typeof createCityScene> | null = null;
 function animate(): void {
   requestAnimationFrame(animate);
 
-  clock.getDelta(); // tick the clock each frame
+  const delta = clock.getDelta(); // tick the clock each frame
 
   // Update camera rig (if we had one active here)
   // cameraRig.update(delta);
+
+  // Update atmosphere layer (sky animation + transition interpolation)
+  if (currentSceneResult?.atmosphere) {
+    currentSceneResult.atmosphere.update(delta);
+  }
 
   renderer.render(currentSceneResult?.scene ?? new THREE.Scene(), camera);
 }
@@ -106,9 +112,15 @@ subscribe((eraId) => {
   const spec = getEraSpec(eraId);
   console.log(`  → ${spec.label}: ${spec.description.slice(0, 60)}…`);
 
-  // Rebuild scene for new era
-  currentSceneResult?.dispose();
-  currentSceneResult = createCityScene(defaultEras[eraId]);
+  // Smooth atmosphere transition (no full scene rebuild)
+  if (currentSceneResult?.atmosphere) {
+    currentSceneResult.atmosphere.applyEra(eraId as EraId, 2.0);
+    prevEraId = eraId;
+  } else {
+    // Fallback: rebuild entire scene for new era
+    currentSceneResult?.dispose();
+    currentSceneResult = createCityScene(defaultEras[eraId]);
+  }
 
   // Notify audio mixer
   mixer.setEra(eraId);

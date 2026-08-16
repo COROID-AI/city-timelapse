@@ -13,14 +13,19 @@ import { createStorefrontsLayer } from './layers/storefronts.js';
 import { createVehiclesLayer } from './layers/vehicles.js';
 import { createPedestriansLayer } from './layers/pedestrians.js';
 import { createStreetEnvironment } from './layers/streetEnvironment.js';
+import { createAtmosphereLayer } from './layers/atmosphereLayer.js';
 import { createTransitionManager } from './transitionManager.js';
 import { createCameraRig } from './cameraRig.js';
+
+import type { AtmosphereLayerResult } from './layers/atmosphereLayer.js';
 
 export interface SceneGraphResult {
   /** The root THREE.Scene containing all layers. */
   scene: THREE.Scene;
   /** Dispose every child group and free resources. */
   dispose(): void;
+  /** Atmosphere layer for per-frame updates and era transitions. */
+  atmosphere: AtmosphereLayerResult;
 }
 
 /**
@@ -33,22 +38,9 @@ export function createCityScene(config: EraContent): SceneGraphResult {
   const scene = new THREE.Scene();
   scene.name = 'city-scene';
 
-  // ── Lighting (basic ambient + directional) ────────────────────────────
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-  scene.add(ambientLight);
-
-  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  dirLight.position.set(20, 30, 10);
-  scene.add(dirLight);
-
-  // ── Placeholder ground block (always rendered) ────────────────────────
-  const groundGeo = new THREE.PlaneGeometry(80, 80);
-  const groundMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
-  const ground = new THREE.Mesh(groundGeo, groundMat);
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.y = 0;
-  ground.name = 'ground-block';
-  scene.add(ground);
+  // ── Atmosphere (sky, fog, hemisphere + directional sun) ───────────────
+  const atmosphere = createAtmosphereLayer(scene);
+  scene.add(atmosphere.group);
 
   // ── Layer groups (factory stubs wired in) ─────────────────────────────
   const buildings = createBuildingsLayer(config.buildings);
@@ -81,6 +73,7 @@ export function createCityScene(config: EraContent): SceneGraphResult {
       }
       cameraRig.dispose();
       transitionManager.dispose();
+      atmosphere.dispose();
     },
   };
 }
