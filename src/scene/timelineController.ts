@@ -7,6 +7,7 @@
  * vehicles, pedestrians, props, and sky/lighting. Guards against overlapping transitions.
  */
 
+import * as THREE from 'three';
 import { ERA_REGISTRY, type EraId } from '../eras.js';
 import { EraStage, CATEGORY, type CategoryKey } from './eraStage.js';
 import { SkyRig } from './sky.js';
@@ -235,10 +236,203 @@ export interface AnimationDriver {
 }
 
 /**
- * Default no-op driver that just waits for the scheduled duration.
- * Replace with a real implementation for actual visual effects.
+ * Visual animation driver — performs actual visual transitions using
+ * per-category visibility crossfading and scale/position tweens.
+ * Replaces NoopAnimationDriver with real animated effects.
  */
-export class NoopAnimationDriver implements AnimationDriver {
+export class VisualAnimationDriver implements AnimationDriver {
+  private _sceneGroups: Map<string, THREE.Group> = new Map();
+
+  constructor(scene: THREE.Scene) {
+    // Cache references to category groups in the scene
+    for (const child of scene.children) {
+      if (child instanceof THREE.Group && Object.values(CATEGORY).includes(child.name as CategoryKey)) {
+        this._sceneGroups.set(child.name, child);
+      }
+    }
+  }
+
+  async animate(subgroup: SubgroupAnimation, _fromEra: EraId, _toEra: EraId): Promise<void> {
+    const group = this._sceneGroups.get(subgroup.category);
+    if (!group || !subgroup.subgroup) return;
+
+    const ease = subgroup.ease ?? easeInOutCubic;
+    const durationMs = subgroup.durationMs;
+    const startTime = performance.now();
+
+    // Determine which meshes belong to this subgroup
+    const targetMeshes: THREE.Mesh[] = [];
+    group.traverse((obj) => {
+      if (obj instanceof THREE.Mesh) {
+        // Apply different animation strategies based on subgroup type
+        switch (subgroup.subgroup) {
+          case 'main_structures':
+            // Buildings rise/scale — subtle upward motion + fade
+            if (obj.name?.includes('structure') || obj.name?.includes('brick') || obj.name?.includes('stone')) {
+              targetMeshes.push(obj);
+            }
+            break;
+          case 'scaffolding':
+            // Scaffolding appears/disappears
+            if (obj.name?.includes('scaffold') || obj.name?.includes('construction')) {
+              targetMeshes.push(obj);
+            }
+            break;
+          case 'neon_signs':
+            // Neon signs flicker on
+            if (obj.name?.includes('sign') || obj.name?.includes('neon') || obj.name?.includes('illuminat')) {
+              targetMeshes.push(obj);
+            }
+            break;
+          case 'storefronts':
+            // Storefronts crossfade
+            if (obj.name?.includes('storefront') || obj.name?.includes('shop') || obj.name?.includes('awning')) {
+              targetMeshes.push(obj);
+            }
+            break;
+          default:
+            // For non-subgroup-targeted animations, animate all meshes
+            if (!obj.name?.includes('ground') && !obj.name?.includes('sky')) {
+              targetMeshes.push(obj);
+            }
+        }
+      }
+    });
+
+    if (targetMeshes.length === 0) {
+      await new Promise<void>((resolve) => setTimeout(resolve, durationMs));
+      return;
+    }
+
+    // Animate each mesh with staggered start offsets within the subgroup
+    const staggerStep = Math.min(50, durationMs / targetMeshes.length);
+
+    for (let i = 0; i < targetMeshes.length; i++) {
+      const mesh = targetMeshes[i];
+      const meshStartDelay = i * staggerStep;
+      const meshStartTime = startTime + meshStartDelay;
+
+      // Store original state
+      const origVisible = mesh.visible;
+      const origTransparent = mesh.material instanceof THREE.MeshStandardMaterial
+        ? mesh.material.transparent : false;
+      const origScaleX = mesh.scale.x;
+      const origScaleY = mesh.scale.y;
+      const origScaleZ = mesh.scale.z;
+      const origPositionY = mesh.position.y;
+
+      // Clone material safely (handles both single and array materials)
+      const matOrArr = mesh.material;
+      if (Array.isArray(matOrArr)) {
+        continue; // skip multi-material meshes for safety
+      }
+      mesh.material = matOrArr.clone();
+      if (mesh.material instanceof THREE.MeshStandardMaterial) {
+        mesh.material.transparent = true;
+        mesh.material.needsUpdate = true;
+      }
+
+      // Animate this mesh
+      await new Promise<void>((resolve) => {
+        const animFrame = (now: number) => {
+          const elapsed = now - meshStartTime;
+          if (elapsed < 0) {
+            requestAnimationFrame(animFrame);
+            return;
+          }
+
+          let t = Math.min(elapsed / durationMs, 1);
+          const easedT = ease(t);
+
+          switch (subgroup.type) {
+            case 'buildings_rise': {
+              // Scale up from slightly below ground, fade in
+              mesh.visible = origVisible;
+              if (mesh.material instanceof THREE.MeshStandardMaterial) {
+                mesh.material.opacity = easedT;
+              }
+              const liftAmount = easedT * 0.3; // subtle upward movement
+              mesh.scale.set(origScaleX, origScaleY + liftAmount, origScaleZ);
+              mesh.position.y = origPositionY - (1 - easedT) * 2;
+              break;
+            }
+            case 'vehicles_swap_drive': {
+              // Vehicles slide in from side, fade in/out
+              if (mesh.material instanceof THREE.MeshStandardMaterial) {
+                mesh.material.opacity = easedT > 0.5 ? easedT * 2 - 1 : 1 - easedT * 2;
+              }
+              const slideOffset = Math.sin(easedT * Math.PI) * 3;
+              mesh.position.x += slideOffset * 0.01;
+              break;
+            }
+            case 'storefronts_crossfade': {
+              // Crossfade with slight brightness pulse
+              if (mesh.material instanceof THREE.MeshStandardMaterial) {
+                mesh.material.opacity = 0.3 + easedT * 0.7;
+                // Subtle emissive pulse for signage
+                if (mesh.name?.includes('sign')) {
+                  mesh.material.emissiveIntensity = easedT * 0.8;
+                }
+              }
+              break;
+            }
+            case 'pedestrians_morph': {
+              // Pedestrians pop in with slight overshoot
+              const morphT = easeOutBack(easedT);
+              if (mesh.material instanceof THREE.MeshStandardMaterial) {
+                mesh.material.opacity = Math.min(morphT * 1.5, 1);
+              }
+              mesh.scale.setScalar(Math.max(0.01, morphT));
+              break;
+            }
+            case 'props_fade_slide': {
+              // Props fade in while sliding up slightly
+              if (mesh.material instanceof THREE.MeshStandardMaterial) {
+                mesh.material.opacity = easedT;
+              }
+              mesh.position.y = origPositionY + easedT * 0.5;
+              break;
+            }
+            default: {
+              // Generic fade-in
+              if (mesh.material instanceof THREE.MeshStandardMaterial) {
+                mesh.material.opacity = easedT;
+              }
+              break;
+            }
+          }
+
+          if (t >= 1) {
+            // Restore original opacity for final state
+            if (mesh.material instanceof THREE.MeshStandardMaterial) {
+              mesh.material.opacity = 1.0;
+              if (!origTransparent) {
+                mesh.material.transparent = false;
+              }
+            }
+            // Dispose old material safely
+            const oldMat = mesh.material;
+            if (oldMat && !Array.isArray(oldMat)) {
+              oldMat.dispose();
+            } else if (Array.isArray(oldMat)) {
+              for (const m of oldMat) m.dispose();
+            }
+            resolve();
+          } else {
+            requestAnimationFrame(animFrame);
+          }
+        };
+        requestAnimationFrame(animFrame);
+      });
+    }
+  }
+}
+
+/**
+ * Simple fallback driver — just waits for duration.
+ * Used when no custom driver is provided and no scene is bound yet.
+ */
+class SimpleFallbackDriver implements AnimationDriver {
   async animate(subgroup: SubgroupAnimation): Promise<void> {
     await new Promise<void>((resolve) => {
       setTimeout(resolve, subgroup.durationMs);
@@ -272,7 +466,7 @@ export class TimelineController {
   private _schedule: TransitionSchedule | null = null;
 
   constructor(options: TimelineControllerOptions = {}) {
-    this._driver = options.driver ?? new NoopAnimationDriver();
+    this._driver = options.driver ?? new SimpleFallbackDriver();
     this._onEraChangeCb = options.onEraChange ?? null;
     this._totalDurationMs = options.totalDurationMs ?? 2500;
   }

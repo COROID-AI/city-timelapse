@@ -11,11 +11,11 @@
 
 import { SceneEngine } from './scene/engine.js';
 import { buildArmature } from './scene/armature.js';
-import { SkyRig } from './scene/sky.js';
+import { SkyRig, ATMOSPHERE_1945, ATMOSPHERE_2025 } from './scene/sky.js';
 import { EraStage } from './scene/eraStage.js';
 import { fpsMonitor } from './scene/resources.js';
 import { DebugFPSOverlay } from './ui/components/debugOverlay.js';
-import { TimelineController, NoopAnimationDriver } from './scene/timelineController.js';
+import { TimelineController } from './scene/timelineController.js';
 import { SfxMixer } from './audio/mixer.js';
 import { mountTimeline, selectEra as timelineSelectEra } from './ui/timeline.js';
 import type { EraId } from './eras.js';
@@ -25,6 +25,7 @@ import { era1985 } from './eras/1985.js';
 import { era2005 } from './eras/2005.js';
 import { era2025 } from './eras/2025.js';
 import { ERA_REGISTRY } from './eras.js';
+import { getEraAtmosphere } from './scene/sky.js';
 
 // ── Constants ────────────────────────────────────────────────
 
@@ -57,7 +58,9 @@ const { scene, camera, renderer } = engine;
 const armatureGroup = buildArmature();
 scene.add(armatureGroup);
 
-const skyRig = new SkyRig(scene);
+// ── Per-era atmosphere rig ────────────────────────────────────────
+// Start with 2025 (A) → 1945 (B), then swap at runtime when eras change.
+const skyRig = new SkyRig(scene, renderer, ATMOSPHERE_2025, ATMOSPHERE_1945);
 
 // EraStage manages per-era content mounting, visibility, and transition.
 const eraStage = new EraStage(scene);
@@ -218,10 +221,18 @@ audioBtn.addEventListener('click', async () => {
 
 const timelineController = new TimelineController({
   onEraChange: async (eraId, _year) => {
-    // Fired by TimelineController during a transition — sync audio.
+    // Fired by TimelineController during a transition — sync audio + swap atmosphere.
     await sfxMixer.setEra(eraId);
+    // Swap sky/atmosphere: current era becomes A, target era becomes B.
+    const targetAtm = getEraAtmosphere(eraId);
+    if (targetAtm && skyRig) {
+      // Get current era's atmosphere as the "from" side for smooth lerp.
+      const fromAtm = getEraAtmosphere(eraStage.currentEraId ?? '1945');
+      if (fromAtm) {
+        skyRig._swapAtmospheres(fromAtm, targetAtm);
+      }
+    }
   },
-  driver: new NoopAnimationDriver(),
 });
 
 // Bind timeline controller to era stage and sky rig.
