@@ -19,7 +19,7 @@ export interface EraData {
   directionalLightVerticalAngle: number    // Elevation angle, 0-90 degrees (positive = up)
 }
 
-export type EraKey = '1945' | '1965' | '1985' | '2005' | '2025';
+export type EraKey = '1945' | '1965' | '1985' | '2005' | '2025'
 
 export interface BuildingStyle {
   name: string
@@ -62,8 +62,7 @@ export interface StreetFurniture {
   description: string
 }
 
-/** Apply era-specific styles to the scene based on selected year. Updates background color and logs the era being applied. @param scene Three.js scene to update @param year The selected year (1945, 1965, 1985, 2005, 2025) */
-export function applyEraStyle(scene: THREE.Scene, year: number): void {
+/** Apply era-specific styles to the scene based on selected year. Updates background color and logs the era being applied. @param scene Three.js scene to update @param year The selected year (1945, 1965, 1985, 2005, 2025) */ export function applyEraStyle(scene: THREE.Scene, year: number): void {
   const era = ERAS[year as keyof typeof ERAS]
   if (!era) return
 
@@ -323,6 +322,38 @@ export const ERAS = {
         facadeMaterial: 'concrete',
         windowStyle: 'medium',
         architecturalDetails: ['balconies', 'signage', 'green roof']
+      },
+      {
+        name: 'converted_warehouse',
+        description: 'Industrial-chic converted warehouse',
+        roofType: 'flat',
+        facadeMaterial: 'weathered_brick',
+        windowStyle: 'large',
+        architecturalDetails: ['preserved structural beams', 'loft conversions', 'solar panels', 'green roof']
+      },
+      {
+        name: 'boutique_hotel',
+        description: 'Boutique hotel with modern facade',
+        roofType: 'flat',
+        facadeMaterial: 'concrete_and_glass',
+        windowStyle: 'floor_to_ceiling',
+        architecturalDetails: ['automated sliding doors', 'balconies', 'solar panels', 'green roof']
+      },
+      {
+        name: 'coffee_shop',
+        description: 'Coffee shop chain with outdoor seating',
+        roofType: 'flat',
+        facadeMaterial: 'stucco',
+        windowStyle: 'display',
+        architecturalDetails: ['outdoor seating', 'digital menu board', 'automated doors', 'umbrellas']
+      },
+      {
+        name: 'tech_startup',
+        description: 'Tech startup office with glass entrance',
+        roofType: 'flat',
+        facadeMaterial: 'glass_and_steel',
+        windowStyle: 'large',
+        architecturalDetails: ['glass entrance', 'digital displays', 'solar panels', 'green roof']
       }
     ],
     vehicleTypes: ['hybrid', 'ev', 'sedan'],
@@ -357,6 +388,31 @@ export const ERAS = {
         name: 'streetlight',
         era: '2005',
         description: '2005-era streetlight'
+      },
+      {
+        name: 'bench',
+        era: '2005',
+        description: '2005 modern bench'
+      },
+      {
+        name: 'streetlamp',
+        era: '2005',
+        description: '2005 LED street lighting'
+      },
+      {
+        name: 'bike_rack',
+        era: '2005',
+        description: '2005 sidewalk bike rack'
+      },
+      {
+        name: 'transit_stop',
+        era: '2005',
+        description: '2005 digital transit stop with schedule display'
+      },
+      {
+        name: 'public_art',
+        era: '2005',
+        description: '2005 contemporary public art sculpture'
       }
     ]
   },
@@ -382,7 +438,39 @@ export const ERAS = {
         roofType: 'flat',
         facadeMaterial: 'concrete',
         windowStyle: 'floor_to_ceiling',
-        architecturalDetails: ['green roof', 'smart home integration', 'prefabricated panels']
+        architecturalDetails: ['green roof', 'smart home integration', 'prefabricated panels', 'balconies', 'mixed-use base', 'glass block accents']
+      },
+      {
+        name: 'converted_warehouse',
+        description: 'Industrial-chic converted warehouse',
+        roofType: 'flat',
+        facadeMaterial: 'weathered_brick',
+        windowStyle: 'large',
+        architecturalDetails: ['preserved structural beams', 'loft conversions', 'solar panels', 'green roof']
+      },
+      {
+        name: 'boutique_hotel',
+        description: 'Boutique hotel with modern facade',
+        roofType: 'flat',
+        facadeMaterial: 'concrete_and_glass',
+        windowStyle: 'floor_to_ceiling',
+        architecturalDetails: ['automated sliding doors', 'balconies', 'solar panels', 'green roof']
+      },
+      {
+        name: 'coffee_shop',
+        description: 'Coffee shop chain with outdoor seating',
+        roofType: 'flat',
+        facadeMaterial: 'stucco',
+        windowStyle: 'display',
+        architecturalDetails: ['outdoor seating', 'digital menu board', 'automated doors', 'umbrellas']
+      },
+      {
+        name: 'tech_startup',
+        description: 'Tech startup office with glass entrance',
+        roofType: 'flat',
+        facadeMaterial: 'glass_and_steel',
+        windowStyle: 'large',
+        architecturalDetails: ['glass entrance', 'digital displays', 'solar panels', 'green roof']
       }
     ],
     vehicleTypes: ['autonomous', 'ev', 'sedan'],
@@ -417,6 +505,31 @@ export const ERAS = {
         name: 'streetlight',
         era: '2025',
         description: '2025-era streetlight'
+      },
+      {
+        name: 'bench',
+        era: '2005',
+        description: '2005 modern bench'
+      },
+      {
+        name: 'streetlamp',
+        era: '2005',
+        description: '2005 LED street lighting'
+      },
+      {
+        name: 'bike_rack',
+        era: '2005',
+        description: '2005 sidewalk bike rack'
+      },
+      {
+        name: 'transit_stop',
+        era: '2005',
+        description: '2005 digital transit stop with schedule display'
+      },
+      {
+        name: 'public_art',
+        era: '2005',
+        description: '2005 contemporary public art sculpture'
       }
     ]
   }
