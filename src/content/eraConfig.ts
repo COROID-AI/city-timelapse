@@ -34,6 +34,124 @@ export interface StreetConfig {
   surfaceMaterial: string;
   hasCrosswalks: boolean;
   streetLightType: string;
+
+  // Era-specific furniture props (procedurally generated)
+  lampPosts?: LampPostConfig[];
+  sandbags?: SandbagConfig[];
+  barricades?: BarricadeConfig[];
+  posters?: PosterConfig[];
+  phoneBooths?: PhoneBoothConfig[];
+  fireHydrants?: FireHydrantConfig[];
+  mailboxes?: MailboxConfig[];
+  graffiti?: GraffitiConfig[];
+  payphones?: PayphoneConfig[];
+  busShelters?: BusShelterConfig[];
+  neonClutter?: NeonClutterConfig[];
+  trafficSignals?: TrafficSignalConfig[];
+  bikeLaneMarkings?: BikeLaneConfig[];
+  evChargingPosts?: EVChargingPostConfig[];
+  sensorCameras?: SensorCameraConfig[];
+  planters?: PlanterConfig[];
+  digitalBusDisplays?: DigitalBusDisplayConfig[];
+}
+
+// ─── Per-era furniture sub-configs ──────────────────────────────────────
+
+export interface LampPostConfig {
+  count: number;
+  spacing: number;      // metres between posts
+  globeStyle: 'warm' | 'cool' | 'neon' | 'smart';
+  poleColor: number;    // hex colour
+  globeRadius: number;
+}
+
+export interface SandbagConfig {
+  count: number;
+  pilePositions: Array<{ x: number; z: number; rotationY: number }>;
+}
+
+export interface BarricadeConfig {
+  count: number;
+  positions: Array<{ x: number; z: number; length: number }>;
+}
+
+export interface PosterConfig {
+  count: number;
+  wallPositions: Array<{ x: number; z: number; text: string }>;
+}
+
+export interface PhoneBoothConfig {
+  count: number;
+  positions: Array<{ x: number; z: number }>;
+  color: number;
+}
+
+export interface FireHydrantConfig {
+  count: number;
+  positions: Array<{ x: number; z: number }>;
+  color: number;
+}
+
+export interface MailboxConfig {
+  count: number;
+  positions: Array<{ x: number; z: number }>;
+  color: number;
+}
+
+export interface GraffitiConfig {
+  count: number;
+  wallPositions: Array<{ x: number; z: number; width: number; height: number }>;
+  colors: number[];
+}
+
+export interface PayphoneConfig {
+  count: number;
+  positions: Array<{ x: number; z: number }>;
+  color: number;
+}
+
+export interface BusShelterConfig {
+  count: number;
+  positions: Array<{ x: number; z: number }>;
+  style: 'simple' | 'modern' | 'digital';
+}
+
+export interface NeonClutterConfig {
+  count: number;
+  poleDecorations: Array<{ x: number; z: number; type: string; color: number }>;
+}
+
+export interface TrafficSignalConfig {
+  count: number;
+  cornerPositions: Array<{ x: number; z: number }>;
+}
+
+export interface BikeLaneConfig {
+  laneWidth: number;
+  stripeSpacing: number;
+  side: 'left' | 'right';
+}
+
+export interface EVChargingPostConfig {
+  count: number;
+  positions: Array<{ x: number; z: number }>;
+}
+
+export interface SensorCameraConfig {
+  count: number;
+  positions: Array<{ x: number; z: number; poleHeight: number }>;
+}
+
+export interface PlanterConfig {
+  count: number;
+  positions: Array<{ x: number; z: number }>;
+  plantType: 'bush' | 'tree' | 'flower';
+}
+
+export interface DigitalBusDisplayConfig {
+  count: number;
+  positions: Array<{ x: number; z: number }>;
+  showRoute: boolean;
 }
 
 export interface VehicleConfig {
@@ -131,6 +249,42 @@ const defaultEras: Record<EraId, EraContent> = {
       surfaceMaterial: 'cobblestone',
       hasCrosswalks: false,
       streetLightType: 'gas_lamp',
+      lampPosts: [
+        { count: 6, spacing: 10, globeStyle: 'warm', poleColor: 0x3d2b1f, globeRadius: 0.3 },
+      ],
+      sandbags: [
+        {
+          count: 4,
+          pilePositions: [
+            { x: -8, z: 5, rotationY: 0.2 },
+            { x: 8, z: 5, rotationY: -0.3 },
+            { x: -12, z: 4, rotationY: 0.1 },
+            { x: 12, z: 4, rotationY: -0.1 },
+          ],
+        },
+      ],
+      barricades: [
+        {
+          count: 3,
+          positions: [
+            { x: -6, z: 6, length: 3 },
+            { x: 6, z: 6, length: 2.5 },
+            { x: 0, z: 7, length: 4 },
+          ],
+        },
+      ],
+      posters: [
+        {
+          count: 5,
+          wallPositions: [
+            { x: -15, z: 3.5, text: 'WAR BONDS' },
+            { x: -5, z: 3.5, text: 'VICTORY GARDEN' },
+            { x: 5, z: 3.5, text: 'BLACKOUT DRILLS' },
+            { x: 15, z: 3.5, text: 'RACE FOR SAFETY' },
+            { x: -10, z: 3.5, text: 'BUY STAMPS' },
+          ],
+        },
+      ],
     },
     vehicles: {
       totalCount: 5,
@@ -180,6 +334,42 @@ const defaultEras: Record<EraId, EraContent> = {
       surfaceMaterial: 'asphalt',
       hasCrosswalks: true,
       streetLightType: 'fluorescent_tube',
+      lampPosts: [
+        { count: 8, spacing: 7.5, globeStyle: 'cool', poleColor: 0x4a4a4a, globeRadius: 0.2 },
+      ],
+      phoneBooths: [
+        {
+          count: 2,
+          positions: [
+            { x: -10, z: 4 },
+            { x: 10, z: 4 },
+          ],
+          color: 0x1a3c6e,
+        },
+      ],
+      fireHydrants: [
+        {
+          count: 3,
+          positions: [
+            { x: -8, z: 4 },
+            { x: 0, z: 4 },
+            { x: 8, z: 4 },
+          ],
+          color: 0xcc0000,
+        },
+      ],
+      mailboxes: [
+        {
+          count: 4,
+          positions: [
+            { x: -12, z: 4 },
+            { x: -4, z: 4 },
+            { x: 4, z: 4 },
+            { x: 12, z: 4 },
+          ],
+          color: 0x1a5276,
+        },
+      ],
     },
     vehicles: {
       totalCount: 12,
@@ -229,6 +419,54 @@ const defaultEras: Record<EraId, EraContent> = {
       surfaceMaterial: 'asphalt',
       hasCrosswalks: true,
       streetLightType: 'sodium_vapor',
+      lampPosts: [
+        { count: 8, spacing: 7.5, globeStyle: 'neon', poleColor: 0x666666, globeRadius: 0.25 },
+      ],
+      graffiti: [
+        {
+          count: 4,
+          wallPositions: [
+            { x: -14, z: 3.5, width: 3, height: 1.5 },
+            { x: -6, z: 3.5, width: 2.5, height: 1.2 },
+            { x: 6, z: 3.5, width: 3, height: 1.5 },
+            { x: 14, z: 3.5, width: 2, height: 1 },
+          ],
+          colors: [0xff00ff, 0x00ffff, 0xffff00, 0xff6600],
+        },
+      ],
+      payphones: [
+        {
+          count: 2,
+          positions: [
+            { x: -8, z: 4 },
+            { x: 8, z: 4 },
+          ],
+          color: 0x2c2c2c,
+        },
+      ],
+      busShelters: [
+        {
+          count: 2,
+          positions: [
+            { x: -10, z: 4.5 },
+            { x: 10, z: 4.5 },
+          ],
+          style: 'simple',
+        },
+      ],
+      neonClutter: [
+        {
+          count: 6,
+          poleDecorations: [
+            { x: -10, z: 4, type: 'neon_tube', color: 0xff0066 },
+            { x: -5, z: 4, type: 'neon_sign', color: 0x00ffcc },
+            { x: 0, z: 4, type: 'neon_tube', color: 0xffaa00 },
+            { x: 5, z: 4, type: 'neon_sign', color: 0x00aaff },
+            { x: 10, z: 4, type: 'neon_tube', color: 0xff00ff },
+            { x: 15, z: 4, type: 'neon_sign', color: 0x00ff66 },
+          ],
+        },
+      ],
     },
     vehicles: {
       totalCount: 18,
@@ -278,6 +516,33 @@ const defaultEras: Record<EraId, EraContent> = {
       surfaceMaterial: 'asphalt',
       hasCrosswalks: true,
       streetLightType: 'led_panel',
+      lampPosts: [
+        { count: 10, spacing: 6, globeStyle: 'smart', poleColor: 0x888888, globeRadius: 0.15 },
+      ],
+      trafficSignals: [
+        {
+          count: 4,
+          cornerPositions: [
+            { x: -16, z: 7 },
+            { x: 16, z: 7 },
+            { x: -16, z: -7 },
+            { x: 16, z: -7 },
+          ],
+        },
+      ],
+      bikeLaneMarkings: [
+        { laneWidth: 1.5, stripeSpacing: 2, side: 'right' },
+      ],
+      busShelters: [
+        {
+          count: 2,
+          positions: [
+            { x: -10, z: 5 },
+            { x: 10, z: 5 },
+          ],
+          style: 'modern',
+        },
+      ],
     },
     vehicles: {
       totalCount: 25,
@@ -327,6 +592,64 @@ const defaultEras: Record<EraId, EraContent> = {
       surfaceMaterial: 'permeable_paver',
       hasCrosswalks: true,
       streetLightType: 'smart_led_smart_sensor',
+      lampPosts: [
+        { count: 12, spacing: 5, globeStyle: 'smart', poleColor: 0x999999, globeRadius: 0.12 },
+      ],
+      evChargingPosts: [
+        {
+          count: 3,
+          positions: [
+            { x: -8, z: 5 },
+            { x: 0, z: 5 },
+            { x: 8, z: 5 },
+          ],
+        },
+      ],
+      sensorCameras: [
+        {
+          count: 4,
+          positions: [
+            { x: -16, z: 7, poleHeight: 4 },
+            { x: 16, z: 7, poleHeight: 4 },
+            { x: -16, z: -7, poleHeight: 4 },
+            { x: 16, z: -7, poleHeight: 4 },
+          ],
+        },
+      ],
+      planters: [
+        {
+          count: 6,
+          positions: [
+            { x: -12, z: 5 },
+            { x: -4, z: 5 },
+            { x: 4, z: 5 },
+            { x: 12, z: 5 },
+            { x: -8, z: -5 },
+            { x: 8, z: -5 },
+          ],
+          plantType: 'bush',
+        },
+      ],
+      digitalBusDisplays: [
+        {
+          count: 2,
+          positions: [
+            { x: -10, z: 5 },
+            { x: 10, z: 5 },
+          ],
+          showRoute: true,
+        },
+      ],
+      busShelters: [
+        {
+          count: 2,
+          positions: [
+            { x: -10, z: 5 },
+            { x: 10, z: 5 },
+          ],
+          style: 'digital',
+        },
+      ],
     },
     vehicles: {
       totalCount: 20,
