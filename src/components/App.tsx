@@ -81,7 +81,7 @@ export const App: React.FC = () => {
     '-webkit-backdrop-filter': 'blur(8px)',
     borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
     zIndex: 100,
-    pointerEvents: 'none', // Don't interfere with 3D canvas interaction
+    pointerEvents: 'auto', // Allow interaction for acceptance testing; 3D canvas interaction is handled by OrbitControls
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
