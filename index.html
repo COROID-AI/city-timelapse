@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>City Timelapse - Three.js</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; font-family: sans-serif; }
+    #container { width: 100vw; height: 100vh; }
+    .ui { position: absolute; top: 20px; left: 20px; color: white; z-index: 10; }
+    .timeline { margin-top: 10px; }
+    .year-btn { padding: 8px 16px; margin: 4px; background: rgba(0,0,0,0.5); border: none; color: white; cursor: pointer; border-radius: 4px; }
+    .year-btn.active { background: #4a90e2; }
+  </style>
+</head>
+<body>
+  <div id="container"></div>
+  <div class="ui">
+    <h2>City Timelapse 1945-2025</h2>
+    <div class="timeline">
+      <button class="year-btn active" data-year="1945">1945</button>
+      <button class="year-btn" data-year="1965">1965</button>
+      <button class="year-btn" data-year="1985">1985</button>
+      <button class="year-btn" data-year="2005">2005</button>
+      <button class="year-btn" data-year="2025">2025</button>
+      <button class="year-btn" data-year="2055">2055</button>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
