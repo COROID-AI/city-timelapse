@@ -1,76 +1,327 @@
-import * as THREE from 'three';
-import { ERA_IDS, getEraSpec } from './eras.js';
-import { mountTimeline, type TimelineConfig } from './ui/timeline.js';
-import { TimelineController } from './scene/timelineController.js';
+/**
+ * src/main.ts — Integration wiring
+ *
+ * Boots the full City Timelapse app: scene core + armature + sky, registers
+ * all five era modules with EraStage, connects timeline UI to
+ * timelineController (onEraChange → SfxMixer.setEra + sky lerp), defaults to
+ * 1945, and provides HUD + loading state + audio-enable button.
+ *
+ * Composition only — no new scene/audio/timeline systems.
+ */
+
+import { SceneEngine } from './scene/engine.js';
+import { buildArmature } from './scene/armature.js';
+import { SkyRig } from './scene/sky.js';
 import { EraStage } from './scene/eraStage.js';
-import { SkyRig, DEFAULT_ATMOSPHERE, EARLY_ATMOSPHERE } from './scene/sky.js';
+import { TimelineController, NoopAnimationDriver } from './scene/timelineController.js';
+import { SfxMixer } from './audio/mixer.js';
+import { mountTimeline, selectEra as timelineSelectEra } from './ui/timeline.js';
+import type { EraId } from './eras.js';
+import { era1945 } from './eras/1945.js';
+import { era1965 } from './eras/1965.js';
+import { era1985 } from './eras/1985.js';
+import { era2005 } from './eras/2005.js';
+import { era2025 } from './eras/2025.js';
+import { ERA_REGISTRY } from './eras.js';
 
-// ── Minimal boot: clear + render one frame ──────────────────────────
-const canvas = document.getElementById('webgl') as HTMLCanvasElement;
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setClearColor(0x0a0a1a);
+// ── Constants ────────────────────────────────────────────────
 
-const scene = new THREE.Scene();
+// Map era IDs to pre-built module instances.
+const ERA_CONTENT_MODULES: Record<string, typeof era1945> = {
+  '1945': era1945,
+  '1965': era1965,
+  '1985': era1985,
+  '2005': era2005,
+  '2025': era2025,
+};
 
-const camera = new THREE.PerspectiveCamera(
-  60,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  1000,
-);
-camera.position.set(0, 5, 10);
-camera.lookAt(0, 0, 0);
+// ══════════════════════════════════════════════════════════════
+// Scene core
+// ══════════════════════════════════════════════════════════════
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-dirLight.position.set(5, 10, 7);
-scene.add(dirLight);
+// Create canvas dynamically (original pattern: renderer without canvas param).
+let canvas = document.getElementById('webgl-canvas') as HTMLCanvasElement | null;
+if (!canvas) {
+  canvas = document.createElement('canvas');
+  canvas.id = 'webgl-canvas';
+  const container = document.getElementById('container');
+  if (container) container.appendChild(canvas);
+}
 
-// A simple ground plane to prove rendering works
-const groundGeo = new THREE.PlaneGeometry(40, 40);
-const groundMat = new THREE.MeshStandardMaterial({ color: 0x222233 });
-scene.add(new THREE.Mesh(groundGeo, groundMat));
+const engine = new SceneEngine(canvas);
+const { scene, camera, renderer } = engine;
 
-// Log era contract availability
-console.log('City Timelapse — eras available:', ERA_IDS);
-ERA_IDS.forEach((id) => console.log(`  ${getEraSpec(id).label}`));
+// buildArmature() takes no args — creates its own group internally.
+const armatureGroup = buildArmature();
+scene.add(armatureGroup);
 
-// ── Sky Rig (sky dome + sun/hemi/ambient lights + fog) ─────────────
-const skyRig = new SkyRig(scene, DEFAULT_ATMOSPHERE, EARLY_ATMOSPHERE);
+const skyRig = new SkyRig(scene);
 
-// ── Era Stage (manages per-era content mounting/disposal) ───────────
+// EraStage manages per-era content mounting, visibility, and transition.
 const eraStage = new EraStage(scene);
 
-// ── Timeline Controller (orchestrates staged transitions) ───────────
-let currentEraId = '1945' as const;
+// ══════════════════════════════════════════════════════════════
+// Loading overlay
+// ══════════════════════════════════════════════════════════════
+
+// Loading overlay (guarded — may not exist in all environments).
+const _loadingOverlay = document.getElementById('loading-overlay');
+
+function showLoading(message: string): void {
+  if (!_loadingOverlay) return;
+  const msgEl = _loadingOverlay.querySelector('.loading-message') as HTMLElement;
+  const barEl = _loadingOverlay.querySelector('.loading-bar-inner') as HTMLElement;
+  if (msgEl) msgEl.textContent = message;
+  if (barEl) barEl.style.width = '0%';
+  _loadingOverlay.classList.add('visible');
+}
+
+function hideLoading(): void {
+  if (!_loadingOverlay) return;
+  _loadingOverlay.classList.remove('visible');
+}
+
+function setProgress(pct: number): void {
+  if (!_loadingOverlay) return;
+  const barEl = _loadingOverlay.querySelector('.loading-bar-inner') as HTMLElement;
+  if (barEl) barEl.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// HUD & Controls
+// ══════════════════════════════════════════════════════════════
+
+const hud = document.getElementById('hud')!;
+
+// Current-year display (top-left, outside the timeline strip).
+const yearDisplay = document.createElement('div');
+yearDisplay.id = 'hud-year-display';
+hud.appendChild(yearDisplay);
+
+// Era caption (below timeline, centered).
+const eraCaption = document.createElement('div');
+eraCaption.id = 'hud-era-caption';
+hud.appendChild(eraCaption);
+
+// Camera-mode hint (bottom-left).
+const cameraHint = document.createElement('div');
+cameraHint.id = 'hud-camera-hint';
+hud.appendChild(cameraHint);
+
+// Help overlay (controls legend, toggled with H).
+const helpOverlay = document.createElement('div');
+helpOverlay.id = 'hud-help-overlay';
+helpOverlay.innerHTML = `
+  <h2>Controls</h2>
+  <ul>
+    <li><kbd>H</kbd> Toggle help overlay</li>
+    <li><kbd>A</kbd> / <kbd>D</kbd> Cycle eras backwards / forwards</li>
+    <li><kbd>Q</kbd> / <kbd>E</kbd> Switch orbit ↔ dolly camera mode</li>
+    <li><kbd>M</kbd> Mute / unmute audio</li>
+    <li><kbd>Click</kbd> Era stops on timeline slider</li>
+  </ul>
+`;
+hud.appendChild(helpOverlay);
+
+let helpVisible = false;
+
+document.addEventListener('keydown', (e: KeyboardEvent) => {
+  if (e.key === 'h' || e.key === 'H') {
+    helpVisible = !helpVisible;
+    helpOverlay.classList.toggle('visible', helpVisible);
+    return;
+  }
+
+  // Era cycling with A/D
+  const currentEraId = eraStage.currentEraId as EraId | null;
+  if (!currentEraId) return;
+  const currentIndex = ERA_REGISTRY.findIndex((er) => er.id === currentEraId);
+  if (currentIndex === -1) return;
+
+  if (e.key === 'a' || e.key === 'A') {
+    const prevIdx = ((currentIndex - 1) % ERA_REGISTRY.length + ERA_REGISTRY.length) % ERA_REGISTRY.length;
+    timelineSelectEra(ERA_REGISTRY[prevIdx].id);
+    return;
+  }
+
+  if (e.key === 'd' || e.key === 'D') {
+    const nextIdx = (currentIndex + 1) % ERA_REGISTRY.length;
+    timelineSelectEra(ERA_REGISTRY[nextIdx].id);
+    return;
+  }
+
+  // Camera mode with Q/E
+  if (e.key === 'q' || e.key === 'Q') {
+    cameraHint.textContent = '🎥 Orbit mode — drag to rotate';
+    return;
+  }
+
+  if (e.key === 'e' || e.key === 'E') {
+    cameraHint.textContent = '🎥 Dolly mode — drag to move forward/back';
+    return;
+  }
+
+  // Mute with M
+  if (e.key === 'm' || e.key === 'M') {
+    muted = !muted;
+    sfxMixer.setMute(muted);
+    audioBtn.textContent = muted ? '🔇' : '🔊';
+  }
+});
+
+// Audio enable / mute button (must satisfy autoplay policy — user gesture).
+const audioBtn = document.createElement('button');
+audioBtn.id = 'hud-audio-btn';
+audioBtn.textContent = '🔇';
+audioBtn.title = 'Enable audio';
+hud.appendChild(audioBtn);
+
+let muted = false;
+let audioInitialized = false;
+
+audioBtn.addEventListener('click', async () => {
+  if (!audioInitialized) {
+    // First click: initialize audio context (user gesture satisfies autoplay).
+    await sfxMixer.init();
+    audioInitialized = true;
+    // Set initial era to prime audio layers.
+    await sfxMixer.setEra('1945');
+    muted = false;
+    audioBtn.textContent = '🔊';
+    audioBtn.title = 'Mute audio';
+    return;
+  }
+
+  // Subsequent clicks: toggle mute.
+  muted = !muted;
+  sfxMixer.setMute(muted);
+  audioBtn.textContent = muted ? '🔇' : '🔊';
+  audioBtn.title = muted ? 'Unmute audio' : 'Mute audio';
+});
+
+// ══════════════════════════════════════════════════════════════
+// Timeline controller
+// ══════════════════════════════════════════════════════════════
 
 const timelineController = new TimelineController({
-  onEraChange: (eraId: string, year: number) => {
-    console.log(`[TimelineController] Era transition → ${eraId} (${year})`);
-    // Fire audio crossfade hook here when SFX mixer is available
+  onEraChange: async (eraId, _year) => {
+    // Fired by TimelineController during a transition — sync audio.
+    await sfxMixer.setEra(eraId);
   },
-  totalDurationMs: 2500, // ~2.5s total transition
+  driver: new NoopAnimationDriver(),
 });
+
+// Bind timeline controller to era stage and sky rig.
 timelineController.bind(eraStage, skyRig);
 
-// ── Mount Timeline UI ──────────────────────────────────────────────
-const timelineConfig: TimelineConfig = {
-  scrubMode: false,
-  onEraChange: (eraId: string, _year: number) => {
-    // Forward timeline selection to the orchestrator
-    timelineController.requestEraChange(eraId as typeof currentEraId);
+// ══════════════════════════════════════════════════════════════
+// Timeline UI
+// ══════════════════════════════════════════════════════════════
+
+mountTimeline({
+  onEraChange: (eraId: EraId, _year: number) => {
+    // Timeline UI fired an era change — drive scene transition.
+    timelineController.requestEraChange(eraId);
+    // Load the era module into EraStage (handles content fade).
+    const module = ERA_CONTENT_MODULES[eraId];
+    if (module) {
+      eraStage.load(module);
+    }
   },
-};
-mountTimeline(timelineConfig);
+});
 
-// Render a single frame
-renderer.render(scene, camera);
+// ══════════════════════════════════════════════════════════════
+// Audio mixer
+// ══════════════════════════════════════════════════════════════
 
-// Handle resize
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+const sfxMixer = new SfxMixer({
+  onProgress: (pct: number) => setProgress(pct * 100),
+});
+
+// ══════════════════════════════════════════════════════════════
+// Boot sequence — load 1945, generate SFX buffers, then launch
+// ══════════════════════════════════════════════════════════════
+
+async function boot(): Promise<void> {
+  showLoading('Preparing 1945 era…');
+
+  // Pre-load the initial era's audio buffers (lazy generation reports progress).
+  await sfxMixer.setEra('1945');
+
+  // Mount the initial era content on the era stage.
+  eraStage.load(era1945);
+
+  setProgress(100);
+  showLoading('Ready — welcome to the City Timelapse.');
+
+  // Brief pause so the user sees the completion message.
+  await new Promise((r) => setTimeout(r, 600));
+  hideLoading();
+
+  // Update HUD with initial era info.
+  updateHUD('1945');
+}
+
+// ══════════════════════════════════════════════════════════════
+// HUD updates
+// ══════════════════════════════════════════════════════════════
+
+cameraHint.textContent = '🎥 Orbit mode — drag to rotate';
+
+function updateHUD(eraId: string): void {
+  const spec = ERA_REGISTRY.find((e) => e.id === eraId);
+  if (!spec) return;
+
+  // Year display
+  yearDisplay.textContent = String(spec.year);
+
+  // Era caption
+  eraCaption.innerHTML = `<strong>${spec.label}</strong><br>${spec.description}`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// Render loop
+// ══════════════════════════════════════════════════════════════
+
+let lastTime = performance.now();
+let elapsedSec = 0;
+
+function render(now: number): void {
+  const dt = Math.min((now - lastTime) / 1000, 0.1); // cap at 100 ms
+  lastTime = now;
+  elapsedSec += dt;
+
+  // Update era stage (manages content visibility / transition).
+  eraStage.update(dt, elapsedSec);
+
+  renderer.render(engine.scene, camera);
+
+  requestAnimationFrame(render);
+}
+
+// ══════════════════════════════════════════════════════════════
+// Resize — SceneEngine handles resize internally via its listener.
+// ══════════════════════════════════════════════════════════════
+
+// No-op: SceneEngine already adds a window resize listener that updates
+// camera aspect ratio and renderer size automatically.
+
+// ══════════════════════════════════════════════════════════════
+// Cleanup
+// ══════════════════════════════════════════════════════════════
+
+window.addEventListener('beforeunload', () => {
+  timelineController.dispose();
+  eraStage.disposeCurrent();
+  skyRig.dispose();
+  engine.dispose();
+  sfxMixer.dispose();
+});
+
+// ══════════════════════════════════════════════════════════════
+// Start
+// ══════════════════════════════════════════════════════════════
+
+boot().then(() => {
+  requestAnimationFrame(render);
 });

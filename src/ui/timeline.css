@@ -282,3 +282,185 @@
     top: 85px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   HUD overlay elements (year display, era caption, camera hint,
+   help overlay, audio button)
+   ═══════════════════════════════════════════════════════════ */
+
+#hud-year-display {
+  position: absolute;
+  top: 16px;
+  left: 20px;
+  font-size: 42px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
+  z-index: 10;
+  pointer-events: none;
+  letter-spacing: 2px;
+}
+
+#hud-era-caption {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  font-size: 13px;
+  line-height: 1.5;
+  z-index: 10;
+  pointer-events: none;
+  max-width: 90vw;
+}
+
+#hud-era-caption strong {
+  display: block;
+  font-size: 15px;
+  color: #f0c040;
+  margin-bottom: 2px;
+}
+
+#hud-camera-hint {
+  position: absolute;
+  bottom: 16px;
+  left: 20px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  z-index: 10;
+  pointer-events: none;
+}
+
+#hud-audio-btn {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  font-size: 20px;
+  cursor: pointer;
+  z-index: 10;
+  transition: background 0.2s, border-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#hud-audio-btn:hover {
+  background: rgba(255, 255, 255, 0.24);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+#hud-audio-btn:focus-visible {
+  outline: 2px solid #f0c040;
+  outline-offset: 2px;
+}
+
+/* Help overlay */
+#hud-help-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(10, 10, 20, 0.92);
+  border: 1px solid rgba(240, 192, 64, 0.4);
+  border-radius: 12px;
+  padding: 28px 36px;
+  color: #e0e0e0;
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  min-width: 280px;
+  backdrop-filter: blur(8px);
+}
+
+#hud-help-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#hud-help-overlay h2 {
+  margin: 0 0 16px 0;
+  color: #f0c040;
+  font-size: 20px;
+  text-align: center;
+}
+
+#hud-help-overlay ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#hud-help-overlay li {
+  padding: 6px 0;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#hud-help-overlay kbd {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-family: monospace;
+  font-size: 13px;
+  color: #f0c040;
+  min-width: 28px;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  #hud-year-display {
+    font-size: 28px;
+    top: 10px;
+    left: 12px;
+  }
+
+  #hud-era-caption {
+    font-size: 11px;
+    bottom: 10px;
+    padding: 0 12px;
+  }
+
+  #hud-era-caption strong {
+    font-size: 13px;
+  }
+
+  #hud-camera-hint {
+    font-size: 10px;
+    bottom: 10px;
+    left: 12px;
+  }
+
+  #hud-audio-btn {
+    top: 10px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+
+  #hud-help-overlay {
+    padding: 20px 24px;
+    min-width: 240px;
+  }
+
+  #hud-help-overlay h2 {
+    font-size: 17px;
+  }
+
+  #hud-help-overlay li {
+    font-size: 12px;
+  }
+}
