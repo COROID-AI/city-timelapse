@@ -215,3 +215,115 @@ export function unmountHud(): void {
   tickerInner = null;
   prevEraIndex = 0;
 }
+
+// ── Time-of-Day Control ─────────────────────────────────────────────
+
+/** Minimal interface for the environment manager — avoids importing scene code. */
+export interface EnvManagerLike {
+  setTimeOfDay(hour: number): void;
+  getTimeOfDay(): number;
+  toggleAutoCycle(enabled?: boolean): void;
+  isAutoCycling(): boolean;
+}
+
+let todSlider: HTMLInputElement | null = null;
+let todLabel: HTMLElement | null = null;
+let autoToggle: HTMLButtonElement | null = null;
+
+function formatHourDisplay(hour: number): string {
+  const h = Math.floor(hour) % 24;
+  const m = Math.floor((hour % 1) * 60);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const displayH = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${displayH}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+/** Inject a time-of-day slider + auto-cycle toggle into the HUD card. */
+export function injectTimeOfDayControl(hudElement: HTMLElement, envManager: EnvManagerLike): void {
+  // Skip if already injected
+  if (hudElement.querySelector('#tod-control')) return;
+
+  const controlDiv = document.createElement('div');
+  controlDiv.id = 'tod-control';
+  controlDiv.style.marginTop = '12px';
+  controlDiv.style.paddingTop = '10px';
+  controlDiv.style.borderTop = '1px solid var(--ui-border)';
+  controlDiv.style.display = 'flex';
+  controlDiv.style.flexDirection = 'column';
+  controlDiv.style.gap = '6px';
+
+  // Row 1: label + slider
+  const rowTop = document.createElement('div');
+  rowTop.style.display = 'flex';
+  rowTop.style.alignItems = 'center';
+  rowTop.style.gap = '8px';
+
+  todLabel = document.createElement('span');
+  todLabel.style.fontSize = '11px';
+  todLabel.style.color = 'var(--ui-text-muted)';
+  todLabel.style.minWidth = '52px';
+  todLabel.style.fontFamily = 'monospace';
+  todLabel.textContent = formatHourDisplay(envManager.getTimeOfDay());
+  rowTop.appendChild(todLabel);
+
+  todSlider = document.createElement('input');
+  todSlider.type = 'range';
+  todSlider.min = '0';
+  todSlider.max = '24';
+  todSlider.step = '0.25';
+  todSlider.value = String(envManager.getTimeOfDay());
+  todSlider.setAttribute('aria-label', 'Time of day');
+  todSlider.style.flex = '1';
+  todSlider.style.height = '4px';
+  todSlider.style.cursor = 'pointer';
+  todSlider.style.appearance = 'none';
+  todSlider.style.webkitAppearance = 'none';
+  todSlider.style.background = 'var(--ui-track)';
+  todSlider.style.borderRadius = '2px';
+  todSlider.style.outline = 'none';
+
+  // Thumb styling
+  const thumbStyle = `
+    height: 14px; width: 14px; border-radius: 50%; background: var(--ui-accent);
+    border: 2px solid #fff; cursor: grab; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  `;
+  const styleSheet = document.createElement('style');
+  styleSheet.textContent = `#tod-control input[type="range"]::-webkit-slider-thumb { ${thumbStyle} }`;
+  styleSheet.textContent += `#tod-control input[type="range"]::-moz-range-thumb { ${thumbStyle.replace(/cursor: grab;/g, '')} border:none; }`;
+  document.head.appendChild(styleSheet);
+
+  rowTop.appendChild(todSlider);
+
+  // Row 2: Auto-cycle button
+  const rowBottom = document.createElement('div');
+  rowBottom.style.display = 'flex';
+  rowBottom.style.justifyContent = 'flex-end';
+
+  autoToggle = document.createElement('button');
+  autoToggle.className = 'control-btn';
+  autoToggle.title = 'Toggle automatic day/night cycle (T)';
+  autoToggle.setAttribute('aria-pressed', 'false');
+  autoToggle.setAttribute('aria-label', 'Auto day/night cycle');
+  autoToggle.textContent = '⏵'; // play icon
+  autoToggle.style.width = '28px';
+  autoToggle.style.height = '28px';
+  autoToggle.style.fontSize = '14px';
+  autoToggle.addEventListener('click', () => {
+    const cycling = envManager.isAutoCycling();
+    envManager.toggleAutoCycle(!cycling);
+    autoToggle!.textContent = envManager.isAutoCycling() ? '⏸' : '⏵';
+    autoToggle!.setAttribute('aria-pressed', String(envManager.isAutoCycling()));
+  });
+  rowBottom.appendChild(autoToggle);
+
+  controlDiv.appendChild(rowTop);
+  controlDiv.appendChild(rowBottom);
+  hudElement.appendChild(controlDiv);
+
+  // Slider event
+  todSlider!.addEventListener('input', () => {
+    const hour = parseFloat(todSlider!.value);
+    envManager.setTimeOfDay(hour);
+    if (todLabel) todLabel.textContent = formatHourDisplay(hour);
+  });
+}
