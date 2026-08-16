@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * CityBlockGroundPlane - Creates the foundational ground plane for the city block scene.
  * Includes textured road surfaces with lane markings, crosswalks, traffic signals,

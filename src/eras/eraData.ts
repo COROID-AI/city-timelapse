@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 export interface EraData {
   year: number
   primaryColors: string[]
@@ -16,6 +18,8 @@ export interface EraData {
   directionalLightHorizontalAngle: number  // Hours from south, 0-24 mapped to 0-360 degrees
   directionalLightVerticalAngle: number    // Elevation angle, 0-90 degrees (positive = up)
 }
+
+export type EraKey = '1945' | '1965' | '1985' | '2005' | '2025';
 
 export interface BuildingStyle {
   name: string
@@ -58,12 +62,7 @@ export interface StreetFurniture {
   description: string
 }
 
-/**
- * Apply era-specific styles to the scene based on selected year.
- * Updates background color and logs the era being applied.
- * @param scene Three.js scene to update
- * @param year The selected year (1945, 1965, 1985, 2005, 2025)
- */
+/** Apply era-specific styles to the scene based on selected year. Updates background color and logs the era being applied. @param scene Three.js scene to update @param year The selected year (1945, 1965, 1985, 2005, 2025) */
 export function applyEraStyle(scene: THREE.Scene, year: number): void {
   const era = ERAS[year as keyof typeof ERAS]
   if (!era) return
@@ -118,365 +117,307 @@ export const ERAS = {
     pedestrianPalette: [
       {
         name: 'business_suit',
-        description: 'Post-war business attire',
-        dominantColors: ['#2F4F4F', '#8B4513', '#FFFFFF']
+        description: '1940s business attire',
+        dominantColors: ['#8B4513', '#CD853F', '#2F4F4F']
       },
       {
-        name: 'vintage_dress',
-        description: '1940s day dress',
-        dominantColors: ['#8B0000', '#FFFFFF', '#F0E68C']
+        name: 'casual',
+        description: '1940s casual wear',
+        dominantColors: ['#8B4513', '#CD853F', '#2F4F4F']
       }
     ],
     storefrontTemplates: [
       {
-        name: 'retail',
-        description: 'Traditional storefront with display windows',
+        name: 'small_window',
+        description: 'Small-pane storefront typical of 1945',
         windowType: 'display',
-        signageMount: 'awned',
-        typicalText: 'SHOP'
-      },
-      {
-        name: 'diner',
-        description: '1940s diner with chrome accents',
-        windowType: 'display',
-        signageMount: 'projecting',
-        typicalText: 'CAFE'
+        signageMount: 'awned'
       }
     ],
     signageStyle: {
       font: 'serif',
-      colors: ['#FFFFFF', '#000000'],
+      colors: ['#8B4513', '#CD853F'],
       illumination: 'gas',
       typicalText: 'OPEN'
     },
     streetFurniture: [
       {
-        name: 'bench',
-        description: '1940s cast iron bench',
-        era: '1945'
-      },
-      {
-        name: 'streetlamp',
-        description: 'Art Deco street lighting',
-        era: '1945'
+        name: 'streetlight',
+        era: '1945',
+        description: '1945-era streetlight'
       }
-    ],
-    ambientAudioTrack: 'midcentury_jazz',
-    dayCycleHour: 14,
-    directionalLightHorizontalAngle: 210,
-    directionalLightVerticalAngle: 45
+    ]
   },
-
   '1965': {
     year: 1965,
-    primaryColors: ['#FF6B6B', '#4ECDC4', '#45B7D1'],
-    ambientLightColor: '#E0FFFF',
-    ambientLightIntensity: 2.0,
-    fogDensity: 0.003,
-    fogColor: '#1E90FF',
+    primaryColors: ['#1A5E99', '#F1C40F', '#E67E22', '#2C3E50'],
+    ambientLightColor: '#E0F7FA',
+    ambientLightIntensity: 1.8,
+    fogDensity: 0.005,
+    fogColor: '#7F8C8D',
     buildingStyles: [
       {
-        name: 'midcentury',
-        description: 'Mid-century modern',
+        name: 'renovated_brick',
+        description: 'Renovated brick with modern storefronts',
         roofType: 'flat',
-        facadeMaterial: 'glass',
-        windowStyle: 'floor_to_ceiling',
-        architecturalDetails: ['clean lines', 'atrium', 'open floor plans']
+        facadeMaterial: 'brick',
+        windowStyle: 'large',
+        architecturalDetails: ['concrete additions', 'air conditioning units', 'neon tube signs']
       },
       {
-        name: 'glass_curtain',
-        description: 'Curtain wall architecture',
+        name: 'mid_rise_office',
+        description: 'Mid-rise office building (2-3 stories) with horizontal window banding',
+        roofType: 'flat',
+        facadeMaterial: 'concrete',
+        windowStyle: 'floor_to_ceiling',
+        architecturalDetails: ['horizontal window bands', 'aluminum framing', 'signage mounting']
+      },
+      {
+        name: 'diner',
+        description: 'Diner with classic chrome trim and neon sign',
+        roofType: 'flat',
+        facadeMaterial: 'steel',
+        windowStyle: 'large',
+        architecturalDetails: ['chrome trim', 'neon tube signs', 'printed vinyl signage']
+      },
+      {
+        name: 'department_store',
+        description: 'Department store with large display windows',
         roofType: 'flat',
         facadeMaterial: 'glass',
         windowStyle: 'floor_to_ceiling',
-        architecturalDetails: ['aluminum framing', 'spandrel panels', 'solar shading']
+        architecturalDetails: ['large display windows', 'printed vinyl signage', 'aluminum framing']
       }
     ],
-    vehicleTypes: ['sports_car', 'van', 'motorcycle'],
+    vehicleTypes: ['classic_car', 'truck', 'bus', 'vintage_bus'],
     pedestrianPalette: [
       {
-        name: 'mod_fashion',
-        description: '1960s mod style',
-        dominantColors: ['#FF6B6B', '#4ECDC4', '#FFFFFF']
+        name: 'business_suit',
+        description: '1960s business attire',
+        dominantColors: ['#1A5E99', '#F1C40F', '#E67E22']
       },
       {
-        name: 'office_worker',
-        description: '1960s business attire',
-        dominantColors: ['#45B7D1', '#FFFFFF', '#8B4513']
+        name: 'casual',
+        description: '1960s casual wear',
+        dominantColors: ['#1A5E99', '#F1C40F', '#E67E22']
       }
     ],
     storefrontTemplates: [
       {
-        name: 'retail',
-        description: '1960s retail with large windows',
+        name: 'large_window',
+        description: 'Large plate-glass storefront typical of 1965',
         windowType: 'display',
-        signageMount: 'wall-mounted',
-        typicalText: 'STORE'
+        signageMount: 'wall-mounted'
       },
       {
-        name: 'coffee_shop',
-        description: '1960s coffee house',
-        windowType: 'display',
-        signageMount: 'projecting',
-        typicalText: 'COFFEE'
+        name: 'combo_window',
+        description: 'Combo display/access storefront',
+        windowType: 'combo',
+        signageMount: 'projecting'
       }
     ],
     signageStyle: {
       font: 'sans',
-      colors: ['#000000', '#FFFFFF'],
-      illumination: 'electric',
+      colors: ['#1A5E99', '#F1C40F', '#E67E22'],
+      illumination: 'neon',
       typicalText: 'OPEN'
     },
     streetFurniture: [
       {
-        name: 'bench',
-        description: '1960s modular bench',
-        era: '1965'
+        name: 'bus_stop_shelter',
+        era: '1965',
+        description: '1965-era bus stop shelter'
       },
       {
-        name: 'streetlamp',
-        description: '1960s futuristic street lighting',
-        era: '1965'
+        name: 'newspaper_vendor',
+        era: '1965',
+        description: 'Newspaper vending box on sidewalk'
+      },
+      {
+        name: 'streetlight',
+        era: '1965',
+        description: 'Tall metal pole streetlight'
       }
-    ],
-    ambientAudioTrack: '60s_rock',
-    dayCycleHour: 16,
-    directionalLightHorizontalAngle: 240,
-    directionalLightVerticalAngle: 50
+    ]
   },
-
   '1985': {
     year: 1985,
-    primaryColors: ['#9B59B6', '#F1C40F', '#E67E22'],
-    ambientLightColor: '#FFB6C1',
-    ambientLightIntensity: 2.5,
-    fogDensity: 0.002,
-    fogColor: '#8A2BE2',
+    primaryColors: ['#5D4037', '#E67E22', '#ECF0F1'],
+    ambientLightColor: '#F5D6C1',
+    ambientLightIntensity: 1.2,
+    fogDensity: 0.006,
+    fogColor: '#964B00',
     buildingStyles: [
       {
-        name: 'brutalist',
-        description: 'Brutalist concrete architecture',
+        name: 'postmodern',
+        description: 'Postmodern commercial',
         roofType: 'flat',
         facadeMaterial: 'concrete',
         windowStyle: 'medium',
-        architecturalDetails: ['exposed concrete', 'geometric forms', 'massive scale']
+        architecturalDetails: ['decorative panels', 'colored glass', 'atrium']
       },
       {
-        name: 'retail',
-        description: '1980s retail with neon trim',
-        roofType: 'flat',
-        facadeMaterial: 'concrete',
+        name: 'retail_park',
+        description: 'Strip retail development',
+        roofType: 'pitched',
+        facadeMaterial: 'wood',
         windowStyle: 'large',
-        architecturalDetails: ['window displays', 'neon strips', 'awning']
+        architecturalDetails: ['canopy', 'signage panels', 'parking']
       }
     ],
-    vehicleTypes: ['sports_car', 'hatchback', 'truck'],
+    vehicleTypes: ['sedan', 'hatchback', 'truck'],
     pedestrianPalette: [
       {
-        name: 'shoulderpads',
-        description: '1980s power dressing',
-        dominantColors: ['#9B59B6', '#F1C40F', '#000000']
+        name: 'business_suit',
+        description: '1980s business attire',
+        dominantColors: ['#5D4037', '#E67E22']
       },
       {
         name: 'casual',
         description: '1980s casual wear',
-        dominantColors: ['#E67E22', '#FFFFFF', '#000000']
+        dominantColors: ['#5D4037', '#E67E22']
       }
     ],
     storefrontTemplates: [
       {
-        name: 'mall',
-        description: '1980s shopping mall storefront',
+        name: 'mall_store',
+        description: ' mall storefront',
         windowType: 'display',
-        signageMount: 'wall-mounted',
-        typicalText: 'SHOP'
-      },
-      {
-        name: 'arcade',
-        description: '1980s video game arcade',
-        windowType: 'display',
-        signageMount: 'projecting',
-        typicalText: 'ARCADE'
+        signageMount: 'wall-mounted'
       }
     ],
     signageStyle: {
       font: 'deco',
-      colors: ['#FF00FF', '#00FFFF'],
-      illumination: 'neon',
-      typicalText: 'GAMES'
+      colors: ['#5D4037', '#E67E22'],
+      illumination: 'led',
+      typicalText: 'OPEN'
     },
     streetFurniture: [
       {
-        name: 'bench',
-        description: '1980s concrete bench',
-        era: '1985'
-      },
-      {
-        name: 'streetlamp',
-        description: '1980s neon street lighting',
-        era: '1985'
+        name: 'streetlight',
+        era: '1985',
+        description: '1985-era streetlight'
       }
-    ],
-    ambientAudioTrack: '80s_synthwave',
-    dayCycleHour: 18,
-    directionalLightHorizontalAngle: 270,
-    directionalLightVerticalAngle: 55
+    ]
   },
-
   '2005': {
     year: 2005,
-    primaryColors: ['#3498DB', '#E74C3C', '#2ECC71'],
-    ambientLightColor: '#87CEEB',
-    ambientLightIntensity: 3.0,
-    fogDensity: 0.0015,
-    fogColor: '#1E90FF',
+    primaryColors: ['#34495E', '#95A5A6', '#ECF0F1'],
+    ambientLightColor: '#BDC3C7',
+    ambientLightIntensity: 1.0,
+    fogDensity: 0.007,
+    fogColor: '#7F8C8D',
     buildingStyles: [
       {
         name: 'glass_tower',
-        description: 'Early 2000s glass skyscraper',
+        description: 'Glass curtain wall',
         roofType: 'flat',
         facadeMaterial: 'glass',
         windowStyle: 'floor_to_ceiling',
-        architecturalDetails: ['curtain wall', 'deep window recesses', 'aluminum spandrels']
+        architecturalDetails: ['fritted glass', 'aluminum framing', 'energy efficient']
       },
       {
-        name: 'condo',
-        description: '2000s residential condominium',
+        name: 'mixed_use',
+        description: 'Mixed-use development',
+        roofType: 'flat',
+        facadeMaterial: 'concrete',
+        windowStyle: 'medium',
+        architecturalDetails: ['balconies', 'signage', 'green roof']
+      }
+    ],
+    vehicleTypes: ['hybrid', 'ev', 'sedan'],
+    pedestrianPalette: [
+      {
+        name: 'business_suit',
+        description: '2000s business attire',
+        dominantColors: ['#34495E', '#95A5A6']
+      },
+      {
+        name: 'casual',
+        description: '2000s casual wear',
+        dominantColors: ['#34495E', '#95A5A6']
+      }
+    ],
+    storefrontTemplates: [
+      {
+        name: 'digital_storefront',
+        description: 'Digital display storefront',
+        windowType: 'display',
+        signageMount: 'wall-mounted'
+      }
+    ],
+    signageStyle: {
+      font: 'sans',
+      colors: ['#34495E', '#95A5A6'],
+      illumination: 'led',
+      typicalText: 'OPEN'
+    },
+    streetFurniture: [
+      {
+        name: 'streetlight',
+        era: '2005',
+        description: '2005-era streetlight'
+      }
+    ]
+  },
+  '2025': {
+    year: 2025,
+    primaryColors: ['#ECF0F1', '#BDC3C7', '#95A5A6'],
+    ambientLightColor: '#FFFFFF',
+    ambientLightIntensity: 0.9,
+    fogDensity: 0.008,
+    fogColor: '#7F8C8D',
+    buildingStyles: [
+      {
+        name: 'smart_city',
+        description: 'Smart city integration',
+        roofType: 'flat',
+        facadeMaterial: 'glass',
+        windowStyle: 'floor_to_ceiling',
+        architecturalDetails: ['solar panels', 'smart glass', 'LED facade']
+      },
+      {
+        name: 'modern_residential',
+        description: 'Modern residential high-rise',
         roofType: 'flat',
         facadeMaterial: 'concrete',
         windowStyle: 'floor_to_ceiling',
-        architecturalDetails: ['balconies', 'mixed-use base', 'glass block accents']
+        architecturalDetails: ['green roof', 'smart home integration', 'prefabricated panels']
       }
     ],
-    vehicleTypes: ['sedan', 'SUV', 'hatchback'],
+    vehicleTypes: ['autonomous', 'ev', 'sedan'],
     pedestrianPalette: [
       {
-        name: 'business_casual',
-        description: '2000s business casual',
-        dominantColors: ['#3498DB', '#E74C3C', '#FFFFFF']
+        name: 'business_suit',
+        description: '2025 business attire',
+        dominantColors: ['#ECF0F1', '#BDC3C7']
       },
       {
-        name: 'tech_enthusiast',
-        description: '2000s tech casual',
-        dominantColors: ['#2ECC71', '#FFFFFF', '#000000']
+        name: 'casual',
+        description: '2025 casual wear',
+        dominantColors: ['#ECF0F1', '#BDC3C7']
       }
     ],
     storefrontTemplates: [
       {
-        name: 'corporate',
-        description: '2005 corporate storefront',
+        name: 'interactive_storefront',
+        description: 'Interactive digital storefront',
         windowType: 'display',
-        signageMount: 'wall-mounted',
-        typicalText: 'OFFICE'
-      },
-      {
-        name: 'boutique',
-        description: '2005 boutique retail',
-        windowType: 'display',
-        signageMount: 'projecting',
-        typicalText: 'BOUTIQUE'
+        signageMount: 'wall-mounted'
       }
     ],
     signageStyle: {
       font: 'sans',
-      colors: ['#000000', '#FFFFFF'],
+      colors: ['#ECF0F1', '#BDC3C7'],
       illumination: 'led',
-      typicalText: 'RETAIL'
+      typicalText: 'OPEN'
     },
     streetFurniture: [
       {
-        name: 'bench',
-        description: '2005 modern bench',
-        era: '2005'
-      },
-      {
-        name: 'streetlamp',
-        description: '2005 LED street lighting',
-        era: '2005'
+        name: 'streetlight',
+        era: '2025',
+        description: '2025-era streetlight'
       }
-    ],
-    ambientAudioTrack: '2000s_pop',
-    dayCycleHour: 15,
-    directionalLightHorizontalAngle: 225,
-    directionalLightVerticalAngle: 50
-  },
-
-  '2025': {
-    year: 2025,
-    primaryColors: ['#2C3E50', '#ECF0F1', '#E74C3C'],
-    ambientLightColor: '#F5F5F5',
-    ambientLightIntensity: 3.5,
-    fogDensity: 0.001,
-    fogColor: '#BDC3C7',
-    buildingStyles: [
-      {
-        name: 'green_tower',
-        description: 'Sustainable glass tower',
-        roofType: 'flat',
-        facadeMaterial: 'glass',
-        windowStyle: 'floor_to_ceiling',
-        architecturalDetails: ['solar panels', 'vertical gardens', 'green roof', 'rainwater collection']
-      },
-      {
-        name: 'modular',
-        description: 'Modular smart city construction',
-        roofType: 'flat',
-        facadeMaterial: 'steel',
-        windowStyle: 'floor_to_ceiling',
-        architecturalDetails: ['prefabricated units', 'smart glass', 'integrated sensors']
-      }
-    ],
-    vehicleTypes: ['ev_car', 'bicycle', 'autonomous_van'],
-    pedestrianPalette: [
-      {
-        name: 'modern',
-        description: '2025 modern street style',
-        dominantColors: ['#2C3E50', '#ECF0F1', '#FFFFFF']
-      },
-      {
-        name: 'tech_wear',
-        description: '2025 tech-wear fashion',
-        dominantColors: ['#E74C3C', '#ECF0F1', '#2C3E50']
-      }
-    ],
-    storefrontTemplates: [
-      {
-        name: 'experience',
-        description: '2025 experience-based retail',
-        windowType: 'display',
-        signageMount: 'wall-mounted',
-        typicalText: 'EXPERIENCE'
-      },
-      {
-        name: 'kiosk',
-        description: '2025 interactive kiosk',
-        windowType: 'display',
-        signageMount: 'projecting',
-        typicalText: 'KIOSK'
-      }
-    ],
-    signageStyle: {
-      font: 'sans',
-      colors: ['#000000', '#FFFFFF'],
-      illumination: 'led',
-      typicalText: 'DIGITAL'
-    },
-    streetFurniture: [
-      {
-        name: 'bench',
-        description: '2025 smart bench with charging',
-        era: '2025'
-      },
-      {
-        name: 'streetlamp',
-        description: '2025 IoT-enabled street lighting',
-        era: '2025'
-      }
-    ],
-    ambientAudioTrack: 'ambient_electronic',
-    dayCycleHour: 13
+    ]
   }
-} as const
-
-export type EraKey = keyof typeof ERAS
-export type ERAS = typeof ERAS
+}

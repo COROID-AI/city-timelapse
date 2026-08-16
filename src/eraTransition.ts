@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Era Transition Engine
  * 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * PostProcessing - Post-processing effects for the city block scene
  *

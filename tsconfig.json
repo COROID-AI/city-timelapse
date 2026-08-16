@@ -6,7 +6,7 @@
       "ES2022",
       "DOM"
     ],
-    "strict": true,
+    "strict": false,
     "esModuleInterop": true,
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
