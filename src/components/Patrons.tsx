@@ -667,7 +667,7 @@ export const Patrons: React.FC = () => {
   const { camera } = useThree()
 
   // Calculate camera distance for LOD
-  const cameraRef = useRef(0)
+  const cameraRef = useRef<number>(0)
   useEffect(() => {
     const updateDistance = () => {
       if (camera && camera.position) {

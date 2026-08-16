@@ -11,6 +11,7 @@ import { useEraStore } from '../store/eraStore'
 import { EraStoreState } from '../store/eraStore'
 import { TimelineSlider } from './TimelineSlider'
 import { Stats } from '@react-three/drei'
+import { TablewareLighting } from './TablewareLighting'
 
 export const App: React.FC = () => {
   const isMuted = SfxMixer.isMuted()
@@ -110,7 +111,7 @@ const [muted, setMuted] = useState<boolean>(isMuted)
         <TimelineSlider />
 
         {/* Performance monitoring overlay - FPS counter */}
-        <Stats position="top-left" fps={true} ms={false} memory={true} />
+        <Stats fps={true} ms={false} memory={true} />
       </Canvas>
     </>
   )
