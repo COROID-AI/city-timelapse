@@ -267,6 +267,94 @@ export const ERAS = {
         facadeMaterial: 'wood',
         windowStyle: 'large',
         architecturalDetails: ['canopy', 'signage panels', 'parking']
+      },
+      {
+        name: 'brutalist',
+        description: 'Brutalist concrete architecture',
+        roofType: 'flat',
+        facadeMaterial: 'concrete',
+        windowStyle: 'medium',
+        architecturalDetails: ['exposed concrete', 'geometric forms', 'massive scale']
+      },
+      {
+        name: 'retail',
+        description: '1980s retail with neon trim',
+        roofType: 'flat',
+        facadeMaterial: 'concrete',
+        windowStyle: 'large',
+        architecturalDetails: ['window displays', 'neon strips', 'awning']
+      },
+      {
+        name: 'glass_curtain',
+        description: '1985 glass curtain wall',
+        roofType: 'flat',
+        facadeMaterial: 'glass',
+        windowStyle: 'floor_to_ceiling',
+        architecturalDetails: ['aluminum framing', 'spandrel panels', 'reflective coating', 'environment map']
+      },
+      {
+        name: 'retail_restoration',
+        description: '1985 brick restoration with cleaned facade',
+        roofType: 'flat',
+        facadeMaterial: 'brick',
+        windowStyle: 'large',
+        architecturalDetails: ['brick cleaning', 'restored mortar', 'accent strips', 'steel-and-glass storefront']
+      },
+      {
+        name: 'storefront',
+        description: '1985 steel-and-glass storefront',
+        roofType: 'flat',
+        facadeMaterial: 'glass',
+        windowStyle: 'large',
+        architecturalDetails: ['aluminum framing', 'steel mullions', 'storefront display']
+      },
+      {
+        name: 'marquee',
+        description: '1985 digital LED marquee',
+        roofType: 'flat',
+        facadeMaterial: 'concrete',
+        windowStyle: 'large',
+        architecturalDetails: ['LED scrolling sign', 'digital display', 'aluminum framing']
+      },
+      {
+        name: 'atm_kiosk',
+        description: '1985 ATM kiosk on sidewalk',
+        roofType: 'flat',
+        facadeMaterial: 'brick',
+        windowStyle: 'small',
+        architecturalDetails: ['ATM machine', 'drive-up lane', 'aluminum framing']
+      },
+      {
+        name: 'chain_restaurant',
+        description: '1985 chain restaurant with drive-through',
+        roofType: 'flat',
+        facadeMaterial: 'concrete',
+        windowStyle: 'large',
+        architecturalDetails: ['bold branding', 'canopy', 'drive-through lane', 'ATM kiosk']
+      },
+      {
+        name: 'graffiti_alley',
+        description: '1985 graffiti art alley wall',
+        roofType: 'flat',
+        facadeMaterial: 'concrete',
+        windowStyle: 'small',
+        architecturalDetails: ['graffiti mural', 'brick texture', 'alley setting']
+      },
+      {
+        name: 'loft_conversion',
+        description: '1985 loft conversion with exposed brick',
+        roofType: 'flat',
+        facadeMaterial: 'brick',
+        windowStyle: 'floor_to_ceiling',
+        architecturalDetails: ['exposed brick interior', 'large windows', 'steel beams']
+      },
+      {
+        name: 'office_tower',
+        description: '1985 office tower with reflective glass',
+        roofType: 'flat',
+        facadeMaterial: 'glass',
+        windowStyle: 'floor_to_ceiling',
+        architecturalDetails: ['reflective glass', 'aluminum framing', 'modern HVAC']
       }
     ],
     vehicleTypes: ['sedan', 'hatchback', 'truck'],
@@ -280,12 +368,17 @@ export const ERAS = {
         name: 'casual',
         description: '1980s casual wear',
         dominantColors: ['#5D4037', '#E67E22']
+      },
+      {
+        name: 'power_dressing',
+        description: '1980s power dressing',
+        dominantColors: ['#9B59B6', '#F1C40F', '#000000']
       }
     ],
     storefrontTemplates: [
       {
         name: 'mall_store',
-        description: ' mall storefront',
+        description: 'mall storefront',
         windowType: 'display',
         signageMount: 'wall-mounted'
       }
@@ -397,144 +490,80 @@ export const ERAS = {
       {
         name: 'bench',
         era: '2005',
-        description: '2005 modern bench'
-      },
-      {
-        name: 'streetlamp',
-        era: '2005',
-        description: '2005 LED street lighting'
-      },
-      {
-        name: 'bike_rack',
-        era: '2005',
-        description: '2005 sidewalk bike rack'
-      },
-      {
-        name: 'transit_stop',
-        era: '2005',
-        description: '2005 digital transit stop with schedule display'
-      },
-      {
-        name: 'public_art',
-        era: '2005',
-        description: '2005 contemporary public art sculpture'
+        description: '2005-era bench'
       }
     ]
   },
   '2025': {
     year: 2025,
-    primaryColors: ['#ECF0F1', '#BDC3C7', '#95A5A6'],
-    ambientLightColor: '#FFFFFF',
-    ambientLightIntensity: 0.9,
-    fogDensity: 0.008,
-    fogColor: '#7F8C8D',
+    primaryColors: ['#2C3E50', '#E67E22', '#F1C40F'],
+    ambientLightColor: '#ECF0F1',
+    ambientLightIntensity: 1.0,
+    fogDensity: 0.003,
+    fogColor: '#2C3E50',
     buildingStyles: [
       {
+        name: 'sustainable',
+        description: 'Sustainable modular construction',
+        roofType: 'flat',
+        facadeMaterial: 'recycled_glass',
+        windowStyle: 'floor_to_ceiling',
+        architecturalDetails: ['living walls', 'solar panels', 'rainwater collection']
+      },
+      {
         name: 'smart_city',
-        description: 'Smart city integration',
-        roofType: 'flat',
-        facadeMaterial: 'glass',
-        windowStyle: 'floor_to_ceiling',
-        architecturalDetails: ['solar panels', 'smart glass', 'LED facade']
-      },
-      {
-        name: 'modern_residential',
-        description: 'Modern residential high-rise',
-        roofType: 'flat',
-        facadeMaterial: 'concrete',
-        windowStyle: 'floor_to_ceiling',
-        architecturalDetails: ['green roof', 'smart home integration', 'prefabricated panels', 'balconies', 'mixed-use base', 'glass block accents']
-      },
-      {
-        name: 'converted_warehouse',
-        description: 'Industrial-chic converted warehouse',
-        roofType: 'flat',
-        facadeMaterial: 'weathered_brick',
-        windowStyle: 'large',
-        architecturalDetails: ['preserved structural beams', 'loft conversions', 'solar panels', 'green roof']
-      },
-      {
-        name: 'boutique_hotel',
-        description: 'Boutique hotel with modern facade',
-        roofType: 'flat',
-        facadeMaterial: 'concrete_and_glass',
-        windowStyle: 'floor_to_ceiling',
-        architecturalDetails: ['automated sliding doors', 'balconies', 'solar panels', 'green roof']
-      },
-      {
-        name: 'coffee_shop',
-        description: 'Coffee shop chain with outdoor seating',
-        roofType: 'flat',
-        facadeMaterial: 'stucco',
-        windowStyle: 'display',
-        architecturalDetails: ['outdoor seating', 'digital menu board', 'automated doors', 'umbrellas']
-      },
-      {
-        name: 'tech_startup',
-        description: 'Tech startup office with glass entrance',
+        description: 'Smart glass and steel tower',
         roofType: 'flat',
         facadeMaterial: 'glass_and_steel',
-        windowStyle: 'large',
-        architecturalDetails: ['glass entrance', 'digital displays', 'solar panels', 'green roof']
-      }
-    ],
-    vehicleTypes: ['autonomous', 'ev', 'sedan'],
-    pedestrianPalette: [
-      {
-        name: 'business_suit',
-        description: '2025 business attire',
-        dominantColors: ['#ECF0F1', '#BDC3C7']
+        windowStyle: 'floor_to_ceiling',
+        architecturalDetails: ['interactive facade', 'digital displays', 'energy monitoring']
       },
       {
-        name: 'casual',
-        description: '2025 casual wear',
-        dominantColors: ['#ECF0F1', '#BDC3C7']
+        name: 'neo_brutalist',
+        description: 'Neo-brutalist concrete with programmable LEDs',
+        roofType: 'flat',
+        facadeMaterial: 'concrete',
+        windowStyle: 'medium',
+        architecturalDetails: ['programmable LED strips', 'geometric cutouts', 'sensory lighting']
+      }
+    ],
+    vehicleTypes: ['ev', 'autonomous', 'drone'],
+    pedestrianPalette: [
+      {
+        name: 'commuter',
+        description: 'Smart city commuter',
+        dominantColors: ['#2C3E50', '#ECF0F1']
+      },
+      {
+        name: 'tech_enthusiast',
+        description: 'Future-focused attire',
+        dominantColors: ['#E67E22', '#F1C40F']
       }
     ],
     storefrontTemplates: [
       {
-        name: 'interactive_storefront',
-        description: 'Interactive digital storefront',
+        name: 'holographic_storefront',
+        description: 'Holographic display storefront',
         windowType: 'display',
         signageMount: 'wall-mounted'
       }
     ],
     signageStyle: {
       font: 'sans',
-      colors: ['#ECF0F1', '#BDC3C7'],
-      illumination: 'led',
+      colors: ['#2C3E50', '#E67E22', '#F1C40F'],
+      illumination: 'neon',
       typicalText: 'OPEN'
     },
     streetFurniture: [
       {
-        name: 'streetlight',
+        name: 'interactive_kiosk',
         era: '2025',
-        description: '2025-era streetlight'
+        description: '2025-era interactive kiosk'
       },
       {
-        name: 'bench',
-        era: '2005',
-        description: '2005 modern bench'
-      },
-      {
-        name: 'streetlamp',
-        era: '2005',
-        description: '2005 LED street lighting'
-      },
-      {
-        name: 'bike_rack',
-        era: '2005',
-        description: '2005 sidewalk bike rack'
-      },
-      {
-        name: 'transit_stop',
-        era: '2005',
-        description: '2005 digital transit stop with schedule display'
-      },
-      {
-        name: 'public_art',
-        era: '2005',
-        description: '2005 contemporary public art sculpture'
+        name: 'solar_charging_station',
+        era: '2025',
+        description: '2025-era solar charging station'
       }
     ]
   }
