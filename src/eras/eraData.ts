@@ -58,6 +58,36 @@ export interface StreetFurniture {
   description: string
 }
 
+/**
+ * Apply era-specific styles to the scene based on selected year.
+ * Updates background color and logs the era being applied.
+ * @param scene Three.js scene to update
+ * @param year The selected year (1945, 1965, 1985, 2005, 2025)
+ */
+export function applyEraStyle(scene: THREE.Scene, year: number): void {
+  const era = ERAS[year as keyof typeof ERAS]
+  if (!era) return
+
+  // Update scene background color based on era
+  scene.background = new THREE.Color(
+    parseInt(era.colors.sky.replace('#', ''), 16) / 255,
+    parseInt(era.colors.sky.replace('#', ''), 16) / 255,
+    parseInt(era.colors.sky.replace('#', ''), 16) / 255
+  )
+
+  // Remove existing era-specific objects from previous transitions
+  scene.traverse((child) => {
+    if (child.userData?.isEraObject) {
+      child.geometry.dispose()
+      child.material.dispose()
+      scene.remove(child)
+    }
+  })
+
+  // Log the era being applied
+  console.log(`Applied era: ${era.name} - ${era.description}`)
+}
+
 export const ERAS = {
   '1945': {
     year: 1945,
