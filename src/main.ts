@@ -13,13 +13,20 @@ import { mountTimeline, setEraById as timelineSetEraById } from './ui/timeline.j
 import { mountControls } from './ui/controls-overlay.js';
 import { mountHud } from './ui/hud.js';
 import { isTransitionRunning } from './app/transitions.js';
+import {
+  initPerfSystem,
+  perfTick,
+} from './app/perf.js';
 
 // ── Bootstrap ────────────────────────────────────────────────────────────
 
 const canvas = document.createElement('canvas');
 document.body.appendChild(canvas);
 
-const engine = new Engine(canvas);
+// Initialize performance system (registers backtick hotkey immediately)
+initPerfSystem();
+
+const engine = new Engine(canvas, { maxPixelRatio: undefined }); // uses MAX_PIXEL_RATIO from config
 
 // Camera
 const camera = new THREE.PerspectiveCamera(
@@ -32,8 +39,8 @@ camera.position.set(35, 25, 35);
 (engine.scene as any).__camera = camera;
 engine.updateCameraAspect(camera);
 
-// Lights
-setupLights(engine.scene);
+// Lights — capture sun light reference for perf monitoring
+const { sunLight } = setupLights(engine.scene);
 
 // Ground + buildings
 const textures = new TextureFactory();
@@ -167,13 +174,25 @@ initInspection({
 
 engine.animate((delta) => {
   controls.update();
+
   // Update pedestrian animation each frame
   const pc = (coordinator as any)._pedestrianController as PedestrianController | undefined;
   if (pc) {
     pc.update(delta);
   }
+
+  // Performance monitoring tick (adaptive quality + debug overlay)
+  const transitioning = isTransitionRunning();
+  perfTick(
+    engine.scene,
+    engine.renderer,
+    sunLight,
+    currentEra,
+    transitioning,
+  );
 });
 
 console.log('City Era Timelapse — fully assembled.');
 console.log('Press D to dump scene stats. Arrow keys or 1-5 to switch eras.');
 console.log('Click or press any key to enable audio.');
+console.log('Press ` (backtick) to toggle performance debug overlay.');

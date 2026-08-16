@@ -1,6 +1,12 @@
 import * as THREE from 'three';
+import { MAX_PIXEL_RATIO } from '../util/perfConfig.js';
 
 // ── Renderer factory with shadows + ACES tone mapping ────────────────
+
+export interface EngineOptions {
+  /** Optional maximum device pixel ratio clamp */
+  maxPixelRatio?: number;
+}
 
 export class Engine {
   readonly renderer: THREE.WebGLRenderer;
@@ -8,16 +14,21 @@ export class Engine {
   readonly clock = new THREE.Clock();
 
   private onResize?: () => void;
+  private _maxPixelRatio: number;
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, options?: EngineOptions) {
     this.scene = new THREE.Scene();
+    this._maxPixelRatio = options?.maxPixelRatio ?? MAX_PIXEL_RATIO;
 
     this.renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: true,
       powerPreference: 'high-performance',
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // Clamp initial pixel ratio using adaptive config
+    this.renderer.setPixelRatio(
+      Math.min(window.devicePixelRatio, this._maxPixelRatio),
+    );
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -32,6 +43,11 @@ export class Engine {
       this.renderer.setSize(w, h);
     };
     window.addEventListener('resize', this.onResize!);
+  }
+
+  /** Update the adaptive pixel ratio clamp (called by perf monitor). */
+  setAdaptivePixelRatio(ratio: number): void {
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, ratio));
   }
 
   /** Call when camera frustum changes so aspect stays correct */
