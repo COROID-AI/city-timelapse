@@ -622,7 +622,7 @@ function createTrafficSignal(position: { x: number; z: number }): THREE.Group {
   return group;
 }
 
-function createBikeLaneMarking(bikeConfig: EraContent['street']['bikeLaneMarkings'][number]): THREE.Group {
+function createBikeLaneMarking(bikeConfig: NonNullable<EraContent['street']['bikeLaneMarkings']>[number], roadWidth: number): THREE.Group {
   const stripeCount = Math.floor(60 / bikeConfig.stripeSpacing);
   const stripeGeo = new THREE.PlaneGeometry(0.15, 0.8);
   const stripeMat = new THREE.MeshStandardMaterial({
@@ -633,8 +633,8 @@ function createBikeLaneMarking(bikeConfig: EraContent['street']['bikeLaneMarking
   group.name = 'bike_lane_marking';
 
   const laneZ = bikeConfig.side === 'left'
-    ? bikeConfig.roadWidth / 2 - bikeConfig.laneWidth / 2
-    : -(bikeConfig.roadWidth / 2 - bikeConfig.laneWidth / 2);
+    ? roadWidth / 2 - bikeConfig.laneWidth / 2
+    : -(roadWidth / 2 - bikeConfig.laneWidth / 2);
 
   for (let i = 0; i < stripeCount; i++) {
     const stripe = new THREE.Mesh(stripeGeo, stripeMat);
@@ -992,7 +992,7 @@ export function createStreetEnvironment(config: EraContent['street']): StreetEnv
   const bikeLaneConfigs = config.bikeLaneMarkings;
   if (bikeLaneConfigs && bikeLaneConfigs.length > 0) {
     bikeLaneConfigs.forEach((blm) => {
-      const bikeLane = createBikeLaneMarking(blm);
+      const bikeLane = createBikeLaneMarking(blm, config.roadWidth);
       group.add(bikeLane);
       registerFurniture(bikeLane, 'bike_lane');
     });

@@ -1565,7 +1565,7 @@ function buildBillboard(
   const th = Math.round(height * 40);
 
   let tex: THREE.CanvasTexture;
-  let baseMat: THREE.MeshStandardMaterial;
+  let baseMat: THREE.MeshStandardMaterial | THREE.MeshBasicMaterial;
 
   if (animated && entry.adType === 'led_wall') {
     // For 2025 LED walls, use dynamic texture
@@ -1744,12 +1744,11 @@ export function createStorefrontsLayer(config: EraContent['storefronts']): Store
       if (child instanceof THREE.Mesh) {
         child.geometry?.dispose();
         if (Array.isArray(child.material)) {
-          child.material.forEach((m) => { m.dispose(); if (m.map) m.map.dispose(); });
+          child.material.forEach((m) => { m.dispose(); const mat = m as THREE.Material & { map?: THREE.Texture | null }; if (mat.map) mat.map.dispose(); });
         } else {
           child.material.dispose();
-          if ((child.material as THREE.Material).map) {
-            ((child.material as THREE.Material).map as THREE.CanvasTexture)?.dispose();
-          }
+          const mat = child.material as THREE.Material & { map?: THREE.Texture | null };
+          if (mat.map) { (mat.map as THREE.CanvasTexture)?.dispose(); }
         }
       }
     }
@@ -1850,7 +1849,7 @@ export function createStorefrontsLayer(config: EraContent['storefronts']): Store
 
       // Fade out current meshes
       const fadeDuration = 400; // ms
-      const startOpacity = allMeshes.every((m) => m.currentOpacity);
+      void allMeshes.every((m) => m.currentOpacity); // check if any visible
       for (const named of allMeshes) {
         named.opacityTarget = 0;
       }
@@ -1903,11 +1902,13 @@ export function createStorefrontsLayer(config: EraContent['storefronts']): Store
           if (Array.isArray(child.material)) {
             child.material.forEach((m) => {
               m.dispose();
-              if ((m as THREE.Material).map) ((m as THREE.Material).map)?.dispose();
+              const mat = m as THREE.Material & { map?: THREE.Texture | null };
+              if (mat.map) { (mat.map as THREE.CanvasTexture)?.dispose(); }
             });
           } else {
             child.material.dispose();
-            if ((child.material as THREE.Material).map) ((child.material as THREE.Material).map)?.dispose();
+            const mat = child.material as THREE.Material & { map?: THREE.Texture | null };
+            if (mat.map) { (mat.map as THREE.CanvasTexture)?.dispose(); }
           }
         }
       }
