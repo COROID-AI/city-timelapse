@@ -248,32 +248,100 @@ export const ERAS = {
   '1985': {
     year: 1985,
     primaryColors: ['#9B59B6', '#F1C40F', '#E67E22'],
-    ambientLightColor: '#FFB6C1',
+    ambientLightColor: #FFB6C1,
     ambientLightIntensity: 2.5,
     fogDensity: 0.002,
-    fogColor: '#8A2BE2',
+    fogColor: #8A2BE2,
     buildingStyles: [
       {
         name: 'brutalist',
         description: 'Brutalist concrete architecture',
-        roofType: 'flat',
-        facadeMaterial: 'concrete',
-        windowStyle: 'medium',
+        roofType: flat,
+        facadeMaterial: concrete,
+        windowStyle: medium,
         architecturalDetails: ['exposed concrete', 'geometric forms', 'massive scale']
       },
       {
         name: 'retail',
         description: '1980s retail with neon trim',
-        roofType: 'flat',
-        facadeMaterial: 'concrete',
-        windowStyle: 'large',
+        roofType: flat,
+        facadeMaterial: concrete,
+        windowStyle: large,
         architecturalDetails: ['window displays', 'neon strips', 'awning']
+      },
+      {
+        name: 'glass_curtain',
+        description: '1985 glass curtain wall',
+        roofType: flat,
+        facadeMaterial: glass,
+        windowStyle: floor_to_ceiling,
+        architecturalDetails: ['aluminum framing', 'spandrel panels', 'reflective coating', 'environment map']
+      },
+      {
+        name: 'retail_restoration',
+        description: '1985 brick restoration with cleaned facade',
+        roofType: flat,
+        facadeMaterial: brick,
+        windowStyle: large,
+        architecturalDetails: ['brick cleaning', 'restored mortar', 'accent strips', 'steel-and-glass storefront']
+      },
+      {
+        name: 'storefront',
+        description: '1985 steel-and-glass storefront',
+        roofType: flat,
+        facadeMaterial: glass,
+        windowStyle: large,
+        architecturalDetails: ['aluminum framing', 'steel mullions', 'storefront display']
+      },
+      {
+        name: 'marquee',
+        description: '1985 digital LED marquee',
+        roofType: flat,
+        facadeMaterial: concrete,
+        windowStyle: large,
+        architecturalDetails: ['LED scrolling sign', 'digital display', 'aluminum framing']
+      },
+      {
+        name: 'atm_kiosk',
+        description: '1985 ATM kiosk on sidewalk',
+        roofType: flat,
+        facadeMaterial: brick,
+        windowStyle: small,
+        architecturalDetails: ['ATM machine', 'drive-up lane', 'aluminum framing']
+      },
+      {
+        name: 'chain_restaurant',
+        description: '1985 chain restaurant with drive-through',
+        roofType: flat,
+        facadeMaterial: concrete,
+        windowStyle: large,
+        architecturalDetails: ['bold branding', 'canopy', 'drive-through lane', 'ATM kiosk']
+      },
+      {
+        name: 'graffiti_alley',
+        description: '1985 graffiti art alley wall',
+        roofType: flat,
+        facadeMaterial: concrete,
+        windowStyle: small,
+        architecturalDetails: ['graffiti mural', 'brick texture', 'alley setting']
+      },
+      {
+        name: 'loft_conversion',
+        description: '1985 loft conversion with exposed brick',
+        roofType: flat,
+        facadeMaterial: brick,
+        windowStyle: floor_to_ceiling,
+        architecturalDetails: ['exposed brick interior', 'large windows', 'steel beams']
+      },
+      {
+        name: 'office_tower',
+        description: '1985 office tower with reflective glass',
+        roofType: flat,
+        facadeMaterial: glass,
+        windowStyle: floor_to_ceiling,
+        architecturalDetails: ['reflective glass', 'aluminum framing', 'modern HVAC']
       }
     ],
-    vehicleTypes: ['sports_car', 'hatchback', 'truck'],
-    pedestrianPalette: [
-      {
-        name: 'shoulderpads',
         description: '1980s power dressing',
         dominantColors: ['#9B59B6', '#F1C40F', '#000000']
       },
@@ -330,7 +398,6 @@ export const ERAS = {
     ambientLightIntensity: 3.0,
     fogDensity: 0.0015,
     fogColor: '#1E90FF',
-    buildingStyles: [
       {
         name: 'glass_tower',
         description: 'Early 2000s glass skyscraper',
