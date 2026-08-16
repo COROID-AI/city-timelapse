@@ -1,12 +1,41 @@
-# City Time Period Timelapse
+# City Timelapse 1945–2025
 
-Create a 3D scene of a city block. Emphasis on detail is very important.
+A 3D city-block timelapse built with **Vite + TypeScript + three.js**. Walk through five decades of urban change—from post-war dusk to a connected horizon—via an interactive timeline slider.
 
-The scene must have a timeline slider in the top, with the following options:
-1945, 1965, 1985, 2005, 2025 and 2055
+## Quick Start
 
-The point of the scene is to be able to select any of the 5 different years, and the scene will transform in front of your eyes to the time period selected from the slider.
+```bash
+# Install dependencies
+npm install
 
-Time period should affect all aspects of the city block. The buildings, the vehicles, the storefronts, advertisements, outfits of the pedestrians, everything.
+# Start the dev server (hot-reload)
+npm run dev
 
-This must be a polished high end scene with SFX, ability to navigate around and look at things, etc. Go all out.
+# Build for production → dist/
+npm run build
+
+# Type-check without emitting
+npm run typecheck
+
+# Preview the production build locally
+npm run preview
+```
+
+Open `http://localhost:5173` after running `npm run dev`.
+
+## Architecture
+
+- **Vite** — fast dev server and production bundler
+- **TypeScript** — strict mode, ES2020 target, moduleResolution = bundler
+- **three.js** — WebGL rendering engine
+- **src/eras.ts** — shared era contract (`EraId`, `EraSpec`, `SfxEraData`, `ERA_REGISTRY`, `ERA_IDS`, `getEraSpec`, `SFX_ERA_DATA`) consumed by all visual and audio work
+
+## Commands Reference
+
+| Command           | Description                        |
+| ----------------- | ---------------------------------- |
+| `npm install`     | Install all project dependencies   |
+| `npm run dev`     | Launch Vite dev server on :5173    |
+| `npm run build`   | TypeScript check + Vite production build into `dist/` |
+| `npm run typecheck` | Run `tsc --noEmit` only          |
+| `npm run preview` | Serve `dist/` locally for testing  |
