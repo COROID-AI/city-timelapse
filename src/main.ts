@@ -1,5 +1,9 @@
 import * as THREE from 'three';
 import { ERA_IDS, getEraSpec } from './eras.js';
+import { mountTimeline, type TimelineConfig } from './ui/timeline.js';
+import { TimelineController } from './scene/timelineController.js';
+import { EraStage } from './scene/eraStage.js';
+import { SkyRig, DEFAULT_ATMOSPHERE, EARLY_ATMOSPHERE } from './scene/sky.js';
 
 // ── Minimal boot: clear + render one frame ──────────────────────────
 const canvas = document.getElementById('webgl') as HTMLCanvasElement;
@@ -32,6 +36,34 @@ scene.add(new THREE.Mesh(groundGeo, groundMat));
 // Log era contract availability
 console.log('City Timelapse — eras available:', ERA_IDS);
 ERA_IDS.forEach((id) => console.log(`  ${getEraSpec(id).label}`));
+
+// ── Sky Rig (sky dome + sun/hemi/ambient lights + fog) ─────────────
+const skyRig = new SkyRig(scene, DEFAULT_ATMOSPHERE, EARLY_ATMOSPHERE);
+
+// ── Era Stage (manages per-era content mounting/disposal) ───────────
+const eraStage = new EraStage(scene);
+
+// ── Timeline Controller (orchestrates staged transitions) ───────────
+let currentEraId = '1945' as const;
+
+const timelineController = new TimelineController({
+  onEraChange: (eraId: string, year: number) => {
+    console.log(`[TimelineController] Era transition → ${eraId} (${year})`);
+    // Fire audio crossfade hook here when SFX mixer is available
+  },
+  totalDurationMs: 2500, // ~2.5s total transition
+});
+timelineController.bind(eraStage, skyRig);
+
+// ── Mount Timeline UI ──────────────────────────────────────────────
+const timelineConfig: TimelineConfig = {
+  scrubMode: false,
+  onEraChange: (eraId: string, _year: number) => {
+    // Forward timeline selection to the orchestrator
+    timelineController.requestEraChange(eraId as typeof currentEraId);
+  },
+};
+mountTimeline(timelineConfig);
 
 // Render a single frame
 renderer.render(scene, camera);
