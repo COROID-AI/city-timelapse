@@ -113,6 +113,38 @@ const cameraHint = document.createElement('div');
 cameraHint.id = 'hud-camera-hint';
 hud.appendChild(cameraHint);
 
+// ── Camera mode toggle button (visible orbit/walk toggle) ────────
+type CameraMode = 'orbit' | 'walk';
+let cameraMode: CameraMode = 'orbit';
+
+const cameraToggleBtn = document.createElement('button');
+cameraToggleBtn.id = 'hud-camera-toggle-btn';
+cameraToggleBtn.setAttribute('aria-label', 'Switch between orbit and walk camera modes');
+cameraToggleBtn.setAttribute('role', 'switch');
+cameraToggleBtn.setAttribute('aria-checked', 'false');
+cameraToggleBtn.setAttribute('data-testid', 'camera-toggle-btn');
+cameraToggleBtn.title = 'Toggle walk mode (Q)';
+hud.appendChild(cameraToggleBtn);
+
+function updateCameraHint(): void {
+  if (cameraMode === 'orbit') {
+    cameraHint.textContent = '🎥 Orbit mode — drag to rotate';
+    cameraToggleBtn.textContent = '🔄 Walk';
+    cameraToggleBtn.setAttribute('aria-checked', 'false');
+  } else {
+    cameraHint.textContent = '🚶 Walk mode — drag to move forward/back';
+    cameraToggleBtn.textContent = '🔄 Orbit';
+    cameraToggleBtn.setAttribute('aria-checked', 'true');
+  }
+}
+
+cameraToggleBtn.addEventListener('click', () => {
+  cameraMode = cameraMode === 'orbit' ? 'walk' : 'orbit';
+  updateCameraHint();
+});
+
+updateCameraHint();
+
 // Help overlay (controls legend, toggled with H).
 const helpOverlay = document.createElement('div');
 helpOverlay.id = 'hud-help-overlay';
@@ -161,12 +193,14 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
 
   // Camera mode with Q/E
   if (e.key === 'q' || e.key === 'Q') {
-    cameraHint.textContent = '🎥 Orbit mode — drag to rotate';
+    cameraMode = 'orbit';
+    updateCameraHint();
     return;
   }
 
   if (e.key === 'e' || e.key === 'E') {
-    cameraHint.textContent = '🎥 Dolly mode — drag to move forward/back';
+    cameraMode = 'walk';
+    updateCameraHint();
     return;
   }
 
@@ -188,6 +222,8 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
 // Audio enable / mute button (must satisfy autoplay policy — user gesture).
 const audioBtn = document.createElement('button');
 audioBtn.id = 'hud-audio-btn';
+audioBtn.setAttribute('aria-label', 'Enable audio');
+audioBtn.dataset.testId = 'audio-btn';
 audioBtn.textContent = '🔇';
 audioBtn.title = 'Enable audio';
 hud.appendChild(audioBtn);

@@ -420,6 +420,36 @@
   text-align: center;
 }
 
+/* Camera mode toggle button */
+#hud-camera-toggle-btn {
+  position: absolute;
+  top: 16px;
+  right: 76px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  padding: 4px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  z-index: 10;
+  transition: background 0.2s, border-color 0.2s;
+  color: #fff;
+  font-family: 'Inter', system-ui, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#hud-camera-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.24);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+#hud-camera-toggle-btn:focus-visible {
+  outline: 2px solid #f0c040;
+  outline-offset: 2px;
+}
+
 @media (max-width: 600px) {
   #hud-year-display {
     font-size: 28px;
