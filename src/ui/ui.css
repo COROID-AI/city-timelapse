@@ -1,0 +1,536 @@
+/* ─── City Era Timelapse — UI Styles ─────────────────────────────── */
+
+/* ── Era accent palette ──────────────────────────────────────────── */
+:root {
+  /* Default / unselected era */
+  --ui-accent: #8a8a8a;
+  --ui-accent-glow: rgba(138, 138, 138, 0.3);
+  --ui-bg: rgba(15, 15, 20, 0.88);
+  --ui-bg-hover: rgba(30, 30, 40, 0.92);
+  --ui-text: #e8e8ec;
+  --ui-text-muted: #9a9aa0;
+  --ui-border: rgba(255, 255, 255, 0.08);
+  --ui-track: rgba(255, 255, 255, 0.1);
+  --ui-thumb: #ccccd0;
+  --ui-card-bg: rgba(15, 15, 20, 0.92);
+  --ui-help-bg: rgba(10, 10, 15, 0.96);
+  --ui-transition-speed: 0.3s;
+}
+
+/* ── 1945 — Wartime austerity (muted olive/sepia) ────────────────── */
+[data-era="1945"] {
+  --ui-accent: #7a8a5c;
+  --ui-accent-glow: rgba(122, 138, 92, 0.35);
+  --ui-border: rgba(122, 138, 92, 0.15);
+  --ui-thumb: #8a9a6c;
+}
+
+/* ── 1965 — Mid-century warmth (orange/teal/cream) ───────────────── */
+[data-era="1965"] {
+  --ui-accent: #e07a3a;
+  --ui-accent-glow: rgba(224, 122, 58, 0.35);
+  --ui-border: rgba(224, 122, 58, 0.15);
+  --ui-thumb: #f09050;
+}
+
+/* ── 1985 — Neon & new wave (cyan/pink/purple) ───────────────────── */
+[data-era="1985"] {
+  --ui-accent: #b040e0;
+  --ui-accent-glow: rgba(176, 64, 224, 0.4);
+  --ui-border: rgba(176, 64, 224, 0.2);
+  --ui-thumb: #c860ff;
+}
+
+/* ── 2005 — Y2K corporate (cool blue/silver) ──────────────────────── */
+[data-era="2005"] {
+  --ui-accent: #4a90d9;
+  --ui-accent-glow: rgba(74, 144, 217, 0.35);
+  --ui-border: rgba(74, 144, 217, 0.15);
+  --ui-thumb: #6ab0f0;
+}
+
+/* ── 2025 — Modern smart city (bright cyan/white) ────────────────── */
+[data-era="2025"] {
+  --ui-accent: #00d4aa;
+  --ui-accent-glow: rgba(0, 212, 170, 0.35);
+  --ui-border: rgba(0, 212, 170, 0.15);
+  --ui-thumb: #20eac0;
+}
+
+/* ── Global resets for UI layer ──────────────────────────────────── */
+.ui-layer * {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.ui-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: var(--ui-text);
+}
+
+/* Enable pointer events on interactive descendants */
+.ui-layer button,
+.ui-layer input,
+.ui-layer [role="slider"],
+.ui-layer .timeline-stop,
+.ui-layer .timeline-track,
+.ui-layer .hud-card,
+.ui-layer .help-overlay,
+.ui-layer .sound-toggle,
+.ui-layer .camera-reset-btn {
+  pointer-events: auto;
+}
+
+/* ── Timeline slider ─────────────────────────────────────────────── */
+.timeline {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.timeline-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 12px;
+  padding: 10px 20px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4),
+              0 0 0 1px var(--ui-border);
+  transition: border-color var(--ui-transition-speed),
+              box-shadow var(--ui-transition-speed);
+}
+
+.timeline-bar:hover {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5),
+              0 0 0 1px var(--ui-border),
+              0 0 16px var(--ui-accent-glow);
+}
+
+.timeline-track-wrapper {
+  position: relative;
+  width: 320px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+}
+
+.timeline-track {
+  position: absolute;
+  top: 50%;
+  left: 16px;
+  right: 16px;
+  height: 4px;
+  background: var(--ui-track);
+  border-radius: 2px;
+  transform: translateY(-50%);
+}
+
+.timeline-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--ui-accent);
+  border-radius: 2px;
+  transition: width 0.2s ease, background var(--ui-transition-speed);
+  box-shadow: 0 0 8px var(--ui-accent-glow);
+}
+
+.timeline-stops {
+  position: absolute;
+  top: 50%;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  justify-content: space-between;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.timeline-stop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform 0.15s ease;
+}
+
+.timeline-stop:hover {
+  transform: scale(1.1);
+}
+
+.timeline-stop:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.timeline-stop-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--ui-thumb);
+  border: 2px solid var(--ui-border);
+  transition: background var(--ui-transition-speed),
+              border-color var(--ui-transition-speed),
+              box-shadow 0.2s ease,
+              transform 0.15s ease;
+}
+
+.timeline-stop.active .timeline-stop-dot {
+  background: var(--ui-accent);
+  border-color: var(--ui-accent);
+  box-shadow: 0 0 10px var(--ui-accent-glow),
+              0 0 20px var(--ui-accent-glow);
+  transform: scale(1.3);
+}
+
+.timeline-stop-year {
+  position: absolute;
+  top: 18px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--ui-text-muted);
+  white-space: nowrap;
+  transition: color var(--ui-transition-speed);
+}
+
+.timeline-stop.active .timeline-stop-year {
+  color: var(--ui-accent);
+}
+
+/* Thumb (draggable handle) */
+.timeline-thumb {
+  position: absolute;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--ui-accent);
+  border: 3px solid #fff;
+  transform: translate(-50%, -50%);
+  cursor: grab;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4),
+              0 0 12px var(--ui-accent-glow);
+  transition: background var(--ui-transition-speed),
+              box-shadow 0.2s ease;
+  z-index: 2;
+}
+
+.timeline-thumb:active {
+  cursor: grabbing;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5),
+              0 0 20px var(--ui-accent-glow);
+}
+
+.timeline-thumb:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* Era label under timeline */
+.timeline-era-label {
+  text-align: center;
+  margin-top: 4px;
+}
+
+.timeline-era-name {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ui-text);
+  transition: color var(--ui-transition-speed);
+}
+
+.timeline-era-desc {
+  font-size: 11px;
+  color: var(--ui-text-muted);
+  max-width: 360px;
+  text-align: center;
+  line-height: 1.4;
+  margin-top: 2px;
+  transition: color var(--ui-transition-speed);
+}
+
+/* ── Controls overlay ────────────────────────────────────────────── */
+.controls-overlay {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.control-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--ui-border);
+  background: var(--ui-bg);
+  color: var(--ui-text);
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: background 0.2s, border-color 0.2s, color 0.2s,
+              box-shadow 0.2s;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.control-btn:hover {
+  background: var(--ui-bg-hover);
+  border-color: var(--ui-accent);
+  box-shadow: 0 0 12px var(--ui-accent-glow);
+}
+
+.control-btn:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+
+.control-btn[aria-pressed="true"] {
+  background: var(--ui-accent);
+  color: #fff;
+  border-color: var(--ui-accent);
+}
+
+.sound-toggle-icon {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.sound-mute-indicator {
+  position: relative;
+  width: 18px;
+  height: 18px;
+}
+
+.sound-mute-indicator::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.sound-toggle.muted .sound-mute-indicator::after {
+  opacity: 1;
+}
+
+/* ── Help overlay ────────────────────────────────────────────────── */
+.help-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--ui-help-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 200;
+}
+
+.help-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.help-panel {
+  background: var(--ui-card-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 480px;
+  width: 90%;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+}
+
+.help-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: var(--ui-accent);
+  text-align: center;
+}
+
+.help-section {
+  margin-bottom: 16px;
+}
+
+.help-section:last-child {
+  margin-bottom: 0;
+}
+
+.help-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ui-text-muted);
+  margin-bottom: 8px;
+}
+
+.help-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+}
+
+.help-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 26px;
+  padding: 0 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: monospace;
+  color: var(--ui-text);
+}
+
+.help-label {
+  font-size: 14px;
+  color: var(--ui-text);
+}
+
+.help-close-hint {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 12px;
+  color: var(--ui-text-muted);
+}
+
+/* ── HUD era info card ───────────────────────────────────────────── */
+.hud-card {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  background: var(--ui-card-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 14px;
+  padding: 16px 20px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4),
+              0 0 0 1px var(--ui-border);
+  transition: border-color var(--ui-transition-speed),
+              box-shadow var(--ui-transition-speed),
+              opacity 0.3s ease,
+              transform 0.3s ease;
+  min-width: 220px;
+}
+
+.hud-card.fading {
+  opacity: 0.4;
+  transform: translateY(4px);
+}
+
+.hud-year {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ui-accent);
+  line-height: 1;
+  transition: color var(--ui-transition-speed);
+}
+
+.hud-year-ticker {
+  display: inline-block;
+  overflow: hidden;
+  height: 36px;
+  vertical-align: bottom;
+}
+
+.hud-year-ticker-inner {
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.08s linear;
+}
+
+.hud-year-digit {
+  height: 36px;
+  line-height: 36px;
+}
+
+.hud-era-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ui-text);
+  margin-top: 6px;
+}
+
+.hud-era-desc {
+  font-size: 12px;
+  color: var(--ui-text-muted);
+  line-height: 1.5;
+  margin-top: 4px;
+}
+
+/* ── Responsive adjustments ──────────────────────────────────────── */
+@media (max-width: 640px) {
+  .timeline-track-wrapper {
+    width: 240px;
+  }
+
+  .timeline-era-desc {
+    display: none;
+  }
+
+  .hud-card {
+    min-width: 180px;
+    padding: 12px 14px;
+  }
+
+  .hud-year {
+    font-size: 26px;
+  }
+
+  .help-panel {
+    padding: 24px;
+  }
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
