@@ -112,7 +112,7 @@ export const ERAS = {
         architecturalDetails: ['steel beams', 'large windows', 'fire escapes']
       }
     ],
-    vehicleTypes: ['classic_car', 'truck', 'streetcar'],
+    vehicleTypes: ['vintage_sedan', 'truck', 'streetcar', 'horse_wagon', 'milk_truck', 'fire_engine', 'bicycle'],
     pedestrianPalette: [
       {
         name: 'business_suit',
@@ -144,6 +144,11 @@ export const ERAS = {
         name: 'streetlight',
         era: '1945',
         description: '1945-era streetlight'
+      },
+      {
+        name: 'bus_stop_shelter',
+        era: '1945',
+        description: '1945-era bus stop shelter'
       }
     ]
   },
