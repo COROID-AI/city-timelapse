@@ -1,12 +1,68 @@
-# City Time Period Timelapse
+# City Era Timelapse — 1945 to 2025
 
-Create a 3D scene of a city block. Emphasis on detail is very important.
+A procedurally-generated 3D city scene that transforms across five eras: **1945, 1965, 1985, 2005, 2025**. Built with Three.js, Vite, and TypeScript.
 
-The scene must have a timeline slider in the top, with the following options:
-1945, 1965, 1985, 2005, 2025 and 2055
+## Quick Start
 
-The point of the scene is to be able to select any of the 5 different years, and the scene will transform in front of your eyes to the time period selected from the slider.
+```bash
+# Install dependencies
+npm install
 
-Time period should affect all aspects of the city block. The buildings, the vehicles, the storefronts, advertisements, outfits of the pedestrians, everything.
+# Start the dev server (http://localhost:5173)
+npm run dev
 
-This must be a polished high end scene with SFX, ability to navigate around and look at things, etc. Go all out.
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+
+# Type-check only (no emit)
+npm run typecheck
+```
+
+## Architecture
+
+```
+src/
+├── main.ts                  # App entrypoint: renderer, camera, render loop, resize handler
+├── eras.ts                  # Shared era types & registry (EraId, EraSpec, SfxEraData, ERA_REGISTRY)
+├── content/
+│   └── eraConfig.ts         # Per-era content schema (buildings, storefronts, vehicles, …)
+├── state/
+│   └── eraState.ts          # Reactive era store (subscribe / setEra)
+├── scene/
+│   ├── cityScene.ts         # Scene graph root — wires all layer factories together
+│   ├── cameraRig.ts         # Camera presets per era
+│   ├── transitionManager.ts # Era crossfade controller
+│   └── layers/
+│       ├── buildings.ts
+│       ├── storefronts.ts
+│       ├── vehicles.ts
+│       ├── pedestrians.ts
+│       └── streetEnvironment.ts
+├── ui/
+│   ├── timeline.ts          # Top-bar era selector buttons
+│   └── infoPanel.ts         # Bottom-left era description card
+└── audio/
+    ├── sfx.ts               # Procedural AudioBuffer generator (WebAudio)
+    └── mixer.ts             # Era-aware crossfade mixer
+```
+
+## Concepts
+
+- **Eras** — Five time periods (`'1945' | '1965' | '1985' | '2005' | '2025'`) each with distinct visual and audio parameters.
+- **Scene skeleton** — Placeholder geometry (boxes, planes) renders immediately so parallel tasks can build against a stable API.
+- **Procedural assets only** — All visuals use Three.js primitives; all audio uses WebAudio synthesis. No binary downloads or external assets.
+
+## Debugging
+
+Open your browser console to interact with the app:
+
+```js
+// Switch era from console
+window.cityTimelapse.setEra('2025');
+
+// List available eras
+window.cityTimelapse.getEras();
+```
