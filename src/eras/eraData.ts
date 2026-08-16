@@ -13,6 +13,8 @@ export interface EraData {
   streetFurniture: StreetFurniture[]
   ambientAudioTrack: string
   dayCycleHour: number
+  directionalLightHorizontalAngle: number  // Hours from south, 0-24 mapped to 0-360 degrees
+  directionalLightVerticalAngle: number    // Elevation angle, 0-90 degrees (positive = up)
 }
 
 export interface BuildingStyle {
@@ -130,7 +132,9 @@ export const ERAS = {
       }
     ],
     ambientAudioTrack: 'midcentury_jazz',
-    dayCycleHour: 14
+    dayCycleHour: 14,
+    directionalLightHorizontalAngle: 210,
+    directionalLightVerticalAngle: 45
   },
 
   '1965': {
@@ -206,7 +210,9 @@ export const ERAS = {
       }
     ],
     ambientAudioTrack: '60s_rock',
-    dayCycleHour: 16
+    dayCycleHour: 16,
+    directionalLightHorizontalAngle: 240,
+    directionalLightVerticalAngle: 50
   },
 
   '1985': {
@@ -282,7 +288,9 @@ export const ERAS = {
       }
     ],
     ambientAudioTrack: '80s_synthwave',
-    dayCycleHour: 18
+    dayCycleHour: 18,
+    directionalLightHorizontalAngle: 270,
+    directionalLightVerticalAngle: 55
   },
 
   '2005': {
@@ -358,7 +366,9 @@ export const ERAS = {
       }
     ],
     ambientAudioTrack: '2000s_pop',
-    dayCycleHour: 15
+    dayCycleHour: 15,
+    directionalLightHorizontalAngle: 225,
+    directionalLightVerticalAngle: 50
   },
 
   '2025': {
