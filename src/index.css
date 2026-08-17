@@ -1,0 +1,5 @@
+/* Global resets */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { width: 100%; height: 100%; overflow: hidden; background: #0a0a0f; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+canvas { display: block; }
