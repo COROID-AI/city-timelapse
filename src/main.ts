@@ -19,6 +19,7 @@ import {
   initPerfSystem,
   perfTick,
 } from './app/perf.js';
+import { initEvidence, notifyEraChange as notifyEvidenceEraChange } from './app/evidence.js';
 
 // ── Bootstrap ────────────────────────────────────────────────────────────
 
@@ -105,6 +106,14 @@ coordinator.init();
 
 let currentEra: EraId = coordinator.currentEra;
 
+// ── Evidence Capture & QA Harness ────────────────────────────────────
+
+// Initialize evidence capture with renderer, scene, and camera references
+initEvidence(engine.renderer, engine.scene, camera);
+
+// Expose envManager on window for evidence transition polling
+(window as any).__envManager = envManager;
+
 // ── UI Assembly ──────────────────────────────────────────────────────────
 
 // Mount timeline slider (emits era-change events)
@@ -118,6 +127,8 @@ window.addEventListener('erachange', (e: Event) => {
     coordinator.handleEraChange(detail);
     // Also update environment manager directly for smooth blending
     envManager.setEra(detail.eraId);
+    // Notify evidence capture system of era change
+    notifyEvidenceEraChange(detail.eraId);
   }
 });
 

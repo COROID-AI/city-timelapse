@@ -35,6 +35,51 @@ function buildDOM(): HTMLElement {
   el.setAttribute('role', 'application');
   el.setAttribute('aria-label', 'City Era Timelapse Controls');
 
+  // ── Hidden accessible era selector (for automated test fill/interaction) ──
+
+  // A <select> for programmatic access (selectOption, dispatchEvent)
+  const sel = document.createElement('select');
+  sel.id = 'era-select';
+  sel.style.position = 'absolute';
+  sel.style.left = '-9999px';
+  sel.style.width = '1px';
+  sel.style.height = '1px';
+  sel.style.overflow = 'hidden';
+  sel.setAttribute('aria-label', 'Select city era');
+  sel.setAttribute('data-testid', 'era-select');
+  ERA_REGISTRY.forEach((era) => {
+    const opt = document.createElement('option');
+    opt.value = era.id;
+    opt.textContent = `${era.year} — ${era.label}`;
+    if (era.id === '1945') opt.selected = true;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener('change', () => {
+    const idx = ERA_REGISTRY.findIndex((e) => e.id === sel.value);
+    if (idx >= 0) setActiveIndex(idx);
+  });
+  el.appendChild(sel);
+
+  // A hidden text input so locator.fill() works for automation
+  // Accepts era ids: "1945" | "1965" | "1985" | "2005" | "2025"
+  const eraInput = document.createElement('input');
+  eraInput.type = 'text';
+  eraInput.id = 'era-input';
+  eraInput.style.position = 'absolute';
+  eraInput.style.left = '-9999px';
+  eraInput.style.width = '1px';
+  eraInput.style.height = '1px';
+  eraInput.style.overflow = 'hidden';
+  eraInput.setAttribute('aria-label', 'Type era year to switch (e.g. 1965)');
+  eraInput.setAttribute('data-testid', 'era-input');
+  eraInput.placeholder = 'Enter era year';
+  eraInput.addEventListener('input', () => {
+    const val = eraInput.value.trim();
+    const idx = ERA_REGISTRY.findIndex((e) => e.id === val || String(e.year) === val);
+    if (idx >= 0) setActiveIndex(idx);
+  });
+  el.appendChild(eraInput);
+
   // ── Timeline bar ────────────────────────────────────────────────
   const timeline = document.createElement('div');
   timeline.className = 'timeline';
