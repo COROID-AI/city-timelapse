@@ -49,6 +49,7 @@ export function Experience() {
         dpr={[1, 2]}
         camera={{ position: [30, 20, 30], fov: 50 }}
         gl={{ antialias: true, alpha: false }}
+        style={{ position: 'absolute', inset: 0 }}
         onError={(e) => {
           console.error('Three.js canvas error:', e);
         }}
