@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>City Era Timelapse · 1945-2025</title>
+    <meta
+      name="description"
+      content="Interactive 3D city block that transforms across five decades."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='5' y='12' width='9' height='20' fill='%23c97f3a'/><rect x='16' y='4' width='11' height='28' fill='%234a5568'/></svg>"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <canvas id="scene-canvas" aria-label="3D city block viewport"></canvas>
+
+    <header id="timeline-strip" class="timeline-strip">
+      <div class="timeline-heading">
+        <h1>City Era Timelapse</h1>
+        <p class="timeline-subtitle">Drag the slider or press &#8592;/&#8594; to travel a century.</p>
+      </div>
+
+      <div class="timeline-control">
+        <input
+          id="timeline-slider"
+          type="range"
+          min="0"
+          max="4"
+          step="1"
+          value="0"
+          list="era-tick-marks"
+          aria-label="City era timeline"
+          aria-describedby="era-readout"
+        />
+        <datalist id="era-tick-marks">
+          <option value="0" label="1945"></option>
+          <option value="1" label="1965"></option>
+          <option value="2" label="1985"></option>
+          <option value="3" label="2005"></option>
+          <option value="4" label="2025"></option>
+        </datalist>
+        <div id="timeline-labels" class="timeline-labels" role="group" aria-label="Era quick-select">
+          <button type="button" class="timeline-label is-active" data-era="1945">1945</button>
+          <button type="button" class="timeline-label" data-era="1965">1965</button>
+          <button type="button" class="timeline-label" data-era="1985">1985</button>
+          <button type="button" class="timeline-label" data-era="2005">2005</button>
+          <button type="button" class="timeline-label" data-era="2025">2025</button>
+        </div>
+      </div>
+
+      <p id="era-readout" class="era-readout" role="status" aria-live="polite"></p>
+    </header>
+
+    <div id="webgl-fallback" class="webgl-fallback" hidden>
+      <h2>WebGL unavailable</h2>
+      <p>This experience needs a browser with WebGL2 enabled. Please update your browser or graphics drivers.</p>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
