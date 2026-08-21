@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TimelineController } from './core/TimelineController';
 import { EraRegistry } from './core/EraRegistry';
 import { initTimelineStrip } from './ui/timelineStrip';
+import { buildEra1945 } from './eras/1945';
 import { buildEra1965 } from './eras/1965';
 
 /** Device pixel ratios above this are wasted GPU work. */
@@ -175,6 +176,7 @@ function bootstrap(): void {
   // Era content registry: builders register here as eras are authored and are
   // consumed lazily by the transition layer (see core/TransitionSystem).
   const eraRegistry = new EraRegistry();
+  eraRegistry.register('1945', buildEra1945);
   eraRegistry.register('1965', buildEra1965);
 
   const timer = new THREE.Timer();
