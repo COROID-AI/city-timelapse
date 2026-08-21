@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TimelineController } from './core/TimelineController';
+import { EraRegistry } from './core/EraRegistry';
 import { initTimelineStrip } from './ui/timelineStrip';
+import { buildEra1965 } from './eras/1965';
 
 /** Device pixel ratios above this are wasted GPU work. */
 const MAX_PIXEL_RATIO = 2;
@@ -170,6 +172,11 @@ function bootstrap(): void {
   const controller = new TimelineController({ initialEra: '1945' });
   const strip = initTimelineStrip(controller);
 
+  // Era content registry: builders register here as eras are authored and are
+  // consumed lazily by the transition layer (see core/TransitionSystem).
+  const eraRegistry = new EraRegistry();
+  eraRegistry.register('1965', buildEra1965);
+
   const timer = new THREE.Timer();
   timer.connect(document);
   renderer.setAnimationLoop((time) => {
@@ -185,6 +192,7 @@ function bootstrap(): void {
     resizeObserver.disconnect();
     window.removeEventListener('resize', resize);
     strip.dispose();
+    eraRegistry.dispose();
     controller.dispose();
     controls.dispose();
     timer.disconnect();
