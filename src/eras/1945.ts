@@ -1127,14 +1127,3 @@ export function update(dt: number, group: THREE.Group): void {
     lamp.lightMat.emissiveIntensity = 0.25 + 0.55 * Math.max(0, flick);
   }
 }
-
-/**
- * Type-compatibility shim for the era-manifest contract.
- *
- * The manifest currently types the build factory name as `buildEra1965`.
- * We export it here as an alias so the 1945 module can be registered
- * without needing a contract-breaking change.
- */
-export function buildEra1965(): THREE.Group {
-  return buildEra1945();
-}
