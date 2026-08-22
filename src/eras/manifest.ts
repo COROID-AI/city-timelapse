@@ -25,12 +25,18 @@ export interface Era2005Module {
   update: (dt: number, group?: THREE.Group) => void;
 }
 
+export interface Era2025Module {
+  buildEra2025: () => THREE.Group;
+  update: (dt: number, group?: THREE.Group) => void;
+}
+
 /** Any era module accepted by ERA_MANIFEST. */
-export type EraModule = Era1965Module | Era2005Module;
+export type EraModule = Era1965Module | Era2005Module | Era2025Module;
 
 /** Resolve the THREE.Group builder no matter which era-specific name it uses. */
 export function getEraBuilder(eraModule: EraModule): () => THREE.Group {
   if ('buildEra1965' in eraModule) return eraModule.buildEra1965;
+  if ('buildEra2025' in eraModule) return eraModule.buildEra2025;
   return eraModule.buildEra2005;
 }
 
@@ -48,6 +54,7 @@ export const ERA_MANIFEST: Partial<Record<EraId, () => Promise<EraModule>>> = {
   '1945': () => import('./1945'),
   '1965': () => import('./1965'),
   '2005': () => import('./2005'),
+  '2025': () => import('./2025'),
 };
 
 export function getEraModuleLoader(id: EraId): () => Promise<EraModule> {
