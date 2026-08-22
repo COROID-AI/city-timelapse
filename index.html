@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%2310141d'/%3E%3Ccircle cx='8' cy='8' r='4' fill='%23f2b134'/%3E%3C/svg%3E" />
+    <title>City Era Timelapse — 1945 → 2025</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #0b0d12;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      #app {
+        position: fixed;
+        inset: 0;
+      }
+      #app canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+      }
+      .shell-hud {
+        position: fixed;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 6px 14px;
+        border-radius: 999px;
+        background: rgba(10, 12, 18, 0.72);
+        color: #cfd6e4;
+        font-size: 13px;
+        letter-spacing: 0.04em;
+        pointer-events: none;
+        user-select: none;
+        z-index: 10;
+      }
+      .shell-hud strong {
+        color: #ffffff;
+      }
+      .shell-error {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        color: #ffb4a9;
+        background: #0b0d12;
+        font-size: 15px;
+        text-align: center;
+        z-index: 20;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
