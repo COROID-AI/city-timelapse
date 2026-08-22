@@ -45,6 +45,7 @@ export async function loadEraGroup(id: EraId): Promise<THREE.Group> {
  * a descriptive error for unregistered ids.
  */
 export const ERA_MANIFEST: Partial<Record<EraId, () => Promise<EraModule>>> = {
+  '1945': () => import('./1945'),
   '1965': () => import('./1965'),
   '2005': () => import('./2005'),
 };
