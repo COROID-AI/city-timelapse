@@ -16,8 +16,22 @@
 
 import * as THREE from 'three';
 
-/** Time accumulator for animation cycles */
-let timeAccumulator = 0;
+/**
+ * Animation handles and the per-instance clock kept on the built group at
+ * `group.userData.animatedObjects`, so `update(dt, group)` needs no module-
+ * scoped or window-global state and separately built instances animate
+ * independently.
+ */
+export interface Era1985AnimatedObjects {
+  /** Accumulated animation seconds for this specific group instance. */
+  elapsed: number;
+  /** Boxy 80s sedan cruising along the street. */
+  readonly sedan1: THREE.Mesh;
+  /** Delivery van on its route. */
+  readonly van: THREE.Mesh;
+  /** Pedestrian walking the sidewalk. */
+  readonly pedestrian1: THREE.Mesh;
+}
 
 export function buildEra1985(): THREE.Group {
   const eraGroup = new THREE.Group();
@@ -100,42 +114,45 @@ export function buildEra1985(): THREE.Group {
   subwayEntrance.position.set(-25, 3, 0);
   eraGroup.add(subwayEntrance);
 
-  // Store references for animation
-  eraGroup.userData.animatedObjects = {
+  // Store per-instance animation state (meshes + clock) for update().
+  const animatedObjects: Era1985AnimatedObjects = {
+    elapsed: 0,
     sedan1,
     van,
     pedestrian1,
   };
+  eraGroup.userData.animatedObjects = animatedObjects;
 
   return eraGroup;
 }
 
 /**
- * Update tick for animating vehicles and pedestrians
- * @param dt Time delta in seconds
+ * Update tick for animating vehicles and pedestrians.
+ *
+ * Follows the shared era-module contract (`update(dt, group)`): every piece of
+ * mutable state lives on the passed group — mesh handles and the elapsed-time
+ * clock come from `group.userData.animatedObjects` — so instances stay
+ * independent and no module-level accumulator is involved.
+ *
+ * @param dt Time delta in seconds; non-finite/non-positive values are ignored
+ * @param group Group previously returned by {@link buildEra1985}
  */
-export function update(dt: number): void {
-  timeAccumulator += dt;
+export function update(dt: number, group: THREE.Group): void {
+  const animated = group.userData.animatedObjects as Era1985AnimatedObjects | undefined;
+  if (!animated) return;
 
-  // Get animated objects from the group
-  // Note: This function operates on objects from the last buildEra1985 call
-  // In a full implementation, this would be managed by a scene controller
+  const step = Number.isFinite(dt) ? Math.min(Math.max(dt, 0), 0.05) : 0;
+  if (step <= 0) return;
+
+  animated.elapsed += step;
+  const t = animated.elapsed;
 
   // Vehicle motion - sedan drives back and forth
-  const sedanPos = 10 + Math.sin(timeAccumulator * 0.5) * 8;
-  // @ts-ignore - accessing userData set in buildEra1985
-  const sedan = (window as any).__era1985_sedan;
-  if (sedan) sedan.position.x = sedanPos;
+  animated.sedan1.position.x = 10 + Math.sin(t * 0.5) * 8;
 
   // Van delivery route
-  const vanPos = 15 + Math.sin(timeAccumulator * 0.3) * 5;
-  // @ts-ignore - accessing userData set in buildEra1985
-  const van = (window as any).__era1985_van;
-  if (van) van.position.x = vanPos;
+  animated.van.position.x = 15 + Math.sin(t * 0.3) * 5;
 
   // Pedestrian walking cycle
-  const pedPos = -5 + Math.sin(timeAccumulator * 1.2) * 2;
-  // @ts-ignore - accessing userData set in buildEra1985
-  const pedestrian = (window as any).__era1985_pedestrian;
-  if (pedestrian) pedestrian.position.x = pedPos;
+  animated.pedestrian1.position.x = -5 + Math.sin(t * 1.2) * 2;
 }

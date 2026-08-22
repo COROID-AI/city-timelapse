@@ -121,15 +121,14 @@ export interface SceneDirector {
 
 /**
  * Per-era animation tick adapters. Era modules export module-scoped
- * `update(dt, group)` functions (state kept on `group.userData.*`), except
- * 1985 whose state is module-scoped — the manifest only carries builders, so
- * these adapters give the director a uniform tick surface without modifying
- * any era module.
+ * `update(dt, group)` functions with all state kept on `group.userData.*` —
+ * the manifest only carries builders, so these adapters give the director a
+ * uniform tick surface without modifying any era module.
  */
 const ERA_UPDATERS: Readonly<Record<EraId, (dt: number, group: THREE.Group) => void>> = {
   '1945': (dt, group) => updateEra1945(dt, group),
   '1965': (dt, group) => updateEra1965(dt, group),
-  '1985': (dt, _group) => updateEra1985(dt),
+  '1985': (dt, group) => updateEra1985(dt, group),
   '2005': (dt, group) => updateEra2005(dt, group),
   '2025': (dt, group) => updateEra2025(dt, group),
 };
