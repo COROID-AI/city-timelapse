@@ -10,9 +10,33 @@ import * as THREE from 'three';
  */
 import type { EraId } from '../eras';
 
-export interface EraModule {
+/**
+ * Per-era module contracts. Each registered era exports its own builder
+ * name plus an `update(dt, group)` tick; the manifest unions them so
+ * adding an era never renames another era's public exports.
+ */
+export interface Era1965Module {
   buildEra1965: () => THREE.Group;
   update: (dt: number, group: THREE.Group) => void;
+}
+
+export interface Era2005Module {
+  buildEra2005: () => THREE.Group;
+  update: (dt: number, group?: THREE.Group) => void;
+}
+
+/** Any era module accepted by ERA_MANIFEST. */
+export type EraModule = Era1965Module | Era2005Module;
+
+/** Resolve the THREE.Group builder no matter which era-specific name it uses. */
+export function getEraBuilder(eraModule: EraModule): () => THREE.Group {
+  if ('buildEra1965' in eraModule) return eraModule.buildEra1965;
+  return eraModule.buildEra2005;
+}
+
+/** Convenience: load a registered era module and build its visual profile. */
+export async function loadEraGroup(id: EraId): Promise<THREE.Group> {
+  return getEraBuilder(await getEraModuleLoader(id)())();
 }
 
 /**
@@ -22,6 +46,7 @@ export interface EraModule {
  */
 export const ERA_MANIFEST: Partial<Record<EraId, () => Promise<EraModule>>> = {
   '1965': () => import('./1965'),
+  '2005': () => import('./2005'),
 };
 
 export function getEraModuleLoader(id: EraId): () => Promise<EraModule> {
