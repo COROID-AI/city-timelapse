@@ -16,16 +16,11 @@ const ROAD_LENGTH_Z = 96;
 const ROAD_CENTER_Z = 0;
 
 const AVE_HALF_WIDTH_X = 6.7;
-const WALKWAY_STRIP_Z = 5.6;
-const STREETLAMP_Y = 0;
 const CAR_LANE_X = 3.25;
 const CAR_WRAP_Z = 46;
 const WALKER_WRAP_Z = 24;
 
 const HIP_HEIGHT = 0.78;
-const WALKER_BODY_Y = 0.0;
-
-const SIGNAL_PERIOD = 6.8;
 
 interface VehicleRuntime {
   group: THREE.Group;
@@ -56,6 +51,7 @@ interface WalkerRuntime {
 
 interface BarbsRuntime {
   pole: THREE.Group;
+  spinner: THREE.Object3D;
 }
 
 interface MarqueeRuntime {
@@ -262,11 +258,11 @@ function buildStreets(parent: THREE.Object3D, mats: ReturnType<typeof createMate
   road.position.z = ROAD_CENTER_Z;
   parent.add(road);
 
-  // Cobblestone edges.
-  const cobEdge = new THREE.Mesh(new THREE.PlaneGeometry(2.3, ROAD_LENGTH_Z), mats.cobble);
+  // Cobblestone gutters flanking the asphalt.
+  const cobEdge = new THREE.Mesh(new THREE.PlaneGeometry(1.0, ROAD_LENGTH_Z), mats.cobble);
   cobEdge.rotation.x = -Math.PI / 2;
   cobEdge.position.y = 0.021;
-  cobEdge.position.x = AVE_HALF_WIDTH_X + 2.0;
+  cobEdge.position.x = AVE_HALF_WIDTH_X - 0.08;
   parent.add(cobEdge);
   const cobEdge2 = cobEdge.clone();
   cobEdge2.position.x *= -1;
@@ -286,21 +282,20 @@ function buildStreets(parent: THREE.Object3D, mats: ReturnType<typeof createMate
     );
   }
 
-  // Sidewalk curbs and slabs.
+  // Sidewalk curb lines at the roadway edge.
   for (const sx of [1, -1] as const) {
-    // curb line
-    addBox(parent, AVE_HALF_WIDTH_X * 0.9, CURB_HEIGHT, 4.0, mats.concrete, sx * AVE_HALF_WIDTH_X, CURB_HEIGHT / 2, 0);
+    addBox(parent, 0.5, CURB_HEIGHT, ROAD_LENGTH_Z, mats.concrete, sx * (AVE_HALF_WIDTH_X - 0.35), CURB_HEIGHT / 2, 0);
   }
 
-  // Walkway slabs.
+  // Walkway slabs beyond the gutter.
   for (const sx of [1, -1] as const) {
     addBox(
       parent,
-      18.0,
+      16.8,
       SIDEWALK_Y,
       72,
       mats.concrete,
-      sx * 8.2,
+      sx * 15.5,
       SIDEWALK_Y / 2,
       0,
     );
@@ -312,12 +307,10 @@ function buildStreets(parent: THREE.Object3D, mats: ReturnType<typeof createMate
     addBox(parent, 0.12, 0.012, 3.4, mats.lineYellow, 0, 0.032, z);
   }
 
-  // Crosswalks.
+  // Crosswalks: zebra bars repeated across the full roadway width.
   for (const z0 of [-18, 0, 18]) {
-    for (const sx of [1, -1] as const) {
-      for (let i = 0; i < 6; i++) {
-        addBox(parent, 2.0, 0.012, 0.42, mats.lineWhite, sx * 5.1 - i * 0.35, 0.032, z0);
-      }
+    for (let i = 0; i < 10; i++) {
+      addBox(parent, 0.55, 0.012, 2.4, mats.lineWhite, -4.95 + i * 1.1, 0.032, z0);
     }
   }
 }
@@ -354,25 +347,26 @@ function buildBrickTenement(
         glow.position.set(px, fy, facadeDepth * 0.46 + 0.01);
         g.add(glow);
       }
-      addBox(g, 0.09, 1.0, 0.16, mats.brickDark, px, fy, facadeDepth * 0.48);
+      addBox(g, 0.62, 0.1, 0.16, mats.brickDark, px, fy - 0.55, facadeDepth * 0.52);
+      addBox(g, 0.62, 0.1, 0.16, mats.brickDark, px, fy + 0.55, facadeDepth * 0.52);
     }
   }
 
   // Fire escape if 3 stories.
   if (stories === 3) {
     const fx = width / 2 - 0.9;
+    const fz = facadeDepth * 0.5 + 0.45; // landings hang just off the street facade
     for (let level = 0; level < 2; level++) {
       const plateY = STORY_HEIGHT * (level + 1) + 0.22;
-      addBox(g, 1.1, 0.06, 2.3, mats.metal, fx, plateY, facadeDepth * 0.16);
-      // rails
-      addBox(g, 1.1, 0.03, 2.3, mats.darkMetal, fx, plateY + 0.08, facadeDepth * 0.18);
-
-      // ladder/steps along side.
-      const ladderX = fx - 0.55;
-      addBox(g, 0.05, 2.3, 0.08, mats.galvanized, ladderX, plateY + 1.0, facadeDepth * 0.17);
-      for (let rung = 0; rung < 4; rung++) {
-        const rz = facadeDepth * 0.17 + 0.12;
-        addBox(g, 1.0, 0.05, 0.08, mats.galvanized, ladderX + 0.1, plateY + 0.35 + rung * 0.45, rz);
+      addBox(g, 1.2, 0.06, 1.0, mats.metal, fx, plateY, fz - 0.5);
+      // Guard rails around the outer and side edges.
+      addBox(g, 1.2, 0.04, 0.05, mats.darkMetal, fx, plateY + 0.5, fz);
+      addBox(g, 0.05, 0.5, 1.0, mats.darkMetal, fx + 0.58, plateY + 0.25, fz - 0.5);
+      // Drop ladder between landings.
+      addBox(g, 0.05, STORY_HEIGHT, 0.07, mats.galvanized, fx - 0.45, plateY - STORY_HEIGHT / 2, fz - 0.25);
+      addBox(g, 0.05, STORY_HEIGHT, 0.07, mats.galvanized, fx - 0.85, plateY - STORY_HEIGHT / 2, fz - 0.25);
+      for (let rung = 0; rung < 6; rung++) {
+        addBox(g, 0.44, 0.05, 0.05, mats.galvanized, fx - 0.65, plateY - 0.32 - rung * 0.46, fz - 0.25);
       }
     }
   }
@@ -383,7 +377,8 @@ function buildBrickTenement(
   const doorW = 0.85;
   const doorH = 2.25;
   const door = new THREE.Group();
-  door.position.set(x + (side === 1 ? 1.8 : -1.8), 0, z + 2.0);
+  door.position.set(x + side * (facadeDepth / 2 + 0.12), 0, z + 2.0);
+  door.rotation.y = side === 1 ? Math.PI / 2 : -Math.PI / 2;
   addBox(door, doorW, doorH, 0.18, mats.darkMetal, 0, doorH / 2, 0.0);
   const window = new THREE.Mesh(new THREE.PlaneGeometry(0.38, 0.75), mats.windowGlass);
   window.position.set(0, doorH * 0.7, 0.09);
@@ -395,11 +390,12 @@ function buildBrickTenement(
 function buildWallAds(
   root: THREE.Object3D,
   mats: ReturnType<typeof createMaterials>,
-  x: number,
+  wallX: number,
   z: number,
-  side: Dir,
+  dirX: Dir,
 ): void {
-  // Hand-painted wall ads: CanvasTexture planes.
+  // Hand-painted wall ads: CanvasTexture planes mounted on wooden
+  // backboards, hung flush on a facade that faces the street.
   const art1 = makeCanvasMaterial(
     { lines: ['WAR BONDS'], sub: 'Buy a share', bg: 0x3b2b47, fg: 0xfff2d6, accent: 0xffd16a, square: false, stripes: true },
     0xffd16a,
@@ -414,21 +410,21 @@ function buildWallAds(
   );
 
   const holder = new THREE.Group();
-  holder.position.set(x, 0, z);
-  holder.rotation.y = side === 1 ? -Math.PI / 2 : Math.PI / 2;
+  holder.position.set(wallX, 0, z);
+  holder.rotation.y = dirX === 1 ? Math.PI / 2 : -Math.PI / 2;
 
-  // Two posters high on the wall.
-  const p1 = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 2.8), art1);
-  p1.position.set(0.7, 3.2, 0.49);
-  holder.add(p1);
+  const mountZ = 0.12; // just off the brick face
+  const board = (w: number, h: number, bx: number, by: number, art: THREE.Material): void => {
+    addBox(holder, w + 0.18, h + 0.18, 0.06, mats.woodDark, bx, by, mountZ - 0.05);
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), art);
+    plane.position.set(bx, by, mountZ);
+    holder.add(plane);
+  };
 
-  const p2 = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 2.8), art2);
-  p2.position.set(-0.8, 3.2, 0.49);
-  holder.add(p2);
-
-  const p3 = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 2.0), art3);
-  p3.position.set(-0.05, 1.9, 0.49);
-  holder.add(p3);
+  // Two war-effort/rationing posters up high, one grocery ad below.
+  board(2.0, 2.8, 1.2, 3.4, art1);
+  board(2.0, 2.8, -1.2, 3.4, art2);
+  board(2.0, 1.6, 0.0, 1.7, art3);
 
   root.add(holder);
 }
@@ -438,6 +434,7 @@ function buildCornerGrocery(
   mats: ReturnType<typeof createMaterials>,
   x: number,
   z: number,
+  rotY: number,
 ): void {
   // Two facades (approximated) via a corner block and one sign.
   const width = 6.8;
@@ -446,6 +443,7 @@ function buildCornerGrocery(
 
   const g = new THREE.Group();
   g.position.set(x, 0, z);
+  g.rotation.y = rotY;
 
   addBox(g, width, height, depth, mats.brick, 0, height / 2, 0);
 
@@ -477,16 +475,16 @@ function buildCornerGrocery(
   plaque.position.set(0, 0, 0);
   g.add(plaque);
 
-  // Corner awning.
+  // Canvas awning shading the display windows, cantilevered past the facade.
   const awning = new THREE.Group();
-  awning.position.set(0, STORY_HEIGHT * 0.78, depth * 0.22);
-  addBox(awning, width * 0.6, 0.07, depth * 0.5, mats.woodDark, 0, 0, -0.14);
-  addBox(awning, width * 0.6, 0.03, depth * 0.5, mats.metal, 0, 0.06, -0.11);
+  awning.position.set(0, STORY_HEIGHT * 0.78, depth * 0.5 + 1.05);
+  addBox(awning, width * 0.62, 0.08, 2.1, mats.woodDark, 0, 0, -1.05);
+  addBox(awning, width * 0.62, 0.05, 0.12, mats.signRed, 0, -0.05, 0);
   g.add(awning);
 
   // Fire escape ladder from side.
   const esc = new THREE.Group();
-  esc.position.set(width * 0.33, 0, depth * 0.05);
+  esc.position.set(width * 0.33, 0, depth * 0.5 + 0.3);
   for (let i = 0; i < 2; i++) {
     const y = STORY_HEIGHT * (i + 1) + 0.1;
     addBox(esc, 1.0, 0.06, 2.2, mats.metal, 0, y, 0.2);
@@ -508,25 +506,36 @@ function buildBarbershopPole(
   const poleGroup = new THREE.Group();
   poleGroup.position.set(x, SIDEWALK_Y, z);
 
-  // Pole base.
-  addCylinder(poleGroup, 0.06, 0.06, 0.2, mats.darkMetal, 0, 0.1, 0);
+  // Pole base and stem.
+  addCylinder(poleGroup, 0.11, 0.13, 0.2, 8, mats.darkMetal, 0, 0.1, 0);
   addCylinder(poleGroup, 0.05, 0.05, 3.2, 10, mats.metal, 0, 1.6, 0);
 
   const stripeRed = std({ color: 0xb43a3a, roughness: 0.4, metalness: 0.1, emissive: 0x000000 });
   const stripeWhite = std({ color: 0xf2f2ea, roughness: 0.5, metalness: 0.05 });
 
-  // Make stripes as a stack of thin boxes around the pole.
-  const stripeStack: THREE.Object3D[] = [];
-  const segs = 18;
+  // Classic red/white barber rings on their own spinner so the wall sign
+  // stays fixed while the stripes rotate inside a glass sleeve.
+  const spinner = new THREE.Group();
+  spinner.position.y = 0.35;
+  const segs = 20;
+  const segH = 2.7 / segs;
   for (let i = 0; i < segs; i++) {
-    const h = 0.12;
-    const y = (i / segs) * 2.8;
-    const angle = (i / segs) * Math.PI * 2;
     const mat = i % 2 === 0 ? stripeRed : stripeWhite;
-    const stripe = addBox(poleGroup, 0.17, h, 0.06, mat, 0.08 * Math.cos(angle), y + 0.2, 0.08 * Math.sin(angle));
-    stripe.rotation.z = angle;
-    stripeStack.push(stripe);
+    const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, segH, 10), mat);
+    ring.position.set(Math.sin(i * 0.9) * 0.02, (i + 0.5) * segH, Math.cos(i * 0.9) * 0.02);
+    spinner.add(ring);
   }
+  poleGroup.add(spinner);
+
+  // Glass sleeve and brass caps.
+  const sleeve = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.115, 0.115, 2.78, 12, 1, true),
+    std({ color: 0xdfe8ee, roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.25 }),
+  );
+  sleeve.position.y = 1.7;
+  poleGroup.add(sleeve);
+  addSphere(poleGroup, 0.13, 10, 8, mats.streetLampGold, 0, 3.18, 0);
+  addSphere(poleGroup, 0.13, 10, 8, mats.streetLampGold, 0, 0.32, 0);
 
   // Barbershop base sign plate.
   const signMat = makeCanvasMaterial(
@@ -539,10 +548,7 @@ function buildBarbershopPole(
   poleGroup.add(plate);
 
   root.add(poleGroup);
-  // Animate by rotating stripeStack container.
-  poleGroup.userData.stripeStack = stripeStack;
-
-  return { pole: poleGroup };
+  return { pole: poleGroup, spinner };
 }
 
 function buildCinema(
@@ -558,20 +564,23 @@ function buildCinema(
   const h = STORY_HEIGHT * 2 + 1.0;
   const d = 5.6;
 
-  addBox(g, w, h, d, mats.brickDark, h / 2 - 0.2, 0, 0);
+  addBox(g, w, h, d, mats.brickDark, 0, h / 2, 0);
+  // Roof cornice.
+  addBox(g, w + 0.35, 0.28, d + 0.35, mats.woodDark, 0, h + 0.1, 0);
 
-  // Cinema door.
-  const door = new THREE.Group();
-  addBox(door, 2.1, 2.3, 0.18, mats.darkMetal, 0, 1.15, d * 0.5);
-  const glass = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.0), mats.windowGlass);
-  glass.position.set(0, 1.15 + 0.1, d * 0.5 + 0.1);
-  door.add(glass);
-  addBox(door, 1.6, 0.08, 0.1, mats.metal, 0, 1.2, d * 0.5 + 0.03);
-  g.add(door);
-  door.position.set(0, 0, 0);
-  door.rotation.y = 0;
-  // Door placement
-  door.position.y = 1.25;
+  // Entrance doors plus a projecting ticket booth, flush with the facade.
+  const doorZ = d * 0.5 + 0.03;
+  addBox(g, 2.2, 2.4, 0.14, mats.darkMetal, -1.7, 1.2, doorZ);
+  addBox(g, 1.7, 0.07, 0.1, mats.metal, -1.7, 1.32, doorZ + 0.07);
+  const glassL = new THREE.Mesh(new THREE.PlaneGeometry(0.78, 1.05), mats.windowGlass);
+  glassL.position.set(-2.08, 1.52, doorZ + 0.08);
+  g.add(glassL);
+  const glassR = new THREE.Mesh(new THREE.PlaneGeometry(0.78, 1.05), mats.windowGlass);
+  glassR.position.set(-1.32, 1.52, doorZ + 0.08);
+  g.add(glassR);
+  addBox(g, 1.0, 2.05, 0.85, mats.paintCream, 0.75, 1.03, doorZ + 0.4);
+  addBox(g, 0.82, 0.66, 0.06, mats.windowGlass, 0.75, 1.32, doorZ + 0.84);
+  addBox(g, 1.06, 0.12, 0.95, mats.woodDark, 0.75, 2.1, doorZ + 0.4);
 
   // Marquee frame.
   const marqueeFrame = new THREE.Group();
@@ -580,6 +589,10 @@ function buildCinema(
   addBox(marqueeFrame, 4.7, 0.06, 0.06, mats.marqueeTube, 0, -0.3, 0.02);
   addBox(marqueeFrame, 4.7, 0.06, 0.06, mats.marqueeTube, 0, 0.3, 0.02);
 
+  // Support rods tying the marquee back to the facade.
+  addBox(g, 0.09, 0.09, 0.55, mats.darkMetal, -2.35, h - 1.55, d * 0.5 + 0.22);
+  addBox(g, 0.09, 0.09, 0.55, mats.darkMetal, 2.35, h - 1.55, d * 0.5 + 0.22);
+
   const bulbMats: THREE.MeshStandardMaterial[] = [];
   const bulbColor = 0xffdca0;
   for (let i = 0; i < 16; i++) {
@@ -587,7 +600,7 @@ function buildCinema(
     const px = -2.35 + t * 4.7;
     const bulbMat = std({ color: bulbColor, emissive: 0xffc86a, emissiveIntensity: 1.4, roughness: 0.2, metalness: 0.0 });
     bulbMats.push(bulbMat);
-    const bulb = addSphere(marqueeFrame, 0.09, 8, 6, bulbMat, px, 0, 0.16);
+    const bulb = addSphere(marqueeFrame, 0.09, 8, 6, bulbMat, px, 0, 0.07);
     bulb.scale.set(1, 1, 1);
     bulb.rotation.y = i;
   }
@@ -600,7 +613,7 @@ function buildCinema(
     0xfff2cf,
   );
   const artPlane = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 0.65), marqueeMat);
-  artPlane.position.set(0, h - 1.25, d * 0.52);
+  artPlane.position.set(0, h - 1.25, d * 0.51 + 0.06);
   g.add(artPlane);
 
   // Projector box prop.
@@ -629,31 +642,33 @@ function buildVehicles(
 
   function buildSedan(paintMat: THREE.MeshStandardMaterial, xLane: number, zStart: number, dirZ: Dir, speed: number, wobbleSeed: number): void {
     const g = new THREE.Group();
-    // Chassis.
-    addBox(g, 5.2, 0.52, 2.4, paintMat, 0, 0.26, 0);
-    // Running boards.
-    addBox(g, 4.6, 0.08, 0.9, mats.darkMetal, 0, 0.16, 1.15);
-    addBox(g, 4.6, 0.08, 0.9, mats.darkMetal, 0, 0.16, -1.15);
+    // Chassis runs along the travel axis (z); hood faces local -z.
+    addBox(g, 2.35, 0.62, 5.2, paintMat, 0, 0.82, 0);
+    // Signature 1940s running boards outboard of the body.
+    addBox(g, 0.55, 0.09, 4.4, mats.darkMetal, 1.32, 0.47, 0);
+    addBox(g, 0.55, 0.09, 4.4, mats.darkMetal, -1.32, 0.47, 0);
+    // Cabin with glasshouse band.
+    addBox(g, 2.05, 0.68, 2.0, paintMat, 0, 1.45, -0.25);
+    addBox(g, 1.9, 0.38, 1.72, mats.windowGlass, 0, 1.47, -0.25);
+    // Trunk deck and stepped hood.
+    addBox(g, 2.2, 0.52, 1.6, paintMat, 0, 1.12, 1.75);
+    addBox(g, 2.15, 0.5, 1.7, paintMat, 0, 1.1, -1.7);
+    // Fenders arching over the wheels.
+    addBox(g, 2.5, 0.16, 5.0, paintMat, 0, 0.82, 0);
 
-    // Cabin.
-    addBox(g, 1.8, 0.58, 1.6, paintMat, 0, 0.63, -0.18);
-    // Trunk.
-    addBox(g, 1.4, 0.45, 1.1, paintMat, 0, 0.48, 1.0);
+    // Chrome grille and drum headlamps at the front.
+    addBox(g, 1.3, 0.55, 0.12, mats.galvanized, 0, 0.92, -2.6);
+    addSphere(g, 0.11, 8, 6, mats.headlight, 0.8, 1.02, -2.56);
+    addSphere(g, 0.11, 8, 6, mats.headlight, -0.8, 1.02, -2.56);
+    addBox(g, 0.32, 0.16, 0.1, mats.tailLight, 0.74, 1.0, 2.56);
+    addBox(g, 0.32, 0.16, 0.1, mats.tailLight, -0.74, 1.0, 2.56);
 
-    // Grille and headlights.
-    addBox(g, 0.3, 0.12, 0.2, mats.darkMetal, 0.82, 0.62, -1.2);
-    addSphere(g, 0.09, 8, 6, mats.headlight, 1.0, 0.62, -1.2);
-    addSphere(g, 0.09, 8, 6, mats.headlight, -1.0, 0.62, -1.2);
-    addBox(g, 0.22, 0.12, 0.2, mats.tailLight, 0.75, 0.45, 1.18);
-    addBox(g, 0.22, 0.12, 0.2, mats.tailLight, -0.75, 0.45, 1.18);
-
-    // Whitewall wheels.
+    // Whitewall wheels ride at axle height.
     const spinners: THREE.Object3D[] = [];
-    const wheelY = 0.0;
     for (const sx of [-1, 1]) {
       for (const cz of [-1, 1]) {
         const wheel = new THREE.Group();
-        wheel.position.set(sx * 2.0, wheelY + 0.14, cz * 0.95);
+        wheel.position.set(sx * 1.18, wheelRadius, cz * 1.7);
         wheel.add(new THREE.Mesh(tireGeo, mats.rubber));
         wheel.add(new THREE.Mesh(hubGeo, mats.metal));
         g.add(wheel);
@@ -661,12 +676,9 @@ function buildVehicles(
       }
     }
 
-    // Fenders.
-    addBox(g, 4.9, 0.14, 2.1, paintMat, 0, 0.40, 0);
-
-    // Orientation.
-    g.rotation.y = dirZ === 1 ? 0 : Math.PI;
-    g.position.set(xLane * dirZ, 0, zStart);
+    // Yaw so the hood leads the direction of travel.
+    g.rotation.y = dirZ === 1 ? Math.PI : 0;
+    g.position.set(xLane, 0, zStart);
 
     root.add(g);
     state.vehicles.push({ group: g, dirZ, speed, wheelSpinners: spinners, wobbleSeed });
@@ -674,26 +686,32 @@ function buildVehicles(
 
   function buildTrolley(paintMat: THREE.MeshStandardMaterial, xLane: number, zStart: number, dirZ: Dir, speed: number, wobbleSeed: number): void {
     const g = new THREE.Group();
-    // Body.
-    addBox(g, 7.8, 0.85, 3.4, paintMat, 0, 0.43, 0);
+    // Body runs along the travel axis (z); destination board faces local -z.
+    addBox(g, 2.5, 1.2, 7.6, paintMat, 0, 1.02, 0);
+    addBox(g, 2.34, 0.34, 7.0, paintMat, 0, 2.02, 0); // clerestory roof
     // Side running boards.
-    addBox(g, 7.0, 0.08, 1.4, mats.darkMetal, 0, 0.27, 1.7);
-    // Upper deck.
-    addBox(g, 7.2, 0.32, 2.2, paintMat, 0, 0.92, 0.2);
+    addBox(g, 0.5, 0.08, 6.6, mats.darkMetal, 1.44, 0.44, 0);
+    addBox(g, 0.5, 0.08, 6.6, mats.darkMetal, -1.44, 0.44, 0);
 
-    // Windows.
+    // Window band on both sides plus end windows.
     const winMat = mats.windowGlass;
     for (const i of [-1, 0, 1]) {
-      addBox(g, 0.95, 0.38, 0.12, winMat, i * 1.55, 0.78, 1.71);
-      addBox(g, 0.95, 0.38, 0.12, winMat, i * 1.55, 0.78, -1.71);
+      addBox(g, 0.08, 0.55, 1.3, winMat, 1.26, 1.5, i * 2.2);
+      addBox(g, 0.08, 0.55, 1.3, winMat, -1.26, 1.5, i * 2.2);
     }
+    addBox(g, 1.7, 0.55, 0.08, winMat, 0, 1.5, -3.81);
+    addBox(g, 1.7, 0.55, 0.08, winMat, 0, 1.5, 3.81);
 
-    // Wheels.
+    // Lit destination sign over the windshield.
+    addBox(g, 1.5, 0.34, 0.06, mats.darkMetal, 0, 2.12, -3.79);
+    addBox(g, 1.34, 0.22, 0.05, mats.interiorGlow, 0, 2.12, -3.83);
+
+    // Wheels at axle height.
     const spinners: THREE.Object3D[] = [];
     for (const sx of [-1, 1]) {
       for (const cz of [-1, 1]) {
         const wheel = new THREE.Group();
-        wheel.position.set(sx * 2.7, 0.18, cz * 0.8);
+        wheel.position.set(sx * 1.06, wheelRadius, cz * 2.6);
         wheel.add(new THREE.Mesh(tireGeo, mats.rubber));
         wheel.add(new THREE.Mesh(hubGeo, mats.metal));
         g.add(wheel);
@@ -701,20 +719,22 @@ function buildVehicles(
       }
     }
 
-    // Pantograph simplification.
+    // Rear trolley pole with contact wheel.
     const pan = new THREE.Group();
-    pan.position.set(0, 1.15, 0);
-    addCylinder(pan, 0.03, 0.04, 1.2, 6, mats.darkMetal, 0, 0.62, 0);
-    addBox(pan, 0.9, 0.04, 0.3, mats.metal, -0.42, 1.05, -0.2);
-    addBox(pan, 0.9, 0.04, 0.3, mats.metal, 0.42, 1.05, -0.2);
+    pan.position.set(0, 2.2, 3.4);
+    pan.rotation.x = 0.55;
+    addCylinder(pan, 0.03, 0.045, 2.1, 6, mats.darkMetal, 0, 1.0, 0);
+    const contact = addCylinder(pan, 0.09, 0.09, 0.08, 10, mats.metal, 0, 2.02, 0);
+    contact.rotation.z = Math.PI / 2;
     g.add(pan);
 
-    // Bumpers.
-    addBox(g, 1.0, 0.14, 0.25, mats.metal, 0, 0.5, 1.78);
-    addBox(g, 1.0, 0.14, 0.25, mats.metal, 0, 0.5, -1.78);
+    // Bumpers front and rear.
+    addBox(g, 2.0, 0.16, 0.25, mats.metal, 0, 0.55, 3.92);
+    addBox(g, 2.0, 0.16, 0.25, mats.metal, 0, 0.55, -3.92);
 
-    g.rotation.y = dirZ === 1 ? 0 : Math.PI;
-    g.position.set(xLane * dirZ, 0, zStart);
+    // Yaw so the destination board leads the direction of travel.
+    g.rotation.y = dirZ === 1 ? Math.PI : 0;
+    g.position.set(xLane, 0, zStart);
     root.add(g);
 
     state.vehicles.push({ group: g, dirZ, speed, wheelSpinners: spinners, wobbleSeed });
@@ -730,7 +750,7 @@ function buildVehicles(
 
 function buildWalker(
   root: THREE.Object3D,
-  mats: ReturnType<typeof createMaterials>,
+  _mats: ReturnType<typeof createMaterials>,
   x: number,
   z: number,
   dirZ: Dir,
@@ -780,8 +800,8 @@ function buildWalker(
     [legL, 0.02],
     [legR, -0.02],
   ] as const) {
-    addBox(leg, 0.14, 0.55, 0.14, cloth, 0, -0.18, xz);
-    addBox(leg, 0.16, 0.08, 0.3, shoeCol, 0, -0.44, xz + 0.02);
+    addBox(leg, 0.14, 0.68, 0.14, cloth, 0, -0.36, xz);
+    addBox(leg, 0.15, 0.09, 0.28, shoeCol, 0, -0.73, xz + 0.04);
   }
 
   // Arms.
@@ -793,8 +813,8 @@ function buildWalker(
 
   const sleeveCol = kind === 'suit' ? cloth : std({ color: 0x8e4a6c, roughness: 0.9, metalness: 0.02 });
   for (const arm of [armL, armR]) {
-    addBox(arm, 0.1, 0.52, 0.1, sleeveCol, 0, 0.0, 0.04);
-    addSphere(arm, 0.07, 8, 6, skin, 0, 0.34, 0.06);
+    addBox(arm, 0.1, 0.5, 0.1, sleeveCol, 0, -0.25, 0.04);
+    addSphere(arm, 0.07, 8, 6, skin, 0, -0.52, 0.05);
   }
 
   // Head & hat.
@@ -803,10 +823,9 @@ function buildWalker(
   addSphere(head, 0.12, 8, 7, skin, 0, 0, 0);
   // Hat / hair.
   if (kind === 'suit') {
-    const hat = addCylinder(head, 0.07, 0.08, 0.18, 8, std({ color: 0x2e2f35, roughness: 0.7, metalness: 0.05 }), 0, 0.12, 0);
-    const brim = addBox(head, 0.18, 0.05, 0.12, std({ color: 0x26262b, roughness: 0.75, metalness: 0.05 }), 0, 0.07, 0);
-    void brim;
-    head.userData.hat = hat;
+    // Fedora: crown plus full brim.
+    addCylinder(head, 0.115, 0.125, 0.15, 8, std({ color: 0x2e2f35, roughness: 0.7, metalness: 0.05 }), 0, 0.2, 0);
+    addCylinder(head, 0.21, 0.21, 0.03, 10, std({ color: 0x26262b, roughness: 0.75, metalness: 0.05 }), 0, 0.135, 0);
   } else {
     const hair = addSphere(head, 0.13, 8, 7, std({ color: 0x2e1f1e, roughness: 0.6, metalness: 0.05 }), 0, 0.05, 0);
     hair.scale.set(1, 0.55, 1);
@@ -814,8 +833,7 @@ function buildWalker(
 
   // Subtle umbrella-like accessory for variety.
   if (seed % 2 === 0) {
-    const bag = addBox(body, 0.12, 0.22, 0.08, std({ color: 0x2a2a2a, roughness: 0.8, metalness: 0.0 }), 0.2, 0.45, -0.1);
-    bag.rotation.z = 0.3;
+    addBox(body, 0.26, 0.2, 0.08, std({ color: 0x2a2a2a, roughness: 0.8, metalness: 0.0 }), 0.32, 0.58, 0);
   }
 
   const runtime: WalkerRuntime = {
@@ -832,7 +850,6 @@ function buildWalker(
       armL,
       armR,
       head,
-      hat: kind === 'suit' ? head.userData.hat : undefined,
     },
     moving,
   };
@@ -851,7 +868,7 @@ function buildMarqueeAndPole(
   state.barbers.push(pole);
 
   // Cinema marquee.
-  const marquee = buildCinema(root, mats, 9.2, -20.0);
+  const marquee = buildCinema(root, mats, 11.0, -20.0);
   state.marquees.push(marquee);
 }
 
@@ -867,11 +884,12 @@ function buildStreetFurniture(
     [2, -1],
     [3, 1],
   ] as const) {
-    const x = side * 9.6;
+    const x = side * 7.3;
     const z = -24 + i * 16.0;
 
     const g = new THREE.Group();
     g.position.set(x, SIDEWALK_Y, z);
+    g.rotation.y = side === 1 ? Math.PI : 0;
 
     addCylinder(g, 0.07, 0.08, 3.9, 10, mats.darkMetal, 0, 2.0, 0);
 
@@ -903,14 +921,27 @@ function buildStreetFurniture(
     state.lamps.push({ lightMat: glassMat, flickerSeed: i * 1.7 + (side === 1 ? 3.2 : 0.6) });
   }
 
-  // Basic bench / hydrant-ish prop.
-  const bench = new THREE.Group();
-  bench.position.set(0, SIDEWALK_Y, 18.5);
-  addBox(bench, 1.8, 0.08, 0.55, mats.woodDark, 0, 0.2, 0);
-  addBox(bench, 1.8, 0.18, 0.08, mats.wood, 0, 0.62, -0.24);
-  addCylinder(bench, 0.04, 0.04, 0.5, 8, mats.darkMetal, -0.7, 0.45, 0.22);
-  addCylinder(bench, 0.04, 0.04, 0.5, 8, mats.darkMetal, 0.7, 0.45, 0.22);
-  root.add(bench);
+  // Slatted wooden benches facing the street.
+  for (const sx of [1, -1] as const) {
+    const bench = new THREE.Group();
+    bench.position.set(sx * 8.0, SIDEWALK_Y, sx === 1 ? 18.5 : -14.0);
+    bench.rotation.y = sx === 1 ? -Math.PI / 2 : Math.PI / 2;
+    addBox(bench, 1.8, 0.08, 0.55, mats.woodDark, 0, 0.42, 0);
+    addBox(bench, 1.8, 0.5, 0.08, mats.wood, 0, 0.64, -0.26);
+    addCylinder(bench, 0.04, 0.05, 0.42, 8, mats.darkMetal, -0.7, 0.21, 0.18);
+    addCylinder(bench, 0.04, 0.05, 0.42, 8, mats.darkMetal, 0.7, 0.21, 0.18);
+    root.add(bench);
+  }
+
+  // Cast-iron hydrant near the grocery corner.
+  const hydrant = new THREE.Group();
+  hydrant.position.set(7.6, SIDEWALK_Y, 9.4);
+  addCylinder(hydrant, 0.24, 0.26, 0.08, 10, mats.darkMetal, 0, 0.04, 0);
+  addCylinder(hydrant, 0.15, 0.19, 0.55, 10, mats.signRed, 0, 0.33, 0);
+  addSphere(hydrant, 0.16, 10, 8, mats.signRed, 0, 0.62, 0);
+  addCylinder(hydrant, 0.05, 0.05, 0.46, 8, mats.signRed, 0, 0.66, 0).rotation.z = Math.PI / 2;
+  addSphere(hydrant, 0.07, 8, 6, mats.streetLampGold, 0, 0.76, 0);
+  root.add(hydrant);
 }
 
 /**
@@ -945,12 +976,12 @@ export function buildEra1945(): THREE.Group {
 
   // Layer 1: buildings — 2–3 story brick/wood tenements + corner grocery + cinema.
   // Avenue side blocks.
-  buildBrickTenement(root, mats, -9.8, 19.5, 1, 3, 7.2);
-  buildBrickTenement(root, mats, -9.8, -22.0, 1, 2, 6.4);
-  buildBrickTenement(root, mats, 9.8, -1.5, -1, 3, 7.4);
+  buildBrickTenement(root, mats, -10.8, 19.5, 1, 3, 7.2);
+  buildBrickTenement(root, mats, -10.8, -22.0, 1, 2, 6.4);
+  buildBrickTenement(root, mats, 10.8, -1.5, -1, 3, 7.4);
 
-  // Corner grocery.
-  buildCornerGrocery(root, mats, 0.0, 8.0);
+  // Corner grocery anchoring the east retail corner.
+  buildCornerGrocery(root, mats, 10.9, 14.0, -Math.PI / 2);
 
   // Background brick rowhouses.
   for (let i = 0; i < 4; i++) {
@@ -960,8 +991,8 @@ export function buildEra1945(): THREE.Group {
   }
 
   // Layer 5: wall ads/posters.
-  buildWallAds(root, mats, -2.2, 1.0, 1);
-  buildWallAds(root, mats, 6.0, -18.0, -1);
+  buildWallAds(root, mats, -8.0, 19.5, 1);
+  buildWallAds(root, mats, 8.0, -1.5, -1);
 
   // Layer 2 + 5: hand-painted and marquee signage.
   buildMarqueeAndPole(root, mats, state);
@@ -974,7 +1005,7 @@ export function buildEra1945(): THREE.Group {
   for (let i = 0; i < walkerSeeds.length; i++) {
     const seed = walkerSeeds[i];
     const dirZ: Dir = i % 2 === 0 ? 1 : -1;
-    const x = (i % 4 < 2 ? 7.8 : -7.8) + (i % 2 === 0 ? 0.25 : -0.25);
+    const x = (i % 4 < 2 ? 7.45 : -7.45) + (i % 2 === 0 ? 0.22 : -0.22);
     const z = (i - 3.5) * 6.2 + (rng() - 0.5) * 2.8;
     const moving = i % 3 !== 0;
     const kind: 'suit' | 'dress' = i % 2 === 0 ? 'suit' : 'dress';
@@ -990,7 +1021,7 @@ export function buildEra1945(): THREE.Group {
     const runtime = buildWalker(
       root,
       mats,
-      i === 0 ? -4.8 : i === 1 ? 0.6 : 4.6,
+      i === 0 ? -7.6 : i === 1 ? 7.5 : -7.5,
       i === 0 ? 6.8 : i === 1 ? -2.5 : 12.5,
       dirZ,
       false,
@@ -1077,7 +1108,7 @@ export function update(dt: number, group: THREE.Group): void {
 
   // Barbershop pole stripe rotation.
   for (const b of state.barbers) {
-    b.pole.rotation.y += step * 1.9;
+    b.spinner.rotation.y += step * 2.2;
   }
 
   // Marquee bulbs animation.
