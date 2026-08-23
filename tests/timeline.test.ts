@@ -113,6 +113,27 @@ describe('createTimelineSlider rendering', () => {
     const { onEraChange } = mount();
     expect(onEraChange).not.toHaveBeenCalled();
   });
+
+  it('publishes stable automation hooks that track the committed era', () => {
+    mount();
+    const root = document.querySelector<HTMLElement>('[data-testid="era-timeline"]');
+    expect(root?.getAttribute('data-era-active')).toBe('1945');
+    expect(root?.getAttribute('data-era-label')).toBe('Post-War Rebuild');
+    expect(document.querySelector('[data-testid="era-live-region"]')).not.toBeNull();
+
+    const year = document.querySelector('[data-testid="era-caption-year"]');
+    const label = document.querySelector('[data-testid="era-caption-label"]');
+    expect(year?.textContent).toBe('1945');
+    expect(label?.textContent).toBe('Post-War Rebuild');
+
+    stopButtons()[3].click();
+    expect(root?.getAttribute('data-era-active')).toBe('2005');
+    expect(year?.textContent).toBe('2005');
+
+    // Programmatic setEra mirrors the same hook without firing callbacks.
+    harnesses[0]?.handle.setEra('1985');
+    expect(root?.getAttribute('data-era-active')).toBe('1985');
+  });
 });
 
 describe('clicking stops', () => {

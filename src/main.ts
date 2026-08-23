@@ -209,6 +209,7 @@ function bootstrap(): void {
   // quality sampler started alongside it.
   sampleRafId = requestAnimationFrame(sampleFrame);
   director.start();
+  container.setAttribute('data-app-ready', 'true');
 }
 
 bootstrap();

@@ -454,6 +454,29 @@ describe('createSceneDirector', () => {
     expect(vi.mocked(generateAllEraBuffers)).not.toHaveBeenCalled();
   });
 
+  it('exposes stable evidence-probe affordances on the canvas and container', () => {
+    const { director, step } = boot({ mixer: stubMixer() });
+
+    // Canvas carries a stable identity plus ARIA semantics so interaction
+    // probes (orbit/zoom/pan drags) target it unambiguously.
+    const canvas = container.querySelector('canvas');
+    expect(canvas).not.toBeNull();
+    expect(canvas?.getAttribute('data-testid')).toBe('city-canvas');
+    expect(canvas?.getAttribute('role')).toBe('application');
+    expect(canvas?.getAttribute('aria-label') ?? '').toContain('orbit');
+
+    // Machine-readable era state starts settled at the initial era.
+    expect(container.getAttribute('data-era')).toBe('1945');
+    expect(container.getAttribute('data-era-transitioning')).toBe('false');
+
+    director.setEra('1965');
+    expect(container.getAttribute('data-era')).toBe('1965');
+    expect(container.getAttribute('data-era-transitioning')).toBe('true');
+
+    settle({ director, step });
+    expect(container.getAttribute('data-era-transitioning')).toBe('false');
+  });
+
   it('hands off through all five eras in fixed order, lazily building each once', () => {
     const mixer = stubMixer();
     const { director, step } = boot({ mixer });

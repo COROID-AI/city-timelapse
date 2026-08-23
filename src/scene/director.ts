@@ -16,6 +16,11 @@
  *   foundation renderer's viewport and canvas.
  * - **UI**: `createTimelineSlider` is mounted at the top of the container;
  *   slider clicks feed back into {@link SceneDirector.setEra}.
+ * - **Automation hooks**: the renderer canvas carries a stable
+ *   `data-testid="city-canvas"` identity plus ARIA semantics, and the mount
+ *   container publishes machine-readable `data-era` / `data-era-transitioning`
+ *   attributes so browser evidence probes can select the viewport and wait for
+ *   deterministic era endpoints without reaching into scene internals.
  * - **Audio**: `SfxMixer` from the foundation is initialized on the first user
  *   gesture (autoplay policy); until then era selections are remembered and
  *   applied as the mixer's `initialEra`.
@@ -287,6 +292,18 @@ export function createSceneDirector(
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO));
   container.appendChild(renderer.domElement);
 
+  // Stable automation/a11y identity for the interactive viewport. Evidence
+  // probes target these selectors for orbit/zoom/pan gestures instead of
+  // guessing at an unnamed canvas node.
+  const canvas = renderer.domElement;
+  canvas.dataset.testid = 'city-canvas';
+  canvas.setAttribute('role', 'application');
+  canvas.setAttribute(
+    'aria-label',
+    'Interactive city block viewport: left-drag to orbit, scroll to zoom, right-drag to pan',
+  );
+  if (!canvas.hasAttribute('tabindex')) canvas.setAttribute('tabindex', '0');
+
   // --- Scene + environment light rig ---------------------------------------
   const scene = new THREE.Scene();
   const sun = new THREE.DirectionalLight(0xffffff, 2);
@@ -367,6 +384,19 @@ export function createSceneDirector(
   let activeTransition: ActiveTransition | null = null;
   let era: EraId = INITIAL_ERA;
 
+  /**
+   * Publish machine-readable era state onto the mount container so browser
+   * evidence probes can drive and await era swaps from the outside:
+   * `data-era` is the committed era id, `data-era-transitioning` is `"true"`
+   * while a visual crossfade is in flight and `"false"` at the deterministic
+   * endpoints (so a screenshot taken when it reads `"false"` shows a settled
+   * single-era scene).
+   */
+  const publishEraState = (): void => {
+    container.setAttribute('data-era', era);
+    container.setAttribute('data-era-transitioning', activeTransition ? 'true' : 'false');
+  };
+
   const finishTransition = (): void => {
     const transition = activeTransition;
     if (!transition) return;
@@ -377,6 +407,7 @@ export function createSceneDirector(
     if (fromGroup) fromGroup.visible = false;
     if (toGroup) toGroup.visible = true;
     activeTransition = null;
+    publishEraState();
   };
 
   const advanceTransition = (dt: number): boolean => {
@@ -405,7 +436,10 @@ export function createSceneDirector(
     ensureGroup(to).visible = true;
     activeTransition = { from, to, elapsedSeconds: 0, durationSeconds: transitionSeconds };
     onTransitionStart?.(from, to);
+    publishEraState();
   };
+
+  publishEraState();
 
   // --- Render loop ----------------------------------------------------------
   let running = false;

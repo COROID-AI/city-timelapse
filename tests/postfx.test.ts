@@ -236,7 +236,7 @@ describe('createPostFX', () => {
 
     expect(h.blooms).toHaveLength(1);
     const bloom = h.blooms[0];
-    expect(bloom.strength).toBeCloseTo(0.35, 5);
+    expect(bloom.strength).toBeCloseTo(0.6, 5);
     expect(bloom.radius).toBeGreaterThan(0);
     expect(bloom.radius).toBeLessThan(1);
     // High threshold: only emissive signage/lamps/neon may bloom.

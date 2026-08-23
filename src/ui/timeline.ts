@@ -19,6 +19,13 @@
  * - `handle.setEra(id)` updates the visual highlight programmatically WITHOUT
  *   re-triggering `onEraChange`.
  *
+ * Automation contract:
+ * - Stable hooks for browser evidence probes: `data-testid="era-timeline"` on
+ *   the root (which also mirrors the committed era as `data-era-active`),
+ *   `data-testid="era-stop-{year}"` per chip, `data-testid="era-timeline-thumb"`
+ *   on the WAI-ARIA slider input, `era-caption-year` / `era-caption-label` on
+ *   the active-era caption, and `era-live-region` on the polite live region.
+ *
  * All styling is injected from this module so the component stays a single,
  * self-contained UI file (no external CSS assets).
  */
@@ -445,8 +452,8 @@ export function createTimelineSlider(
       <header class="era-timeline-head">
         <span class="era-timeline-eyebrow">City Era Timelapse</span>
         <span class="era-timeline-caption">
-          <span class="era-timeline-caption-year"></span>
-          <span class="era-timeline-caption-label"></span>
+          <span class="era-timeline-caption-year" data-testid="era-caption-year"></span>
+          <span class="era-timeline-caption-label" data-testid="era-caption-label"></span>
         </span>
       </header>
       <div class="era-timeline-rail" data-testid="era-timeline-rail">
@@ -454,7 +461,12 @@ export function createTimelineSlider(
         <div class="era-timeline-fill" aria-hidden="true"></div>
       </div>
     </div>
-    <div class="era-timeline-live" role="status" aria-live="polite"></div>
+    <div
+      class="era-timeline-live"
+      role="status"
+      aria-live="polite"
+      data-testid="era-live-region"
+    ></div>
   `;
 
   const rail = requireEl<HTMLElement>(root, '.era-timeline-rail');
@@ -540,6 +552,8 @@ export function createTimelineSlider(
     thumb.value = String(spec.year); // re-snap the native control onto the stop
     thumb.setAttribute('aria-valuenow', String(spec.year));
     thumb.setAttribute('aria-valuetext', `${spec.year} — ${spec.label}`);
+    root.dataset.eraActive = id; // stable probe hook: committed era at a glance
+    root.dataset.eraLabel = spec.label;
     glow.style.left = pct;
     fill.style.width = pct;
 

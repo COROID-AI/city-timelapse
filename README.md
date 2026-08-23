@@ -90,6 +90,24 @@ tests/                    Vitest suite (eras, audio, scene, UI, environment)
 5. `director.start()` runs the render loop: era ticks → transition update →
    PostFX-composited render → quality sampling.
 
+## Automation & evidence-probe hooks
+
+The app publishes stable, machine-readable affordances so browser smoke runs
+(and any Playwright-style probe) can drive interactions and wait for settled
+frames instead of guessing:
+
+| Hook | Where | Meaning |
+| ---- | ----- | ------- |
+| `#app[data-app-ready="true"]` | mount container | bootstrap + render loop are up |
+| `#app[data-era="<year>"]` | mount container | committed era id (`1945`…`2025`) |
+| `#app[data-era-transitioning]` | mount container | `"true"` during a crossfade, `"false"` at deterministic endpoints — screenshot when it reads `false` |
+| `[data-testid="city-canvas"]` | renderer canvas | interactive viewport (role `application`, labelled) for orbit/zoom/pan drags |
+| `[data-testid="era-stop-<year>"]` | timeline chips | click to commit an era |
+| `[data-testid="era-timeline-thumb"]` | `<input type="range">` | WAI-ARIA slider; `fill()`/arrow keys step eras |
+| `[data-testid="era-timeline"][data-era-active="<year>"]` | timeline root | committed era mirrored on the UI |
+| `[data-testid="era-caption-year"]` / `era-caption-label` | caption | active-era caption text |
+| `[data-testid="controls-hint"]` | bottom hint | navigation help copy |
+
 ## Commands
 
 ```bash

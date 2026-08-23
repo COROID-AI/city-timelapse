@@ -6,9 +6,10 @@
  *   RenderPass -> UnrealBloomPass -> FXAA (ShaderPass) -> vignette (ShaderPass)
  *
  * Tuning contract:
- * - Bloom stays subtle (strength ~0.35) and uses a HIGH threshold (~0.85) so
- *   only emissive pixels — signage, lamps, neon — exceed it. Ordinary lit
- *   geometry sits far below the threshold and never blooms.
+ * - Bloom uses a HIGH threshold (~0.85) so only emissive pixels — signage,
+ *   lamps, neon — exceed it. Ordinary lit geometry sits far below the threshold
+ *   and never blooms. Strength (~0.6) keeps the glow clearly visible in
+ *   captured frames while staying emissive-only.
  * - FXAA provides cheap antialiasing without needing an MSAA render target.
  * - The vignette darkens corners gently (max ~32%) for a cinematic frame.
  *
@@ -85,11 +86,12 @@ interface PostFXBundle {
 }
 
 /**
- * Emissive-only bloom tuning: the low strength keeps the glow subtle and the
- * high threshold means only bright signage/lamp/neon pixels bloom.
+ * Emissive-only bloom tuning: the high threshold means only bright signage/
+ * lamp/neon pixels bloom, and the moderate strength keeps their halo plainly
+ * discernible in screenshots without washing out ordinary geometry.
  */
-const BLOOM_STRENGTH = 0.35;
-const BLOOM_RADIUS = 0.6;
+const BLOOM_STRENGTH = 0.6;
+const BLOOM_RADIUS = 0.75;
 const BLOOM_THRESHOLD = 0.85;
 
 /** Gentle corner-darkening ceiling (0..1) for the cinematic vignette. */
