@@ -199,35 +199,79 @@ describe('keyboard accessibility on chips', () => {
   });
 });
 
-describe('thumb slider semantics', () => {
-  it('commits adjacent eras with arrow keys and keeps focus on the thumb', () => {
-    const { onEraChange } = mount();
+describe('thumb slider (native range input)', () => {
+  /**
+   * Drives the thumb the way real clients do: keyboard steps, native drags
+   * and automation fill() all settle a value and report it with `input` +
+   * `change` events.
+   */
+  function settleThumb(value: string): void {
+    const slider = thumb() as HTMLInputElement;
+    slider.value = value;
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    slider.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  it('is a genuine form control that automation can fill()', () => {
+    mount();
     const slider = thumb();
-    slider.focus();
-
-    keydown(slider, 'ArrowRight');
-    expect(onEraChange).toHaveBeenNthCalledWith(1, '1965');
-    expect(slider.getAttribute('aria-valuenow')).toBe('1965');
-    expect(document.activeElement).toBe(slider);
-
-    keydown(slider, 'ArrowLeft');
-    expect(onEraChange).toHaveBeenNthCalledWith(2, '1945');
-    expect(slider.getAttribute('aria-valuenow')).toBe('1945');
-
-    keydown(slider, 'End');
-    expect(onEraChange).toHaveBeenNthCalledWith(3, '2025');
-    expect(slider.getAttribute('aria-valuenow')).toBe('2025');
-    expect(onEraChange).toHaveBeenCalledTimes(3);
+    expect(slider.tagName).toBe('INPUT');
+    expect((slider as HTMLInputElement).type).toBe('range');
+    expect((slider as HTMLInputElement).min).toBe('1945');
+    expect((slider as HTMLInputElement).max).toBe('2025');
+    expect((slider as HTMLInputElement).step).toBe('20');
   });
 
-  it('re-selects the current era on Enter/Space', () => {
-    const { onEraChange } = mount();
+  it('keeps the explicit ARIA slider attributes alongside native semantics', () => {
+    mount();
     const slider = thumb();
-    slider.focus();
-    keydown(slider, 'Enter');
-    expect(onEraChange).toHaveBeenCalledWith('1945');
-    keydown(slider, ' ');
+    expect(slider.getAttribute('role')).toBe('slider');
+    expect(slider.getAttribute('aria-label')).toBe('Selected city era');
+    expect(slider.getAttribute('aria-orientation')).toBe('horizontal');
+    expect(slider.getAttribute('aria-valuemin')).toBe('1945');
+    expect(slider.getAttribute('aria-valuemax')).toBe('2025');
+  });
+
+  it('commits the settled era and updates caption semantics on change', () => {
+    const { onEraChange } = mount();
+    const slider = thumb() as HTMLInputElement;
+
+    settleThumb('2005');
+    expect(onEraChange).toHaveBeenCalledTimes(1);
+    expect(onEraChange).toHaveBeenNthCalledWith(1, '2005');
+    expect(slider.getAttribute('aria-valuenow')).toBe('2005');
+    expect(slider.getAttribute('aria-valuetext')).toBe('2005 — Digital Age');
+    expect(activeStopIds()).toEqual(['2005']);
+
+    settleThumb('1945');
+    expect(onEraChange).toHaveBeenNthCalledWith(2, '1945');
     expect(onEraChange).toHaveBeenCalledTimes(2);
+  });
+
+  it('previews with input events but only commits once the value settles', () => {
+    const { onEraChange, handle } = mount();
+    const slider = thumb() as HTMLInputElement;
+
+    slider.value = '1965';
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(onEraChange).not.toHaveBeenCalled();
+    expect(handle.getEra()).toBe('1945');
+
+    slider.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(onEraChange).toHaveBeenCalledWith('1965');
+  });
+
+  it('snaps off-stop values to the chronologically closest era stop', () => {
+    const { onEraChange } = mount();
+    const slider = thumb() as HTMLInputElement;
+
+    settleThumb('1990'); // between 1985 and 2005 → closer to 1985
+    expect(onEraChange).toHaveBeenNthCalledWith(1, '1985');
+    expect(slider.value).toBe('1985');
+
+    settleThumb('1952'); // between 1945 and 1965 → closer to 1945
+    expect(onEraChange).toHaveBeenNthCalledWith(2, '1945');
+    expect(slider.value).toBe('1945');
   });
 });
 
@@ -236,42 +280,37 @@ describe('dragging along the track', () => {
     vi.spyOn(railEl(), 'getBoundingClientRect').mockImplementation(() => rect(100, 400));
   }
 
-  it('snaps the thumb to the nearest stop and fires onEraChange on release', () => {
+  it('presses the native slider without committing until the value settles', () => {
     const { onEraChange } = mount();
     stubRailGeometry();
     const slider = thumb();
 
     slider.dispatchEvent(pointerEvent('pointerdown', 100));
-    expect(onEraChange).not.toHaveBeenCalled(); // drag only, not committed yet
+    expect(slider.classList.contains('is-dragging')).toBe(true);
+    expect(onEraChange).not.toHaveBeenCalled(); // drag preview only
 
     window.dispatchEvent(pointerEvent('pointermove', 430));
-    expect(slider.style.left).toBe('82.5%'); // free-follows the pointer mid-drag
-    expect(thumb().classList.contains('is-dragging')).toBe(true);
+    expect(onEraChange).not.toHaveBeenCalled(); // the native control owns the preview
 
     window.dispatchEvent(pointerEvent('pointerup', 430));
-    // fraction 0.825 * 4 → nearest index 3 → 2005
+    expect(slider.classList.contains('is-dragging')).toBe(false);
+    expect(onEraChange).not.toHaveBeenCalled(); // a bare release commits nothing
+  });
+
+  it('commits the settled value when a native drag releases (change event)', () => {
+    const { onEraChange } = mount();
+    stubRailGeometry();
+    const slider = thumb() as HTMLInputElement;
+
+    // Simulate the browser settling a drag onto the 2005 stop.
+    slider.value = '2005';
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    slider.dispatchEvent(new Event('change', { bubbles: true }));
+
     expect(onEraChange).toHaveBeenCalledTimes(1);
     expect(onEraChange).toHaveBeenNthCalledWith(1, '2005');
     expect(slider.getAttribute('aria-valuenow')).toBe('2005');
     expect(activeStopIds()).toEqual(['2005']);
-    expect(slider.classList.contains('is-dragging')).toBe(false);
-  });
-
-  it('rounds to the closest stop in either direction', () => {
-    const { onEraChange } = mount();
-    stubRailGeometry();
-    const slider = thumb();
-
-    slider.dispatchEvent(pointerEvent('pointerdown', 100));
-    window.dispatchEvent(pointerEvent('pointermove', 260)); // fraction .45 → index 2 (1985)
-    window.dispatchEvent(pointerEvent('pointerup', 260));
-    expect(onEraChange).toHaveBeenNthCalledWith(1, '1985');
-
-    slider.dispatchEvent(pointerEvent('pointerdown', 100));
-    window.dispatchEvent(pointerEvent('pointermove', 130)); // fraction 0.075 · 4 ≈ 0.3 → snaps back to 1945
-    window.dispatchEvent(pointerEvent('pointerup', 130));
-    expect(onEraChange).toHaveBeenNthCalledWith(2, '1945');
-    expect(onEraChange).toHaveBeenCalledTimes(2);
   });
 
   it('tapping the track (not a chip) jumps to the nearest stop', () => {
@@ -279,7 +318,6 @@ describe('dragging along the track', () => {
     stubRailGeometry();
 
     railEl().dispatchEvent(pointerEvent('pointerdown', 330));
-    window.dispatchEvent(pointerEvent('pointerup', 330));
     // fraction 0.575 * 4 = 2.3 → nearest index 2 → 1985
     expect(onEraChange).toHaveBeenCalledTimes(1);
     expect(onEraChange).toHaveBeenCalledWith('1985');
@@ -289,15 +327,14 @@ describe('dragging along the track', () => {
   it('springs back without committing when the drag is cancelled', () => {
     const { onEraChange, handle } = mount();
     stubRailGeometry();
-    const slider = thumb();
+    const slider = thumb() as HTMLInputElement;
 
     slider.dispatchEvent(pointerEvent('pointerdown', 100));
-    window.dispatchEvent(pointerEvent('pointermove', 480));
     window.dispatchEvent(new Event('pointercancel'));
 
     expect(onEraChange).not.toHaveBeenCalled();
     expect(handle.getEra()).toBe('1945');
-    expect(slider.style.left).toBe('0%'); // restored to the committed stop
+    expect(slider.value).toBe('1945'); // restored to the committed stop
     expect(slider.classList.contains('is-dragging')).toBe(false);
   });
 });

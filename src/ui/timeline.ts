@@ -3,15 +3,19 @@
  *
  * Renders a fixed, glassmorphic bar pinned to the top of the viewport with
  * exactly five labeled stops taken from `ERA_REGISTRY`. Stops are clickable
- * era chips connected by a track line; a draggable thumb rides the track and
- * snaps to the nearest stop on release.
+ * era chips connected by a track line; the thumb is a native
+ * `<input type="range">` (one notch per era step) styled to ride the track
+ * and snap to the nearest stop.
  *
  * Interaction contract:
  * - Clicking a chip (or tapping/dragging on the track) fires `onEraChange`
  *   with the corresponding `EraId`.
  * - Keyboard: chips rove focus with ←/→/Home/End and commit with Enter/Space;
- *   the thumb is a WAI-ARIA `slider` whose arrow keys change the selected era,
- *   with `aria-valuenow` reflecting the current year.
+ *   the thumb is a real WAI-ARIA `slider` form control whose arrow keys step
+ *   the selected era natively, with `aria-valuenow` reflecting the year.
+ * - Being a genuine form control, the thumb also accepts programmatic value
+ *   writes reported via `input`/`change` events — the path browser automation
+ *   (e.g. Playwright's `fill()`) exercises.
  * - `handle.setEra(id)` updates the visual highlight programmatically WITHOUT
  *   re-triggering `onEraChange`.
  *
@@ -116,7 +120,6 @@ const STYLES = `
   transition: color 0.4s ease;
 }
 .era-timeline-caption-label {
-  display: block;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.22em;
@@ -176,14 +179,43 @@ const STYLES = `
   box-shadow: 0 0 10px rgb(var(--etl-accent-rgb) / 0.8);
 }
 .era-timeline-thumb {
+  /* Native <input type="range"> styled as the era thumb. The transparent
+     control strip spans the full rail width and is vertically centred on the
+     track line, so the browser-rendered thumb rides exactly where the classic
+     knob sat (centre 12.5px above the rail's bottom edge). Being a real form
+     control keeps pointer drags, keyboard stepping and automation fill()
+     working through native semantics. */
   position: absolute;
-  bottom: 4px;
-  width: 17px;
-  height: 17px;
-  border-radius: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  bottom: 0.5px;
+  width: auto;
+  height: 24px;
+  margin: 0;
+  padding: 0;
   z-index: 3;
   cursor: grab;
+  touch-action: none;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  outline: none;
+}
+.era-timeline-thumb:active {
+  cursor: grabbing;
+}
+.era-timeline-thumb::-webkit-slider-runnable-track {
+  height: 24px;
+  background: transparent;
+  border: none;
+}
+.era-timeline-thumb::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 17px;
+  height: 17px;
+  border: none;
+  border-radius: 50%;
   background: radial-gradient(circle at 32% 28%,
     #ffffff 0%,
     var(--etl-accent) 58%,
@@ -192,26 +224,85 @@ const STYLES = `
     0 0 0 5px rgb(var(--etl-accent-rgb) / 0.2),
     0 3px 12px rgba(0, 0, 0, 0.55);
   transition:
-    left 0.5s cubic-bezier(0.22, 1, 0.36, 1),
     transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 0.25s ease;
 }
-.era-timeline-thumb:hover {
-  transform: translateX(-50%) scale(1.14);
+.era-timeline-thumb::-moz-range-track {
+  height: 24px;
+  background: transparent;
+  border: none;
 }
-.era-timeline-thumb:focus-visible {
+.era-timeline-thumb::-moz-range-thumb {
+  width: 17px;
+  height: 17px;
+  border: none;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%,
+    #ffffff 0%,
+    var(--etl-accent) 58%,
+    rgb(var(--etl-accent-rgb) / 0.65) 100%);
+  box-shadow:
+    0 0 0 5px rgb(var(--etl-accent-rgb) / 0.2),
+    0 3px 12px rgba(0, 0, 0, 0.55);
+  transition:
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.25s ease;
+}
+.era-timeline-thumb:hover::-webkit-slider-thumb,
+.era-timeline-thumb:hover::-moz-range-thumb {
+  transform: scale(1.14);
+}
+.era-timeline-thumb:focus-visible::-webkit-slider-thumb {
   outline: 2px solid rgb(var(--etl-accent-rgb) / 0.95);
   outline-offset: 4px;
 }
-.era-timeline-thumb.is-dragging {
-  cursor: grabbing;
-  transform: translateX(-50%) scale(1.28);
+.era-timeline-thumb:active::-webkit-slider-thumb,
+.era-timeline-thumb:active::-moz-range-thumb,
+.era-timeline-thumb.is-dragging::-webkit-slider-thumb,
+.era-timeline-thumb.is-dragging::-moz-range-thumb {
+  transform: scale(1.28);
   box-shadow:
     0 0 0 8px rgb(var(--etl-accent-rgb) / 0.16),
     0 6px 20px rgba(0, 0, 0, 0.6);
 }
+.era-timeline-thumb.is-dragging {
+  cursor: grabbing;
+}
 .era-timeline-thumb.is-dragging ~ .era-timeline-stop {
   pointer-events: none;
+}
+
+/* Decorative halo trailing the thumb. It keeps the signature eased glide on
+   programmatic era changes (the native thumb itself moves instantly). */
+.era-timeline-thumb-glow {
+  position: absolute;
+  bottom: -2.5px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.85;
+  background: radial-gradient(circle,
+    rgb(var(--etl-accent-rgb) / 0.5) 0%,
+    rgb(var(--etl-accent-rgb) / 0.18) 46%,
+    transparent 72%);
+  transition:
+    left 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.25s ease;
+}
+.era-timeline-thumb:hover ~ .era-timeline-thumb-glow {
+  transform: translateX(-50%) scale(1.12);
+}
+.era-timeline-thumb:focus-visible ~ .era-timeline-thumb-glow {
+  opacity: 1;
+  transform: translateX(-50%) scale(1.18);
+}
+.era-timeline-thumb.is-dragging ~ .era-timeline-thumb-glow {
+  opacity: 1;
+  transform: translateX(-50%) scale(1.38);
 }
 .era-timeline-stop {
   position: absolute;
@@ -288,6 +379,7 @@ const STYLES = `
   .era-timeline-bar,
   .era-timeline-fill,
   .era-timeline-thumb,
+  .era-timeline-thumb-glow,
   .era-timeline-stop,
   .era-timeline-tick,
   .era-timeline-caption-year,
@@ -371,12 +463,19 @@ export function createTimelineSlider(
   const captionLabel = requireEl<HTMLElement>(root, '.era-timeline-caption-label');
   const liveRegion = requireEl<HTMLElement>(root, '.era-timeline-live');
 
-  // Thumb: WAI-ARIA slider reflecting the selected year.
-  const thumb = doc.createElement('div');
+  // Thumb: a real <input type="range"> — the canonical slider form control.
+  // Native semantics give us the slider role, pointer dragging and keyboard
+  // stepping for free, and automation harnesses can drive it with fill().
+  // Years are evenly spaced, so min/max/step map each stop onto one notch.
+  const thumb = doc.createElement('input');
+  thumb.type = 'range';
   thumb.className = 'era-timeline-thumb';
   thumb.dataset.testid = 'era-timeline-thumb';
-  thumb.tabIndex = 0;
-  thumb.setAttribute('role', 'slider');
+  thumb.min = String(stops[0].spec.year);
+  thumb.max = String(stops[count - 1].spec.year);
+  thumb.step = String((stops[count - 1].spec.year - stops[0].spec.year) / (count - 1));
+  thumb.value = String(stops[0].spec.year);
+  thumb.setAttribute('role', 'slider'); // explicit twin of the implicit range role
   thumb.setAttribute('aria-label', 'Selected city era');
   thumb.setAttribute('aria-orientation', 'horizontal');
   thumb.setAttribute('aria-valuemin', String(stops[0].spec.year));
@@ -393,6 +492,14 @@ export function createTimelineSlider(
   });
 
   rail.appendChild(thumb);
+
+  // Decorative halo trailing the native thumb (see .era-timeline-thumb-glow).
+  // Placed after the input in the DOM so the sibling selectors in the
+  // stylesheet (:hover/:focus-visible/.is-dragging ~) can reach it.
+  const glow = doc.createElement('div');
+  glow.className = 'era-timeline-thumb-glow';
+  glow.setAttribute('aria-hidden', 'true');
+  rail.appendChild(glow);
 
   // Clickable era chips sitting above the track line.
   const buttons: HTMLButtonElement[] = stops.map((stop, i) => {
@@ -413,8 +520,6 @@ export function createTimelineSlider(
 
   // ---- State & rendering -----------------------------------------------
   let currentEra: EraId = stops[0].id;
-  let dragging = false;
-  let dragFraction = 0;
 
   function applyEra(id: EraId): void {
     const index = indexByEra.get(id);
@@ -432,9 +537,10 @@ export function createTimelineSlider(
       ticks[i].classList.toggle('is-active', active);
     });
 
-    thumb.style.left = pct;
+    thumb.value = String(spec.year); // re-snap the native control onto the stop
     thumb.setAttribute('aria-valuenow', String(spec.year));
     thumb.setAttribute('aria-valuetext', `${spec.year} — ${spec.label}`);
+    glow.style.left = pct;
     fill.style.width = pct;
 
     root.style.setProperty('--etl-accent', accent.hex);
@@ -452,67 +558,76 @@ export function createTimelineSlider(
     onEraChange(id);
   }
 
-  // ---- Pointer dragging --------------------------------------------------
-  function updateFromClientX(clientX: number): void {
-    const rect = rail.getBoundingClientRect();
-    if (rect.width <= 0) return;
-    dragFraction = clamp01((clientX - rect.left) / rect.width);
-    thumb.style.left = `${dragFraction * 100}%`;
-  }
-
-  function beginDrag(event: PointerEvent): void {
-    dragging = true;
-    rail.classList.add('is-dragging');
-    thumb.classList.add('is-dragging');
-    if (
-      typeof event.pointerId === 'number' &&
-      typeof (rail as unknown as { setPointerCapture?: (id: number) => void }).setPointerCapture ===
-        'function'
-    ) {
-      try {
-        rail.setPointerCapture(event.pointerId);
-      } catch {
-        /* capture is best-effort */
-      }
+  // ---- Slider commits ------------------------------------------------------
+  // The native <input type="range"> owns pointer drags, track taps and
+  // keyboard stepping (←/→/↑/↓/PageUp/PageDown/Home/End); every gesture
+  // settles into a `change` event, which is exactly what automation fill()
+  // dispatches too. Off-stop values snap to the chronologically closest era.
+  function eraIndexForValue(value: number): number {
+    if (!Number.isFinite(value)) {
+      return indexByEra.get(currentEra) ?? 0;
     }
-    updateFromClientX(event.clientX);
-    event.preventDefault();
+    const yearMin = stops[0].spec.year;
+    const yearStep = (stops[count - 1].spec.year - yearMin) / (count - 1);
+    const index = Math.round((value - yearMin) / yearStep);
+    return Math.min(count - 1, Math.max(0, index));
   }
 
-  function endDrag(commitSnap: boolean): void {
-    if (!dragging) return;
-    dragging = false;
-    rail.classList.remove('is-dragging');
-    thumb.classList.remove('is-dragging');
-    if (!commitSnap) {
-      applyEra(currentEra); // spring back to the committed stop
-      return;
-    }
-    const nearest = Math.round(dragFraction * (count - 1));
-    commit(stops[nearest].id);
-  }
+  thumb.addEventListener(
+    'change',
+    () => {
+      commit(stops[eraIndexForValue(Number(thumb.value))].id);
+    },
+    { signal: controller.signal },
+  );
 
-  rail.addEventListener(
+  // Drag affordance: mirror the pressed state onto the control so CSS can
+  // swell the thumb and mute the chips while a native drag is in flight.
+  thumb.addEventListener(
     'pointerdown',
-    (event) => {
-      if ((event.target as Element | null)?.closest('.era-timeline-stop')) return; // chip click handles it
-      if (event.button !== undefined && event.button !== 0) return; // primary button only
-      beginDrag(event);
+    () => {
+      thumb.classList.add('is-dragging');
     },
     { signal: controller.signal },
   );
   window.addEventListener(
-    'pointermove',
-    (event) => {
-      if (dragging) updateFromClientX((event as PointerEvent).clientX);
+    'pointerup',
+    () => {
+      thumb.classList.remove('is-dragging');
     },
     { signal: controller.signal },
   );
-  window.addEventListener('pointerup', () => endDrag(true), { signal: controller.signal });
-  window.addEventListener('pointercancel', () => endDrag(false), { signal: controller.signal });
+  window.addEventListener(
+    'pointercancel',
+    () => {
+      thumb.classList.remove('is-dragging');
+      applyEra(currentEra); // spring back to the committed stop
+    },
+    { signal: controller.signal },
+  );
+
+  // Taps that land on the rail but outside the slider strip (e.g. the gaps
+  // between chips) still jump to the nearest stop.
+  rail.addEventListener(
+    'pointerdown',
+    (event) => {
+      const target = event.target as Element | null;
+      if (target?.closest?.('.era-timeline-stop')) return; // chip click handles it
+      if (target?.closest?.('input')) return; // the native slider handles it
+      if (event.button !== undefined && event.button !== 0) return; // primary button only
+      const rect = rail.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const fraction = clamp01((event.clientX - rect.left) / rect.width);
+      commit(stops[Math.round(fraction * (count - 1))].id);
+    },
+    { signal: controller.signal },
+  );
 
   // ---- Keyboard ------------------------------------------------------------
-  // Chips rove focus with arrows and commit with Enter/Space.
+  // Chips rove focus with arrows and commit with Enter/Space. The thumb's own
+  // keyboard support is native (<input type="range"> steps with ←/→/↑/↓/
+  // PageUp/PageDown/Home/End and reports each settled step as a `change`
+  // event, handled in the slider-commits section above).
   rail.addEventListener(
     'keydown',
     (event) => {
@@ -546,42 +661,6 @@ export function createTimelineSlider(
           break;
         default:
           break;
-      }
-    },
-    { signal: controller.signal },
-  );
-
-  // The thumb is a slider: arrows change the committed value directly.
-  thumb.addEventListener(
-    'keydown',
-    (event) => {
-      const index = indexByEra.get(currentEra) ?? 0;
-      let target: number | null = null;
-      switch (event.key) {
-        case 'ArrowRight':
-        case 'ArrowUp':
-          target = Math.min(count - 1, index + 1);
-          break;
-        case 'ArrowLeft':
-        case 'ArrowDown':
-          target = Math.max(0, index - 1);
-          break;
-        case 'Home':
-          target = 0;
-          break;
-        case 'End':
-          target = count - 1;
-          break;
-        case 'Enter':
-        case ' ':
-          target = index; // explicit re-select of current stop
-          break;
-        default:
-          break;
-      }
-      if (target !== null) {
-        commit(stops[target].id);
-        event.preventDefault();
       }
     },
     { signal: controller.signal },
