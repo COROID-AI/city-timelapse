@@ -1,0 +1,13 @@
+[evidence] starting canonical server: npm run dev
+[evidence] server ready at http://127.0.0.1:5199/
+[evidence] passed initial-era-1945
+[evidence] passed camera-orbit-drag
+[evidence] passed camera-zoom-wheel
+[evidence] passed camera-pan-right-drag
+[evidence] passed era-1965-transition-and-settled
+[evidence] passed era-1985-transition-and-settled
+[evidence] passed era-2005-transition-and-settled
+[evidence] passed era-2025-transition-and-settled
+[evidence] passed rapid-switch-nonblocking
+[evidence] failed keyboard-slider-home-end
+[evidence] verdict=fail → evidence/evidence-manifest.json
