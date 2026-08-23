@@ -1,0 +1,13 @@
+[2026-08-23T05:52:26.427Z] starting canonical server: npm run dev
+[2026-08-23T05:52:26.971Z] server ready at http://127.0.0.1:5199/
+[2026-08-23T05:52:39.530Z] passed initial-era-1945
+[2026-08-23T05:53:00.610Z] passed camera-orbit-drag
+[2026-08-23T05:53:15.236Z] passed camera-zoom-wheel
+[2026-08-23T05:53:32.809Z] passed camera-pan-right-drag
+[2026-08-23T05:53:58.517Z] passed era-1965-transition-and-settled
+[2026-08-23T05:54:19.015Z] passed era-1985-transition-and-settled
+[2026-08-23T05:54:41.123Z] passed era-2005-transition-and-settled
+[2026-08-23T05:55:07.622Z] passed era-2025-transition-and-settled
+[2026-08-23T05:55:28.939Z] passed rapid-switch-nonblocking
+[2026-08-23T05:55:56.524Z] failed keyboard-slider-home-end
+[2026-08-23T05:55:58.529Z] verdict=fail → evidence/evidence-manifest.json
