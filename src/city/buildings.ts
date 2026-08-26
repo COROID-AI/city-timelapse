@@ -216,6 +216,11 @@ export class Buildings {
     this.windowToMaterial.emissiveIntensity = to.windowEmissiveIntensity;
     this.windowFromMaterial.opacity = 1 - t;
     this.windowToMaterial.opacity = t;
+
+    // Skip drawing the fully-faded window layer to save draw calls when settled.
+    // At t===0 only the "from" layer is visible; at t===1 only the "to" layer is.
+    this.windowFrom.visible = t > 0.001;
+    this.windowTo.visible = t < 0.999;
   }
 
   dispose(): void {

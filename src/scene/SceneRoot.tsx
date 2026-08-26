@@ -2,6 +2,7 @@ import { useRef, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { useEraTimeline } from '../store/eraTimeline';
+import { rendererHolder } from '../store/renderer';
 import { Environment } from './environment';
 import { Buildings } from '../city/buildings';
 import { Vehicles } from './vehicles';
@@ -25,11 +26,15 @@ import { Effects } from './Effects';
  */
 export function SceneRoot() {
   const scene = useThree((s) => s.scene);
+  const gl = useThree((s) => s.gl);
   const envRef = useRef<Environment | null>(null);
   const buildingsRef = useRef<Buildings | null>(null);
   const vehiclesRef = useRef<Vehicles | null>(null);
   const storefrontsRef = useRef<Storefronts | null>(null);
   const pedestriansRef = useRef<Pedestrians | null>(null);
+
+  // Expose the renderer to the DOM-overlay performance HUD.
+  rendererHolder.gl = gl;
 
   // Drive the era transition clock once per frame.
   const transitionFrame = useEraTimeline((s) => s.transitionTick);

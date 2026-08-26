@@ -177,6 +177,11 @@ class Storefront {
   private index: number;
 
   private geometries: THREE.BufferGeometry[] = [];
+  // Scratch colors reused across frames to avoid per-frame allocation in the
+  // hot update path (12 storefronts × ~5 Colors/frame = GC pressure).
+  private readonly tmpA = new THREE.Color();
+  private readonly tmpB = new THREE.Color();
+  private readonly tmpC = new THREE.Color();
 
   constructor(anchor: { position: THREE.Vector3; size: { width: number; depth: number }; side: StreetSide }, index: number) {
     this.index = index;
@@ -278,19 +283,19 @@ class Storefront {
   ): void {
     this.time += dt;
 
-    // Awning colour crossfade between era palettes.
-    const fromAwning = new THREE.Color(fromS.awningColors[this.index % fromS.awningColors.length]);
-    const toAwning = new THREE.Color(toS.awningColors[this.index % toS.awningColors.length]);
-    this.awningMat.color.copy(fromAwning).lerp(toAwning, t);
+    // Awning colour crossfade between era palettes (scratch colors, no alloc).
+    this.tmpA.set(fromS.awningColors[this.index % fromS.awningColors.length]);
+    this.tmpB.set(toS.awningColors[this.index % toS.awningColors.length]);
+    this.awningMat.color.copy(this.tmpA).lerp(this.tmpB, t);
 
     // Emissive glow colour interpolates continuously with the transition.
-    const fromGlow = new THREE.Color(fromA.glowColor);
-    const toGlow = new THREE.Color(toA.glowColor);
-    const glowCol = new THREE.Color().copy(fromGlow).lerp(toGlow, t);
-    this.signMat.emissive.copy(glowCol);
-    this.billMat.emissive.copy(glowCol);
-    this.windowMat.emissive.copy(glowCol);
-    for (const pm of this.posterMats) pm.emissive.copy(glowCol);
+    this.tmpA.set(fromA.glowColor);
+    this.tmpB.set(toA.glowColor);
+    this.tmpC.copy(this.tmpA).lerp(this.tmpB, t);
+    this.signMat.emissive.copy(this.tmpC);
+    this.billMat.emissive.copy(this.tmpC);
+    this.windowMat.emissive.copy(this.tmpC);
+    for (const pm of this.posterMats) pm.emissive.copy(this.tmpC);
 
     // Neon glow / digital brightness follows the shared transition progress.
     const glow = lerp(fromA.glowIntensity, toA.glowIntensity, t);

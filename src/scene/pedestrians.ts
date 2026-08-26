@@ -59,11 +59,20 @@ function easeInOut(t: number): number {
   return c * c * (3 - 2 * c);
 }
 
+/** Cache parsed hex colors so hot-path lerps never allocate per frame. */
+const colorCache = new Map<string, THREE.Color>();
+function cachedColor(hex: string): THREE.Color {
+  let c = colorCache.get(hex);
+  if (!c) {
+    c = new THREE.Color(hex);
+    colorCache.set(hex, c);
+  }
+  return c;
+}
+
 /** Interpolate between two hex colours into `out`. */
 function lerpColor(from: string, to: string, t: number, out: THREE.Color): THREE.Color {
-  const a = new THREE.Color(from);
-  const b = new THREE.Color(to);
-  return out.copy(a).lerp(b, t);
+  return out.copy(cachedColor(from)).lerp(cachedColor(to), t);
 }
 
 /**
@@ -248,6 +257,7 @@ export class Pedestrians {
 
   private readonly dummy = new THREE.Object3D();
   private readonly tmpColor = new THREE.Color();
+  private readonly tmpColor2 = new THREE.Color();
   private time = 0;
   private disposed = false;
 
@@ -436,7 +446,7 @@ export class Pedestrians {
       // Body + accessory use the interpolated clothing colour.
       this.bodyMeshes.get(era)!.setColorAt(i, cloth);
 
-      const acc = cloth.clone().multiplyScalar(0.8);
+      const acc = this.tmpColor2.copy(cloth).multiplyScalar(0.8);
       this.accessoryMeshes.get(era)!.setColorAt(i, acc);
 
       // Head uses the interpolated skin tone.
