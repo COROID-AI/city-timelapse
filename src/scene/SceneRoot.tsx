@@ -7,6 +7,7 @@ import { Buildings } from '../city/buildings';
 import { Vehicles } from './vehicles';
 import { Storefronts } from '../city/storefronts';
 import { Pedestrians } from './pedestrians';
+import { Effects } from './Effects';
 
 /**
  * Scene composition root inside the Canvas.
@@ -111,12 +112,15 @@ export function SceneRoot() {
   });
 
   return (
-    <OrbitControls
-      enableDamping
-      dampingFactor={0.08}
-      minDistance={8}
-      maxDistance={220}
-      maxPolarAngle={Math.PI / 2.05}
-    />
+    <>
+      <OrbitControls
+        enableDamping
+        dampingFactor={0.08}
+        minDistance={8}
+        maxDistance={220}
+        maxPolarAngle={Math.PI / 2.05}
+      />
+      <Effects />
+    </>
   );
 }
