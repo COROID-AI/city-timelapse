@@ -553,3 +553,115 @@ export const eraConfigs: Record<EraId, EraConfig> = {
     },
   },
 };
+
+/** One-shot event sound types synthesized for an era. */
+export type SfxEventType =
+  | 'horn'
+  | 'siren'
+  | 'trolley'
+  | 'chime'
+  | 'sweep'
+  | 'bell';
+
+/** Music style used by the procedural music bed. */
+export type SfxMusicStyle = 'swing' | 'pop' | 'synthwave' | 'modern' | 'tech';
+
+/** Oscillator waveform used for the ambient tonal drone. */
+export type SfxDroneWaveform = 'sine' | 'triangle' | 'sawtooth' | 'square';
+
+/**
+ * Era-specific parameters consumed by the procedural audio generator. Each era
+ * gets a distinct ambient bed (filtered noise + tonal drone), traffic rumble,
+ * procedural music, and a set of one-shot events so every time period has its
+ * own recognizable soundscape.
+ */
+export interface SfxEraData {
+  /** Center frequency of the ambient filtered-noise bed (Hz). */
+  noiseFilterHz: number;
+  /** Gain of the ambient noise bed. */
+  noiseGain: number;
+  /** Fundamental tonal drone frequency (Hz). */
+  droneHz: number;
+  /** Waveform for the tonal drone. */
+  droneWaveform: SfxDroneWaveform;
+  /** Gain of the tonal drone. */
+  droneGain: number;
+  /** Low-pass center of the traffic rumble (Hz). */
+  trafficLowHz: number;
+  /** Traffic rumble intensity (0..1). */
+  trafficIntensity: number;
+  /** One-shot event types played periodically. */
+  events: SfxEventType[];
+  /** Procedural music style. */
+  musicStyle: SfxMusicStyle;
+  /** Music bed gain (0..1). */
+  musicGain: number;
+}
+
+/**
+ * Distinct procedural sound parameters per era. Consumed by the audio layer
+ * (src/audio/sfx.ts + mixer.ts) to build every era's ambient bed, traffic,
+ * events and music. All parameters are synthesized — no external clips.
+ */
+export const SFX_ERA_DATA: Record<EraId, SfxEraData> = {
+  '1945': {
+    noiseFilterHz: 420,
+    noiseGain: 0.35,
+    droneHz: 55,
+    droneWaveform: 'triangle',
+    droneGain: 0.22,
+    trafficLowHz: 90,
+    trafficIntensity: 0.22,
+    events: ['trolley', 'bell', 'horn'],
+    musicStyle: 'swing',
+    musicGain: 0.4,
+  },
+  '1965': {
+    noiseFilterHz: 620,
+    noiseGain: 0.3,
+    droneHz: 82,
+    droneWaveform: 'sine',
+    droneGain: 0.2,
+    trafficLowHz: 110,
+    trafficIntensity: 0.35,
+    events: ['horn', 'bell', 'chime'],
+    musicStyle: 'pop',
+    musicGain: 0.5,
+  },
+  '1985': {
+    noiseFilterHz: 880,
+    noiseGain: 0.28,
+    droneHz: 110,
+    droneWaveform: 'sawtooth',
+    droneGain: 0.24,
+    trafficLowHz: 130,
+    trafficIntensity: 0.5,
+    events: ['sweep', 'chime', 'siren'],
+    musicStyle: 'synthwave',
+    musicGain: 0.6,
+  },
+  '2005': {
+    noiseFilterHz: 1400,
+    noiseGain: 0.24,
+    droneHz: 164,
+    droneWaveform: 'triangle',
+    droneGain: 0.18,
+    trafficLowHz: 150,
+    trafficIntensity: 0.68,
+    events: ['horn', 'sweep', 'bell'],
+    musicStyle: 'modern',
+    musicGain: 0.5,
+  },
+  '2025': {
+    noiseFilterHz: 2200,
+    noiseGain: 0.2,
+    droneHz: 196,
+    droneWaveform: 'sine',
+    droneGain: 0.16,
+    trafficLowHz: 170,
+    trafficIntensity: 0.55,
+    events: ['chime', 'sweep', 'horn'],
+    musicStyle: 'tech',
+    musicGain: 0.45,
+  },
+};
