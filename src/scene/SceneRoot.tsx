@@ -8,6 +8,7 @@ import { Vehicles } from './vehicles';
 import { Storefronts } from '../city/storefronts';
 import { Pedestrians } from './pedestrians';
 import { AudioSfx } from '../audio/AudioSfx';
+import { Effects } from './Effects';
 
 /**
  * Scene composition root inside the Canvas.
@@ -121,6 +122,7 @@ export function SceneRoot() {
         maxDistance={220}
         maxPolarAngle={Math.PI / 2.05}
       />
+      <Effects />
     </>
   );
 }

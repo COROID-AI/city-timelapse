@@ -1,6 +1,7 @@
 import { Canvas } from '@react-three/fiber';
 import { TimelineSlider } from './components/TimelineSlider';
 import { MuteButton } from './components/MuteButton';
+import { PostprocessingToggle } from './components/PostprocessingToggle';
 import { SceneRoot } from './scene/SceneRoot';
 
 const styles: Record<string, React.CSSProperties> = {
@@ -22,6 +23,7 @@ export function App() {
     <div style={styles.root}>
       <TimelineSlider />
       <MuteButton />
+      <PostprocessingToggle />
       <Canvas
         camera={{ position: [0, 26, 60], fov: 60 }}
         gl={{ antialias: true }}
