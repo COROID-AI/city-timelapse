@@ -6,6 +6,7 @@ import { Environment } from './environment';
 import { Buildings } from '../city/buildings';
 import { Vehicles } from './vehicles';
 import { Storefronts } from '../city/storefronts';
+import { Pedestrians } from './pedestrians';
 
 /**
  * Scene composition root inside the Canvas.
@@ -26,6 +27,7 @@ export function SceneRoot() {
   const buildingsRef = useRef<Buildings | null>(null);
   const vehiclesRef = useRef<Vehicles | null>(null);
   const storefrontsRef = useRef<Storefronts | null>(null);
+  const pedestriansRef = useRef<Pedestrians | null>(null);
 
   // Drive the era transition clock once per frame.
   const transitionFrame = useEraTimeline((s) => s.transitionTick);
@@ -35,10 +37,13 @@ export function SceneRoot() {
   useEffect(() => {
     const env = new Environment();
     const vehicles = new Vehicles();
+    const pedestrians = new Pedestrians();
     envRef.current = env;
     vehiclesRef.current = vehicles;
+    pedestriansRef.current = pedestrians;
     scene.add(env.group);
     scene.add(vehicles.group);
+    scene.add(pedestrians.group);
 
     const buildings = new Buildings();
     buildingsRef.current = buildings;
@@ -51,10 +56,13 @@ export function SceneRoot() {
     return () => {
       scene.remove(env.group);
       scene.remove(vehicles.group);
+      scene.remove(pedestrians.group);
       env.dispose();
       vehicles.dispose();
+      pedestrians.dispose();
       envRef.current = null;
       vehiclesRef.current = null;
+      pedestriansRef.current = null;
 
       scene.remove(buildings.group);
       buildings.dispose();
@@ -84,6 +92,11 @@ export function SceneRoot() {
     const vehicles = vehiclesRef.current;
     if (vehicles) {
       vehicles.update(dt, appState);
+    }
+
+    const pedestrians = pedestriansRef.current;
+    if (pedestrians) {
+      pedestrians.update(dt, appState);
     }
 
     const buildings = buildingsRef.current;
