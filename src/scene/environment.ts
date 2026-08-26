@@ -192,6 +192,15 @@ export class Environment {
   private tmpA: THREE.Color;
   private tmpB: THREE.Color;
 
+  // Road-marking instanced meshes + shared resources (for dispose).
+  private dashInstances: THREE.InstancedMesh | null = null;
+  private crossInstancesH: THREE.InstancedMesh | null = null;
+  private crossInstancesV: THREE.InstancedMesh | null = null;
+  private dashGeo: THREE.BufferGeometry | null = null;
+  private crossGeo: THREE.BufferGeometry | null = null;
+  private dashMat: THREE.Material | null = null;
+  private crossMat: THREE.Material | null = null;
+
   private disposed = false;
 
   constructor() {
@@ -240,6 +249,9 @@ export class Environment {
   /**
    * Add lane dashes and crosswalks so the streets/sidewalks read clearly.
    * Road markings are static white geometry, not era-reactive.
+   *
+   * Drawn via InstancedMesh (3 draw calls total instead of ~220 individual
+   * meshes) to keep the draw-call count flat.
    */
   private addRoadMarkings(): void {
     const { blockHalf, sidewalkOuter, streetOuter, groundY } = BLOCK_LAYOUT;
@@ -257,52 +269,89 @@ export class Environment {
     const halfLen = streetLength / 2;
     const center = sidewalkOuter + streetWidth / 2;
 
-    const makeDash = (orientation: 'x' | 'z', fixed: number) => {
+    // One shared dash geometry (unit square) transformed per instance; the
+    // orientation is encoded in the instance matrix (rotation + scale).
+    const dashGeo = new THREE.PlaneGeometry(1, 1);
+    const dashCount = Math.ceil((halfLen * 2) / (dashLength + dashGap)) * 4;
+    const dashes = new THREE.InstancedMesh(dashGeo, dashMat, dashCount);
+    dashes.name = 'road-dashes';
+    dashes.frustumCulled = false;
+    dashes.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+
+    const dummy = new THREE.Object3D();
+    let dashIdx = 0;
+    const addDash = (orientation: 'x' | 'z', fixed: number) => {
       for (let d = -halfLen; d < halfLen; d += dashLength + dashGap) {
-        const geo = new THREE.PlaneGeometry(
-          orientation === 'x' ? dashLength : 0.22,
-          orientation === 'z' ? dashLength : 0.22,
-        );
-        const mesh = new THREE.Mesh(geo, dashMat);
-        mesh.rotation.x = -Math.PI / 2;
+        dummy.rotation.set(-Math.PI / 2, 0, 0);
         if (orientation === 'x') {
-          mesh.position.set(d, groundY + 0.015, fixed);
+          dummy.position.set(d, groundY + 0.015, fixed);
+          dummy.scale.set(dashLength, 0.22, 1);
         } else {
-          mesh.position.set(fixed, groundY + 0.015, d);
+          dummy.position.set(fixed, groundY + 0.015, d);
+          dummy.scale.set(0.22, dashLength, 1);
         }
-        markings.add(mesh);
+        dummy.updateMatrix();
+        dashes.setMatrixAt(dashIdx, dummy.matrix);
+        dashIdx++;
       }
     };
 
-    makeDash('x', -center);
-    makeDash('x', center);
-    makeDash('z', -center);
-    makeDash('z', center);
+    addDash('x', -center);
+    addDash('x', center);
+    addDash('z', -center);
+    addDash('z', center);
+    dashes.count = dashIdx;
+    dashes.instanceMatrix.needsUpdate = true;
+    markings.add(dashes);
+    this.dashInstances = dashes;
 
     // Crosswalks at the four block corners, spanning across each street.
     const crossWidth = 2.2;
-    const streetInner = sidewalkOuter;
-    const crossSpan = streetOuter - streetInner; // across the street width
+    const crossSpan = streetOuter - sidewalkOuter; // across the street width
     const corners = [-sidewalkOuter, sidewalkOuter];
+
+    // Horizontal crosswalks (along X).
+    const crossGeoH = new THREE.PlaneGeometry(crossSpan, crossWidth);
+    const crossH = new THREE.InstancedMesh(crossGeoH, crossMat, corners.length * corners.length);
+    crossH.name = 'road-crosswalks-h';
+    crossH.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+    let hidx = 0;
     for (const cx of corners) {
       for (const cz of corners) {
-        // Horizontal crosswalk across the north/south streets (along X),
-        // positioned just inside the corner.
-        const geoH = new THREE.PlaneGeometry(crossSpan, crossWidth);
-        const h = new THREE.Mesh(geoH, crossMat);
-        h.rotation.x = -Math.PI / 2;
-        h.position.set(cx, groundY + 0.016, cz);
-        markings.add(h);
-        // Vertical crosswalk across the east/west streets (along Z).
-        const geoV = new THREE.PlaneGeometry(crossWidth, crossSpan);
-        const v = new THREE.Mesh(geoV, crossMat);
-        v.rotation.x = -Math.PI / 2;
-        v.position.set(cz, groundY + 0.016, cx);
-        markings.add(v);
+        dummy.rotation.set(-Math.PI / 2, 0, 0);
+        dummy.position.set(cx, groundY + 0.016, cz);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        crossH.setMatrixAt(hidx, dummy.matrix);
+        hidx++;
       }
     }
+    markings.add(crossH);
+    this.crossInstancesH = crossH;
+
+    // Vertical crosswalks (along Z) — same geometry rotated 90°.
+    const crossV = new THREE.InstancedMesh(crossGeoH, crossMat, crossH.count);
+    crossV.name = 'crosswalks-v';
+    crossV.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+    let vidx = 0;
+    for (const cx of corners) {
+      for (const cz of corners) {
+        dummy.rotation.set(-Math.PI / 2, 0, Math.PI / 2);
+        dummy.position.set(cz, groundY + 0.016, cx);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        crossV.setMatrixAt(vidx, dummy.matrix);
+        vidx++;
+      }
+    }
+    markings.add(crossV);
+    this.crossInstancesV = crossV;
 
     this.group.add(markings);
+    this.dashGeo = dashGeo;
+    this.crossGeo = crossGeoH;
+    this.dashMat = dashMat;
+    this.crossMat = crossMat;
   }
 
   /** Apply a fully-resolved era config directly (construction / settle). */
@@ -400,5 +449,21 @@ export class Environment {
     this.plaza.dispose();
     this.sidewalk.dispose();
     this.street.dispose();
+
+    // Free the instanced road-marking resources.
+    if (this.dashInstances) this.dashInstances.dispose();
+    if (this.crossInstancesH) this.crossInstancesH.dispose();
+    if (this.crossInstancesV) this.crossInstancesV.dispose();
+    this.dashGeo?.dispose();
+    this.crossGeo?.dispose();
+    this.dashMat?.dispose();
+    this.crossMat?.dispose();
+    this.dashInstances = null;
+    this.crossInstancesH = null;
+    this.crossInstancesV = null;
+    this.dashGeo = null;
+    this.crossGeo = null;
+    this.dashMat = null;
+    this.crossMat = null;
   }
 }
