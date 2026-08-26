@@ -4,6 +4,7 @@ import { OrbitControls } from '@react-three/drei';
 import { useEraTimeline } from '../store/eraTimeline';
 import { Environment } from './environment';
 import { Buildings } from '../city/buildings';
+import { Storefronts } from '../city/storefronts';
 
 /**
  * Scene composition root inside the Canvas.
@@ -21,6 +22,7 @@ export function SceneRoot() {
   const scene = useThree((s) => s.scene);
   const envRef = useRef<Environment | null>(null);
   const buildingsRef = useRef<Buildings | null>(null);
+  const storefrontsRef = useRef<Storefronts | null>(null);
 
   // Drive the era transition clock once per frame.
   const transitionFrame = useEraTimeline((s) => s.transitionTick);
@@ -36,6 +38,10 @@ export function SceneRoot() {
     buildingsRef.current = buildings;
     scene.add(buildings.group);
 
+    const storefronts = new Storefronts();
+    storefrontsRef.current = storefronts;
+    scene.add(storefronts.group);
+
     return () => {
       scene.remove(env.group);
       env.dispose();
@@ -44,6 +50,10 @@ export function SceneRoot() {
       scene.remove(buildings.group);
       buildings.dispose();
       buildingsRef.current = null;
+
+      scene.remove(storefronts.group);
+      storefronts.dispose();
+      storefrontsRef.current = null;
     };
   }, [scene]);
 
@@ -64,6 +74,11 @@ export function SceneRoot() {
     const buildings = buildingsRef.current;
     if (buildings) {
       buildings.update(dt);
+    }
+
+    const storefronts = storefrontsRef.current;
+    if (storefronts) {
+      storefronts.update(dt);
     }
   });
 
