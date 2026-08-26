@@ -4,33 +4,39 @@ import { OrbitControls } from '@react-three/drei';
 import { useEraTimeline } from '../store/eraTimeline';
 import { Environment } from './environment';
 import { Buildings } from '../city/buildings';
+import { Vehicles } from './vehicles';
 
 /**
  * Scene composition root inside the Canvas.
  *
  * Owns the persistent scene graph (the environment block + lighting + the
- * era-morphing building subsystem), drives the shared era transition clock via
- * `useFrame`, and updates the environment and buildings each frame from the
- * store so lighting, atmosphere and the building morph all interpolate with
- * the transition. OrbitControls provide free navigation.
+ * era-morphing building subsystem + era-reactive vehicle traffic), drives the
+ * shared era transition clock via `useFrame`, and updates the environment,
+ * buildings and vehicles each frame from the store so lighting, atmosphere,
+ * the building morph and the vehicle fleet all interpolate / swap with the
+ * transition. OrbitControls provide free navigation.
  *
- * The environment and building modules are created once and their groups are
- * added to the scene; they are disposed on unmount.
+ * The environment, building and vehicle modules are created once and their
+ * groups are added to the scene; they are disposed on unmount.
  */
 export function SceneRoot() {
   const scene = useThree((s) => s.scene);
   const envRef = useRef<Environment | null>(null);
   const buildingsRef = useRef<Buildings | null>(null);
+  const vehiclesRef = useRef<Vehicles | null>(null);
 
   // Drive the era transition clock once per frame.
   const transitionFrame = useEraTimeline((s) => s.transitionTick);
 
-  // Create the environment and building subsystems once and attach their
-  // groups to the root scene.
+  // Create the environment, building and vehicle subsystems once and attach
+  // their groups to the root scene.
   useEffect(() => {
     const env = new Environment();
+    const vehicles = new Vehicles();
     envRef.current = env;
+    vehiclesRef.current = vehicles;
     scene.add(env.group);
+    scene.add(vehicles.group);
 
     const buildings = new Buildings();
     buildingsRef.current = buildings;
@@ -38,8 +44,11 @@ export function SceneRoot() {
 
     return () => {
       scene.remove(env.group);
+      scene.remove(vehicles.group);
       env.dispose();
+      vehicles.dispose();
       envRef.current = null;
+      vehiclesRef.current = null;
 
       scene.remove(buildings.group);
       buildings.dispose();
@@ -54,11 +63,17 @@ export function SceneRoot() {
 
     const { currentEra, targetEra, transitionProgress } =
       useEraTimeline.getState();
+    const appState = { currentEra, targetEra, transitionProgress };
 
     const env = envRef.current;
     if (env) {
-      env.update(dt, { currentEra, targetEra, transitionProgress });
+      env.update(dt, appState);
       env.applyFog(state.scene, currentEra, targetEra, transitionProgress);
+    }
+
+    const vehicles = vehiclesRef.current;
+    if (vehicles) {
+      vehicles.update(dt, appState);
     }
 
     const buildings = buildingsRef.current;
