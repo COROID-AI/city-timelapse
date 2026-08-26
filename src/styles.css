@@ -1,0 +1,105 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: #0b0e14;
+  color: #e8ecf3;
+  overflow: hidden;
+}
+
+.app {
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
+/* Slider pinned to the top of the viewport. */
+.timeline-slider {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  background: linear-gradient(
+    to bottom,
+    rgba(8, 10, 16, 0.92),
+    rgba(8, 10, 16, 0.55)
+  );
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.timeline-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 76px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(232, 236, 243, 0.55);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  transition: color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+}
+
+.timeline-option:hover {
+  color: rgba(232, 236, 243, 0.9);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.timeline-option:focus-visible {
+  outline: 2px solid #7aa2ff;
+  outline-offset: 2px;
+}
+
+.timeline-option.active {
+  color: #ffffff;
+  background: rgba(90, 140, 255, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(122, 162, 255, 0.45);
+}
+
+.timeline-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.timeline-option.active .timeline-dot {
+  opacity: 1;
+  transform: scale(1.35);
+}
+
+.timeline-label {
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.scene-host {
+  position: absolute;
+  inset: 0;
+}
