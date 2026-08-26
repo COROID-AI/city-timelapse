@@ -234,14 +234,12 @@ export class Buildings {
   }
 
   private addGround(): void {
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(CELL * 5 + 20, CELL * 5 + 20),
-      new THREE.MeshStandardMaterial({ color: 0x1c2026, roughness: 1 }),
-    );
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = 0;
-    ground.receiveShadow = true;
-    this.group.add(ground);
+    // NB: The ground / street / sidewalk plates are owned by the Environment
+    // subsystem (shared block layout). The Buildings module must NOT add its
+    // own full-size ground plane, which would overlap the environment's
+    // era-colored plaza plate at the same elevation and cause a cross-subsystem
+    // z-fighting / color-conflict on the shared anchors. Only the raised centre
+    // plaza pedestal (a distinct feature) lives here.
 
     // Central plaza block.
     const plaza = new THREE.Mesh(
