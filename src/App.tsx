@@ -13,7 +13,8 @@ const styles: Record<string, React.CSSProperties> = {
 /**
  * Application shell. The 3D scene (owned by the composition root SceneRoot) is
  * mounted beneath the top timeline slider. The slider sits at the top of the
- * viewport and drives the shared era timeline store.
+ * viewport and drives the shared era timeline store, which in turn morphs the
+ * environment and the era-morphing building subsystem in sync.
  */
 export function App() {
   return (

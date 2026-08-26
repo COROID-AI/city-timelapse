@@ -3,48 +3,67 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { useEraTimeline } from '../store/eraTimeline';
 import { Environment } from './environment';
+import { Buildings } from '../city/buildings';
 
 /**
  * Scene composition root inside the Canvas.
  *
- * Owns the persistent scene graph (the environment block + lighting), drives
- * the shared era transition clock via `useFrame`, and updates the environment
- * each frame from the store so lighting and atmosphere interpolate with the
- * transition. OrbitControls provide free navigation.
+ * Owns the persistent scene graph (the environment block + lighting + the
+ * era-morphing building subsystem), drives the shared era transition clock via
+ * `useFrame`, and updates the environment and buildings each frame from the
+ * store so lighting, atmosphere and the building morph all interpolate with
+ * the transition. OrbitControls provide free navigation.
  *
- * The environment module is created once and its group is added to the scene;
- * it is disposed on unmount.
+ * The environment and building modules are created once and their groups are
+ * added to the scene; they are disposed on unmount.
  */
 export function SceneRoot() {
   const scene = useThree((s) => s.scene);
   const envRef = useRef<Environment | null>(null);
+  const buildingsRef = useRef<Buildings | null>(null);
 
   // Drive the era transition clock once per frame.
-  const transitionTick = useEraTimeline((s) => s.transitionTick);
+  const transitionFrame = useEraTimeline((s) => s.transitionTick);
 
-  // Create the environment once and attach its group to the root scene.
+  // Create the environment and building subsystems once and attach their
+  // groups to the root scene.
   useEffect(() => {
     const env = new Environment();
     envRef.current = env;
     scene.add(env.group);
+
+    const buildings = new Buildings();
+    buildingsRef.current = buildings;
+    scene.add(buildings.group);
+
     return () => {
       scene.remove(env.group);
       env.dispose();
       envRef.current = null;
+
+      scene.remove(buildings.group);
+      buildings.dispose();
+      buildingsRef.current = null;
     };
   }, [scene]);
 
-  // Drive the transition clock and update the environment each frame.
+  // Drive the transition clock and update the subsystems each frame.
   useFrame((state, delta) => {
     const dt = Math.min(delta, 0.05);
-    transitionTick(dt);
+    transitionFrame(dt);
+
+    const { currentEra, targetEra, transitionProgress } =
+      useEraTimeline.getState();
 
     const env = envRef.current;
     if (env) {
-      const { currentEra, targetEra, transitionProgress } =
-        useEraTimeline.getState();
       env.update(dt, { currentEra, targetEra, transitionProgress });
       env.applyFog(state.scene, currentEra, targetEra, transitionProgress);
+    }
+
+    const buildings = buildingsRef.current;
+    if (buildings) {
+      buildings.update(dt);
     }
   });
 
