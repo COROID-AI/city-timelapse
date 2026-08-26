@@ -98,6 +98,14 @@ export interface LightingConfig {
   dayTone: string;
   /** Ambient color cast at night. */
   nightTone: string;
+  /** Time of day (0=midnight, 0.5=noon, 1=midnight) setting the era's mood. */
+  timeOfDay: number;
+  /** Sun (directional) light color. */
+  sunColor: string;
+  /** Sun light intensity at full daylight (0..~2). */
+  sunIntensity: number;
+  /** Ambient light intensity (0..1). */
+  ambientIntensity: number;
   /** Overall neon/emissive intensity (0..1). */
   neonIntensity: number;
   /** Street lamp type. */
@@ -124,6 +132,12 @@ export interface AtmosphereConfig {
   exposure: number;
   /** Fog density (0..1). */
   haze: number;
+  /** Ground / pavement base color. */
+  groundColor: string;
+  /** Sidewalk concrete color. */
+  sidewalkColor: string;
+  /** Street asphalt color. */
+  streetColor: string;
 }
 
 /**
@@ -252,6 +266,10 @@ export const eraConfigs: Record<EraId, EraConfig> = {
     lighting: {
       dayTone: '#d9c9a8',
       nightTone: '#3a3630',
+      timeOfDay: 0.55,
+      sunColor: '#ffd9a0',
+      sunIntensity: 0.9,
+      ambientIntensity: 0.5,
       neonIntensity: 0.15,
       lampType: 'gas',
       lampLightColor: '#ffd080',
@@ -265,6 +283,9 @@ export const eraConfigs: Record<EraId, EraConfig> = {
       hazeType: 'dust',
       exposure: 0.8,
       haze: 0.25,
+      groundColor: '#7a6a52',
+      sidewalkColor: '#a89a82',
+      streetColor: '#3a362e',
     },
   },
 
@@ -311,6 +332,10 @@ export const eraConfigs: Record<EraId, EraConfig> = {
     lighting: {
       dayTone: '#e8d8c0',
       nightTone: '#2a2a3a',
+      timeOfDay: 0.5,
+      sunColor: '#fff0d0',
+      sunIntensity: 1.2,
+      ambientIntensity: 0.7,
       neonIntensity: 0.55,
       lampType: 'cobra',
       lampLightColor: '#ffd080',
@@ -324,6 +349,9 @@ export const eraConfigs: Record<EraId, EraConfig> = {
       hazeType: 'clear',
       exposure: 0.9,
       haze: 0.12,
+      groundColor: '#8a8270',
+      sidewalkColor: '#b0a890',
+      streetColor: '#3a3a3a',
     },
   },
 
@@ -370,6 +398,10 @@ export const eraConfigs: Record<EraId, EraConfig> = {
     lighting: {
       dayTone: '#d8d8d8',
       nightTone: '#2a1a2a',
+      timeOfDay: 0.33,
+      sunColor: '#ffc060',
+      sunIntensity: 0.8,
+      ambientIntensity: 0.5,
       neonIntensity: 0.85,
       lampType: 'sodium',
       lampLightColor: '#ffd080',
@@ -383,6 +415,9 @@ export const eraConfigs: Record<EraId, EraConfig> = {
       hazeType: 'smog',
       exposure: 0.85,
       haze: 0.35,
+      groundColor: '#5a5a60',
+      sidewalkColor: '#8a8a90',
+      streetColor: '#2a2a2e',
     },
   },
 
@@ -429,6 +464,10 @@ export const eraConfigs: Record<EraId, EraConfig> = {
     lighting: {
       dayTone: '#c0d8e8',
       nightTone: '#2a2a3a',
+      timeOfDay: 0.42,
+      sunColor: '#fff0e0',
+      sunIntensity: 1.0,
+      ambientIntensity: 0.6,
       neonIntensity: 0.6,
       lampType: 'led',
       lampLightColor: '#c0e0ff',
@@ -442,6 +481,9 @@ export const eraConfigs: Record<EraId, EraConfig> = {
       hazeType: 'clear',
       exposure: 1.0,
       haze: 0.15,
+      groundColor: '#7a7a80',
+      sidewalkColor: '#9a9aa8',
+      streetColor: '#2e2e32',
     },
   },
 
@@ -488,6 +530,10 @@ export const eraConfigs: Record<EraId, EraConfig> = {
     lighting: {
       dayTone: '#c8d8e8',
       nightTone: '#1a1a2a',
+      timeOfDay: 0.28,
+      sunColor: '#c8e0ff',
+      sunIntensity: 0.7,
+      ambientIntensity: 0.45,
       neonIntensity: 0.9,
       lampType: 'led',
       lampLightColor: '#c0d8ff',
@@ -501,6 +547,9 @@ export const eraConfigs: Record<EraId, EraConfig> = {
       hazeType: 'clear',
       exposure: 1.0,
       haze: 0.1,
+      groundColor: '#8a8a92',
+      sidewalkColor: '#a8a8b0',
+      streetColor: '#26262e',
     },
   },
 };
