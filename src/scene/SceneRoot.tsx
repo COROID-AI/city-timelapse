@@ -3,48 +3,61 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { useEraTimeline } from '../store/eraTimeline';
 import { Environment } from './environment';
+import { Vehicles } from './vehicles';
 
 /**
  * Scene composition root inside the Canvas.
  *
- * Owns the persistent scene graph (the environment block + lighting), drives
- * the shared era transition clock via `useFrame`, and updates the environment
- * each frame from the store so lighting and atmosphere interpolate with the
- * transition. OrbitControls provide free navigation.
+ * Owns the persistent scene graph (the environment block + lighting + era
+ * traffic), drives the shared era transition clock via `useFrame`, and updates
+ * each module every frame from the store so lighting, atmosphere and vehicles
+ * interpolate / swap with the transition. OrbitControls provide free
+ * navigation.
  *
- * The environment module is created once and its group is added to the scene;
- * it is disposed on unmount.
+ * Modules are created once and their groups are added to the scene; they are
+ * disposed on unmount.
  */
 export function SceneRoot() {
   const scene = useThree((s) => s.scene);
   const envRef = useRef<Environment | null>(null);
+  const vehiclesRef = useRef<Vehicles | null>(null);
 
   // Drive the era transition clock once per frame.
   const transitionTick = useEraTimeline((s) => s.transitionTick);
 
-  // Create the environment once and attach its group to the root scene.
+  // Create the environment + vehicles once and attach their groups to the root
+  // scene.
   useEffect(() => {
     const env = new Environment();
+    const vehicles = new Vehicles();
     envRef.current = env;
+    vehiclesRef.current = vehicles;
     scene.add(env.group);
+    scene.add(vehicles.group);
     return () => {
       scene.remove(env.group);
+      scene.remove(vehicles.group);
       env.dispose();
+      vehicles.dispose();
       envRef.current = null;
+      vehiclesRef.current = null;
     };
   }, [scene]);
 
-  // Drive the transition clock and update the environment each frame.
+  // Drive the transition clock and update modules each frame.
   useFrame((state, delta) => {
     const dt = Math.min(delta, 0.05);
     transitionTick(dt);
 
     const env = envRef.current;
-    if (env) {
+    const vehicles = vehiclesRef.current;
+    if (env || vehicles) {
       const { currentEra, targetEra, transitionProgress } =
         useEraTimeline.getState();
-      env.update(dt, { currentEra, targetEra, transitionProgress });
-      env.applyFog(state.scene, currentEra, targetEra, transitionProgress);
+      const appState = { currentEra, targetEra, transitionProgress };
+      env?.update(dt, appState);
+      env?.applyFog(state.scene, currentEra, targetEra, transitionProgress);
+      vehicles?.update(dt, appState);
     }
   });
 
