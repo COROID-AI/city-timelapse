@@ -94,6 +94,20 @@ export function listEraModules(): readonly SceneModule[] {
   return Array.from(eraModules.values());
 }
 
+/**
+ * Applies a single selected era to every registered module in one pass.
+ *
+ * This is the composition-root entry point for era switching: it calls
+ * `setEra(era, t)` on each registered module so all era-scoped subsystems
+ * (buildings, environment, props, vehicles, pedestrians, UI) observe the
+ * same `selectedYear` and the same transition progress `t` in the same frame.
+ */
+export function applyEraToModules(era: EraId, t: number): void {
+  for (const module of eraModules.values()) {
+    module.setEra(era, t);
+  }
+}
+
 /** Clears all registrations (used by tests and hot module disposal). */
 export function clearEraModules(): void {
   eraModules.clear();
