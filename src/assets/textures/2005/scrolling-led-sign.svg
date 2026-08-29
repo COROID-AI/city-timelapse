@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="40" viewBox="0 0 192 40">
+  <title>2005 scrolling LED sign</title>
+  <rect width="192" height="40" fill="#050505"/>
+  <g fill="#ff3b1f">
+    <circle cx="6" cy="20" r="2"/>
+    <circle cx="16" cy="20" r="2"/>
+  </g>
+  <text x="36" y="27" font-family="monospace" font-weight="bold" font-size="16" fill="#ff3b1f">LIVE SCORES · NEWS · TIME</text>
+  <g fill="#ff3b1f" opacity="0.6">
+    <circle cx="184" cy="12" r="2"/>
+    <circle cx="184" cy="28" r="2"/>
+  </g>
+</svg>
