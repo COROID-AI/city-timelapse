@@ -1,14 +1,19 @@
 /**
- * Era data module (placeholder).
+ * Era data module.
  *
- * This folder will hold per-era content data (building palettes, vehicle
- * sets, storefront text, pedestrian outfits) in later phases. The shared
- * `EraId` / `EraSpec` contract lives in src/engine/eras.ts and is the common
- * key every era-data file uses.
+ * Each year gets a full `TimeEra` dataset in this folder (1945.ts, 1965.ts,
+ * ...). The shared contract lives in src/engine/eras.ts; subsystems consume
+ * datasets through `ERA_DATA` / `getEraData()`.
  */
-import type { EraId } from '../../engine/eras';
+import type { EraId, TimeEra } from '../../engine/eras';
+import { era1945 } from './1945';
 
-/** Returns the era id this module's data is keyed to. Placeholder only. */
-export function eraDataModuleKey(era: EraId): EraId {
-  return era;
+/** Per-era datasets authored so far, keyed by era id. */
+export const ERA_DATA: Partial<Record<EraId, TimeEra>> = {
+  '1945': era1945,
+};
+
+/** Returns the dataset for an era id, or undefined when not yet authored. */
+export function getEraData(id: EraId): TimeEra | undefined {
+  return ERA_DATA[id];
 }

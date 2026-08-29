@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="176" viewBox="0 0 128 176">
+  <title>1945 ration-book poster</title>
+  <rect width="128" height="176" fill="#efe6cf" stroke="#111" stroke-width="3"/>
+  <rect x="12" y="12" width="104" height="28" fill="#8c1f1f"/>
+  <text x="64" y="32" fill="#f4ead0" font-family="Georgia, serif" font-weight="bold" font-size="16" text-anchor="middle">RATION BOOK</text>
+  <rect x="12" y="52" width="104" height="18" fill="#c8b98f"/>
+  <text x="64" y="65" fill="#3a291a" font-family="Georgia, serif" font-weight="bold" font-size="12" text-anchor="middle">1945 — No. 3</text>
+  <g fill="#3a291a" font-family="Georgia, serif" text-anchor="middle">
+    <text x="64" y="96" font-size="11">KEEP IT SAFE</text>
+    <text x="64" y="114" font-size="11">SHOW IT WHEN</text>
+    <text x="64" y="132" font-size="11">YOU BUY</text>
+  </g>
+  <g fill="none" stroke="#8c1f1f" stroke-width="2">
+    <rect x="24" y="146" width="80" height="18" rx="3"/>
+  </g>
+</svg>

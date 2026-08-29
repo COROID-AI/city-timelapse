@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>1945 sandbag stack</title>
+  <rect width="64" height="64" fill="#7a6b52"/>
+  <g fill="#8a7a5e" stroke="#5c4f3a" stroke-width="1">
+    <rect x="6" y="36" width="52" height="14" rx="4"/>
+    <rect x="12" y="22" width="52" height="14" rx="4"/>
+    <rect x="18" y="8" width="52" height="14" rx="4"/>
+  </g>
+  <g stroke="#5c4f3a" stroke-width="1.5">
+    <path d="M14 40 Q32 34 50 40"/>
+    <path d="M20 26 Q38 20 56 26"/>
+    <path d="M26 12 Q44 6 62 12"/>
+  </g>
+</svg>
