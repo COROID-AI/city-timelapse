@@ -7,10 +7,12 @@
  */
 import type { EraId, TimeEra } from '../../engine/eras';
 import { era1945 } from './1945';
+import { era1965 } from './1965';
 
 /** Per-era datasets authored so far, keyed by era id. */
 export const ERA_DATA: Partial<Record<EraId, TimeEra>> = {
   '1945': era1945,
+  '1965': era1965,
 };
 
 /** Returns the dataset for an era id, or undefined when not yet authored. */

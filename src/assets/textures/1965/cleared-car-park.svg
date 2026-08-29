@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="64" viewBox="0 0 128 64">
+  <title>1965 cleared bombsite car park</title>
+  <rect width="128" height="64" fill="#4a4d50"/>
+  <g fill="#565a5e" opacity="0.8">
+    <rect x="0" y="0" width="128" height="3"/>
+    <rect x="0" y="12" width="128" height="2"/>
+    <rect x="0" y="30" width="128" height="2"/>
+    <rect x="0" y="48" width="128" height="2"/>
+  </g>
+  <g stroke="#d9d2b8" stroke-width="1.2" fill="none">
+    <line x1="0" y1="6" x2="128" y2="6"/>
+    <line x1="0" y1="40" x2="128" y2="40"/>
+  </g>
+  <g fill="#3a3d40" opacity="0.6">
+    <circle cx="18" cy="6" r="1.6"/>
+    <circle cx="64" cy="6" r="1.6"/>
+    <circle cx="110" cy="6" r="1.6"/>
+    <circle cx="18" cy="40" r="1.6"/>
+    <circle cx="64" cy="40" r="1.6"/>
+    <circle cx="110" cy="40" r="1.6"/>
+  </g>
+</svg>

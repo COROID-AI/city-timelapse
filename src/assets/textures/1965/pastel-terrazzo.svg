@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="64" viewBox="0 0 128 64">
+  <title>1965 pastel terrazzo facade</title>
+  <rect width="128" height="64" fill="#b8c4b8"/>
+  <g opacity="0.55">
+    <rect x="6" y="4" width="14" height="10" fill="#c9d2e0"/>
+    <rect x="34" y="2" width="10" height="14" fill="#e3d6b8"/>
+    <rect x="62" y="6" width="16" height="8" fill="#d8c2c0"/>
+    <rect x="98" y="3" width="12" height="12" fill="#c9d2e0"/>
+    <rect x="18" y="26" width="12" height="10" fill="#d8c2c0"/>
+    <rect x="48" y="24" width="16" height="12" fill="#e3d6b8"/>
+    <rect x="80" y="28" width="10" height="10" fill="#c9d2e0"/>
+    <rect x="108" y="26" width="14" height="8" fill="#d8c2c0"/>
+    <rect x="4" y="48" width="16" height="12" fill="#e3d6b8"/>
+    <rect x="36" y="50" width="12" height="10" fill="#d8c2c0"/>
+    <rect x="66" y="48" width="14" height="12" fill="#c9d2e0"/>
+    <rect x="98" y="50" width="16" height="10" fill="#e3d6b8"/>
+  </g>
+  <g fill="none" stroke="#8f9c8f" stroke-width="0.6" opacity="0.6">
+    <path d="M0 16 H128 M0 32 H128 M0 48 H128 M32 0 V64 M64 0 V64 M96 0 V64"/>
+  </g>
+</svg>

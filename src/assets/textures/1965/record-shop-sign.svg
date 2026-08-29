@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="64" viewBox="0 0 256 64">
+  <title>Disc-O-Rama illuminated plastic-face sign</title>
+  <rect width="256" height="64" fill="#1a3342" stroke="#0c1c26" stroke-width="3"/>
+  <g fill="#f5d166" font-family="Georgia, serif" font-weight="bold" text-anchor="middle">
+    <text x="128" y="42" font-size="28">DISC-O-RAMA RECORDS</text>
+  </g>
+  <circle cx="40" cy="32" r="14" fill="#0c1c26" stroke="#f5d166" stroke-width="2"/>
+  <circle cx="40" cy="32" r="5" fill="#f5d166"/>
+  <rect x="14" y="43" width="52" height="3" fill="#f5d166" opacity="0.5"/>
+</svg>

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="64" viewBox="0 0 256 64">
+  <title>1965 steel roller shutter</title>
+  <rect width="256" height="64" fill="#6b7075"/>
+  <g fill="#7c8288" stroke="#55595e" stroke-width="0.8">
+    <rect x="0" y="0" width="256" height="7"/>
+    <rect x="0" y="8" width="256" height="7"/>
+    <rect x="0" y="16" width="256" height="7"/>
+    <rect x="0" y="24" width="256" height="7"/>
+    <rect x="0" y="32" width="256" height="7"/>
+    <rect x="0" y="40" width="256" height="7"/>
+    <rect x="0" y="48" width="256" height="7"/>
+    <rect x="0" y="56" width="256" height="7"/>
+  </g>
+  <g fill="#3f4347">
+    <rect x="0" y="0" width="4" height="64"/>
+    <rect x="252" y="0" width="4" height="64"/>
+  </g>
+</svg>

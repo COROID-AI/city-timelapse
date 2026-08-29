@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="64" viewBox="0 0 256 64">
+  <title>Crown Dry Cleaners illuminated plastic-face sign</title>
+  <rect width="256" height="64" fill="#294d3d" stroke="#152b21" stroke-width="3"/>
+  <g fill="#f0e0b8" font-family="Georgia, serif" font-weight="bold" text-anchor="middle">
+    <text x="128" y="42" font-size="30">CROWN CLEANERS</text>
+  </g>
+  <g fill="#f0e0b8" opacity="0.9">
+    <path d="M112 12 L118 22 L112 18 L106 22 Z"/>
+    <path d="M144 12 L150 22 L144 18 L138 22 Z"/>
+    <path d="M128 10 L134 20 L128 16 L122 20 Z"/>
+  </g>
+</svg>
