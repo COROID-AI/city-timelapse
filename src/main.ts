@@ -5,7 +5,9 @@
  *   1. Locate the #app mount point.
  *   2. Detect WebGL2 support (with graceful DOM fallback).
  *   3. Create the renderer, scene, camera, and animation loop.
- *   4. Hide the loading overlay once the first frame has actually rendered.
+ *   4. Wire the cinematic camera controller, era transformation engine, and
+ *      LOD culler into the frame loop.
+ *   5. Hide the loading overlay once the first frame has actually rendered.
  */
 import './styles.css';
 import { PerspectiveCamera } from 'three';
@@ -13,6 +15,11 @@ import { APP_MOUNT_SELECTOR } from './config/paths';
 import { bootRenderer } from './engine/renderer';
 import { attachLoadingOverlay } from './engine/mount';
 import { createBootScene } from './engine/Scene';
+import { CameraController } from './engine/CameraController';
+import { TransformationEngine } from './engine/TransformationEngine';
+import { LodCuller } from './engine/LodCuller';
+import { eraStateStore } from './engine/EraStateStore';
+import { applyEraToModules } from './engine/SceneRegistry';
 
 function main(): void {
   const mount = document.querySelector(APP_MOUNT_SELECTOR);
@@ -36,9 +43,51 @@ function main(): void {
     const camera = new PerspectiveCamera(60, mount.clientWidth / Math.max(mount.clientHeight, 1), 0.1, 1000);
     camera.position.set(0, 2.2, 6);
 
-    let firstFrameRendered = false;
+    // Cinematic camera: damped orbit/pan/zoom, bounds clamping, auto-rotate,
+    // and per-era fly-to vantage points.
+    const controller = new CameraController(camera, renderer.domElement, {
+      autoRotate: true,
+      autoRotateIdleDelaySec: 3,
+      autoRotateSpeed: 0.35,
+    });
 
-    booted.setAnimationLoop((_timeMs) => {
+    // Era transformation blending: lerps material colors, emissive, fog, and
+    // visibility between era datasets over a configurable duration.
+    const transformEngine = new TransformationEngine({ duration: 2 });
+
+    // LOD culling: hides distant/off-screen/occluded groups.
+    const lodCuller = new LodCuller();
+
+    let firstFrameRendered = false;
+    let lastTimeMs = 0;
+
+    // Drive the era transition from the store: whenever the selected year
+    // changes, apply it to all registered scene modules in one pass.
+    eraStateStore.subscribe((state) => {
+      applyEraToModules(state.selectedYear, state.transitionProgress);
+    });
+
+    booted.setAnimationLoop((timeMs) => {
+      const deltaSec = lastTimeMs === 0 ? 0 : Math.min((timeMs - lastTimeMs) / 1000, 0.1);
+      lastTimeMs = timeMs;
+
+      // Advance the cinematic camera (damped orbit/pan/zoom + auto-rotate).
+      controller.update(deltaSec);
+
+      // Advance era blending toward the currently selected era.
+      const state = eraStateStore.getSnapshot();
+      transformEngine.update(deltaSec, state.selectedYear);
+
+      // Cull distant/occluded groups from the camera's current view.
+      lodCuller.update({
+        position: camera.position.clone(),
+        viewMatrix: camera.matrixWorldInverse.clone(),
+        projectionMatrix: camera.projectionMatrix.clone(),
+      });
+
+      // Notify scene modules of the current era each frame.
+      applyEraToModules(state.selectedYear, state.transitionProgress);
+
       renderer.render(scene, camera);
       if (!firstFrameRendered) {
         firstFrameRendered = true;
@@ -53,6 +102,7 @@ function main(): void {
         renderer.setSize(width, height);
         camera.aspect = width / Math.max(height, 1);
         camera.updateProjectionMatrix();
+        controller.setSize(width, height);
       }
     });
     resizeObserver.observe(mount);
