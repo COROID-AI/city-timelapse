@@ -31,8 +31,8 @@ import {
   Mesh,
   MeshStandardMaterial,
   PlaneGeometry,
-  Scene,
 } from 'three';
+import type { Scene } from 'three';
 import type { EraId, EraEnvironment, RgbColor } from '../engine/eras';
 import { register } from '../engine/SceneRegistry';
 import type { EraScopedSubsystem } from '../engine/SceneRegistry';
@@ -138,14 +138,15 @@ function lightStateFor(era: EraId, env: EraEnvironment): EraLightState {
   };
 }
 
-/** Builds an era's particle state from its environment payload. */
-function particleStateFor(env: EraEnvironment): EraParticleState {
+/** Builds an era's particle state from its environment payload + era params. */
+function particleStateFor(era: EraId, env: EraEnvironment): EraParticleState {
+  const eraParams = PARTICLE_STATE_BY_ERA[era];
   return {
     color: env.haze.color,
     density: env.haze.density,
     particleCount: env.haze.particleCount,
-    spreadY: 5,
-    driftSpeed: 0.3,
+    spreadY: eraParams.spreadY,
+    driftSpeed: eraParams.driftSpeed,
   };
 }
 
@@ -347,7 +348,7 @@ export class EnvironmentSubsystem implements EraScopedSubsystem {
     this.group.add(this.lights.ambient);
 
     // Particles.
-    this.particles = buildParticleLayer(particleStateFor(env), {
+    this.particles = buildParticleLayer(particleStateFor(activeEra, env), {
       x: ROAD_OUTER_X + 2,
       z: ROAD_OUTER_Z + 2,
     });
@@ -380,7 +381,7 @@ export class EnvironmentSubsystem implements EraScopedSubsystem {
       applyLightState(this.streetlightRig, lightStateFor(this.currentEra, env));
     }
     if (this.particles) {
-      applyParticleState(this.particles, particleStateFor(env));
+      applyParticleState(this.particles, particleStateFor(this.currentEra, env));
     }
   }
 
@@ -409,7 +410,7 @@ export class EnvironmentSubsystem implements EraScopedSubsystem {
 
     // Particles cross-fade.
     if (this.particles) {
-      applyParticleBlend(this.particles, particleStateFor(from), particleStateFor(to), k);
+      applyParticleBlend(this.particles, particleStateFor(fromEra, from), particleStateFor(toEra, to), k);
     }
 
     // Scene background + sun light follow the blend.

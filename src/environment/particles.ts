@@ -124,7 +124,7 @@ export function updateParticleLayer(layer: ParticleLayer, deltaSec: number, exte
   const t = Math.min(deltaSec, 0.1);
   for (let i = 0; i < arr.length; i += 3) {
     let x = arr[i] + Math.sin(base[i] * 0.7 + performance.now() * 0.0004) * speed * t * 2 + 0.05 * speed * t;
-    let y = arr[i + 1];
+    const y = arr[i + 1];
     let z = arr[i + 2] + 0.05 * speed * t;
     if (x > extent.x) x = -extent.x;
     if (x < -extent.x) x = extent.x;

@@ -12,6 +12,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Color, Group, Scene } from 'three';
+import type { Mesh, Points, PointsMaterial } from 'three';
 import { EnvironmentSubsystem, ENVIRONMENT_GROUP_ID } from '../../src/environment/EnvironmentSubsystem';
 import { clearSubsystems, getSubsystem, listSubsystems } from '../../src/engine/SceneRegistry';
 import type { EraEnvironment, EraId } from '../../src/engine/eras';
@@ -218,7 +219,7 @@ describe('EnvironmentSubsystem — applyEraBlend', () => {
     subsystem.applyEraBlend('1945', '1985', 0);
     subsystem.applyEraBlend('1945', '1985', 1);
     // Sky dome top color reaches the 1985 zenith.
-    const sky = subsystem.group.getObjectByName('environment-sky-dome') as import('three').Mesh | undefined;
+    const sky = subsystem.group.getObjectByName('environment-sky-dome') as Mesh | undefined;
     expect(sky).toBeDefined();
     subsystem.dispose();
     clearSubsystems();
@@ -257,8 +258,8 @@ describe('EnvironmentSubsystem — applyEraBlend', () => {
     subsystem.applyEraBlend('1945', '1985', 1);
     subsystem.applyEraBlend('1945', '1985', 0.5);
 
-    const particles = subsystem.group.getObjectByName('environment-particles') as import('three').Points;
-    const material = particles.material as import('three').PointsMaterial;
+    const particles = subsystem.group.getObjectByName('environment-particles') as Points;
+    const material = particles.material as PointsMaterial;
     expect(material.opacity).toBeGreaterThan(0.5);
     expect(material.opacity).toBeLessThan(0.56);
     subsystem.dispose();

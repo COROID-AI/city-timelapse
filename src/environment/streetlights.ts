@@ -14,13 +14,13 @@ import {
   Color,
   CylinderGeometry,
   Group,
-  Material,
   MathUtils,
   Mesh,
   MeshStandardMaterial,
   PointLight,
   SphereGeometry,
 } from 'three';
+import type { Material } from 'three';
 import type { RgbColor } from '../engine/eras';
 import { getLampPositions } from './layout';
 
