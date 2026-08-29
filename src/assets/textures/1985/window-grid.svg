@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="64" viewBox="0 0 128 64">
+  <title>1985 reflective curtain-wall window grid</title>
+  <rect width="128" height="64" fill="#0d3140"/>
+  <g fill="#123d52" stroke="#1b5d78" stroke-width="2">
+    <rect x="4" y="4" width="26" height="24"/>
+    <rect x="36" y="4" width="26" height="24"/>
+    <rect x="68" y="4" width="26" height="24"/>
+    <rect x="100" y="4" width="24" height="24"/>
+    <rect x="4" y="34" width="26" height="26"/>
+    <rect x="36" y="34" width="26" height="26"/>
+    <rect x="68" y="34" width="26" height="26"/>
+    <rect x="100" y="34" width="24" height="26"/>
+  </g>
+  <g fill="#7fe9ff" opacity="0.35">
+    <rect x="8" y="8" width="14" height="12"/>
+    <rect x="72" y="8" width="14" height="12"/>
+    <rect x="40" y="38" width="14" height="12"/>
+  </g>
+</svg>

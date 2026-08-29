@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="40" viewBox="0 0 128 40">
+  <title>1985 travel agency sign</title>
+  <rect width="128" height="40" fill="#003366"/>
+  <ellipse cx="18" cy="20" rx="11" ry="8" fill="none" stroke="#40e0d0" stroke-width="2"/>
+  <path d="M7 20 Q18 10 29 20 M7 20 Q18 30 29 20" fill="none" stroke="#40e0d0" stroke-width="1.5"/>
+  <text x="36" y="25" font-family="sans-serif" font-weight="bold" font-size="12" fill="#ffffff">GLOBETROTTERS</text>
+  <text x="36" y="35" font-family="sans-serif" font-size="8" fill="#40e0d0">TRAVEL · CRUISES · EXCHANGE</text>
+</svg>

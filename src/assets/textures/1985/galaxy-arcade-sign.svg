@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="40" viewBox="0 0 128 40">
+  <title>1985 arcade neon sign</title>
+  <rect width="128" height="40" fill="#08081c"/>
+  <path d="M104 8 L124 20 L104 32 Z" fill="#23f7dc"/>
+  <path d="M8 8 L22 20 L8 32 Z" fill="#ff3df0"/>
+  <text x="64" y="25" font-family="sans-serif" font-weight="bold" font-size="15" text-anchor="middle" fill="#ff3df0">GALAXY ARCADE</text>
+  <circle cx="6" cy="6" r="2" fill="#ffffff"/>
+  <circle cx="122" cy="6" r="2" fill="#ffffff"/>
+  <circle cx="6" cy="34" r="2" fill="#ffffff"/>
+  <circle cx="122" cy="34" r="2" fill="#ffffff"/>
+</svg>

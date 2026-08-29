@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="40" viewBox="0 0 128 40">
+  <title>1985 convenience store sign</title>
+  <rect width="128" height="40" fill="#e30534"/>
+  <rect x="2" y="2" width="124" height="36" fill="none" stroke="#ffffff" stroke-width="2"/>
+  <text x="64" y="22" font-family="sans-serif" font-weight="bold" font-size="14" text-anchor="middle" fill="#ffffff">CITY MART</text>
+  <text x="64" y="34" font-family="sans-serif" font-size="8" text-anchor="middle" fill="#ffe14d">24-HOUR · OPEN LATE</text>
+</svg>

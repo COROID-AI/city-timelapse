@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="64" viewBox="0 0 128 64">
+  <title>1985 roll-down metal security grate</title>
+  <rect width="128" height="64" fill="#3a3d42"/>
+  <g fill="none" stroke="#565a60" stroke-width="3">
+    <rect x="4" y="4" width="120" height="56"/>
+    <path d="M4 12 H124 M4 20 H124 M4 28 H124 M4 36 H124 M4 44 H124 M4 52 H124"/>
+    <path d="M12 4 V60 M24 4 V60 M36 4 V60 M48 4 V60 M60 4 V60 M72 4 V60 M84 4 V60 M96 4 V60 M108 4 V60 M120 4 V60"/>
+  </g>
+  <circle cx="64" cy="30" r="3" fill="#23262a"/>
+</svg>
