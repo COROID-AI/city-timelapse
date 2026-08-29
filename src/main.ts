@@ -20,6 +20,7 @@ import { TransformationEngine } from './engine/TransformationEngine';
 import { LodCuller } from './engine/LodCuller';
 import { eraStateStore } from './engine/EraStateStore';
 import { applyEraToModules } from './engine/SceneRegistry';
+import { TimelineSlider } from './ui/TimelineSlider';
 
 function main(): void {
   const mount = document.querySelector(APP_MOUNT_SELECTOR);
@@ -50,6 +51,14 @@ function main(): void {
       autoRotateIdleDelaySec: 3,
       autoRotateSpeed: 0.35,
     });
+
+    // Timeline slider: top-anchored era picker with play/pause auto-advance.
+    // All selections flow through the EraStateStore; on user-driven era
+    // changes the camera flies to the era's cinematic vantage point.
+    const slider = new TimelineSlider({
+      onEraChange: (year) => controller.flyTo(year),
+    });
+    slider.mount(document.body);
 
     // Era transformation blending: lerps material colors, emissive, fog, and
     // visibility between era datasets over a configurable duration.
@@ -108,6 +117,7 @@ function main(): void {
     resizeObserver.observe(mount);
 
     console.info('[boot] WebGL2 renderer started.');
+    console.info('[boot] Timeline slider mounted.');
   } catch (error) {
     hideLoading();
     console.error('[boot] Failed to start renderer:', error);

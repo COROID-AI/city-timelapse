@@ -1,8 +1,9 @@
 /**
- * UI module (placeholder).
+ * UI module.
  *
- * Owns the timeline slider, era labels, and any HUD overlays. Later tasks
- * build the timeline UI here and drive era changes through the shared
- * era registry.
+ * Owns the timeline slider, era labels, and HUD overlays. The timeline is the
+ * primary interaction surface: every era change flows through the shared
+ * EraStateStore so the scene, camera, audio, and UI all react consistently.
  */
-export const uiModule = 'ui';
+export { TimelineSlider, ERA_ACCENTS } from './TimelineSlider';
+export type { TimelineSliderOptions } from './TimelineSlider';
