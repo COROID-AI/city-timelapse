@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="48" viewBox="0 0 128 48">
+  <title>2025 wall-mounted LED billboard</title>
+  <rect width="128" height="48" fill="#051417"/>
+  <rect x="0" y="0" width="128" height="5" fill="#4df2d9"/>
+  <rect x="0" y="43" width="128" height="5" fill="#4df2d9"/>
+  <text x="64" y="22" font-family="sans-serif" font-weight="bold" font-size="10" text-anchor="middle" fill="#4df2d9">VOLT RIDE</text>
+  <text x="64" y="34" font-family="sans-serif" font-size="8" text-anchor="middle" fill="#bffbef">SHARE · CHARGE · GO GREEN</text>
+</svg>

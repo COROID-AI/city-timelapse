@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="48" viewBox="0 0 128 48">
+  <title>2025 digital bus-stop display</title>
+  <rect width="128" height="48" fill="#0d141a"/>
+  <rect x="4" y="4" width="120" height="40" rx="2" fill="#111d26" stroke="#2c3e4d" stroke-width="1"/>
+  <text x="64" y="18" font-family="sans-serif" font-weight="bold" font-size="9" text-anchor="middle" fill="#80f299">BUS 7 · 2 MIN</text>
+  <text x="64" y="30" font-family="sans-serif" font-size="7" text-anchor="middle" fill="#cfe6d6">BUS 12 · 6 MIN</text>
+  <text x="64" y="41" font-family="sans-serif" font-size="7" text-anchor="middle" fill="#9fd4ff">AIR INDEX 12 · CLEAN</text>
+</svg>

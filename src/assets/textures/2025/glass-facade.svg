@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>2025 glass tower facade</title>
+  <rect width="128" height="128" fill="#8faec4"/>
+  <g fill="#7fa3bb" stroke="#c4d6e2" stroke-width="1">
+    <rect x="0" y="0" width="32" height="32"/>
+    <rect x="32" y="0" width="32" height="32"/>
+    <rect x="64" y="0" width="32" height="32"/>
+    <rect x="96" y="0" width="32" height="32"/>
+    <rect x="0" y="32" width="32" height="32"/>
+    <rect x="32" y="32" width="32" height="32"/>
+    <rect x="64" y="32" width="32" height="32"/>
+    <rect x="96" y="32" width="32" height="32"/>
+    <rect x="0" y="64" width="32" height="32"/>
+    <rect x="32" y="64" width="32" height="32"/>
+    <rect x="64" y="64" width="32" height="32"/>
+    <rect x="96" y="64" width="32" height="32"/>
+    <rect x="0" y="96" width="32" height="32"/>
+    <rect x="32" y="96" width="32" height="32"/>
+    <rect x="64" y="96" width="32" height="32"/>
+    <rect x="96" y="96" width="32" height="32"/>
+  </g>
+  <g fill="#dbe9f2" opacity="0.5">
+    <rect x="4" y="6" width="24" height="24"/>
+    <rect x="36" y="6" width="24" height="24"/>
+    <rect x="68" y="6" width="24" height="24"/>
+    <rect x="100" y="6" width="24" height="24"/>
+  </g>
+</svg>
