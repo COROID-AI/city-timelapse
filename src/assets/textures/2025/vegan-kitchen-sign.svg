@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="48" viewBox="0 0 128 48">
+  <title>2025 vegan fast-casual LED sign</title>
+  <rect width="128" height="48" fill="#0d2417"/>
+  <text x="64" y="20" font-family="sans-serif" font-weight="bold" font-size="11" text-anchor="middle" fill="#66f280">GREEN BOWL</text>
+  <text x="64" y="33" font-family="sans-serif" font-size="8" text-anchor="middle" fill="#b7f5c0">PLANT-BASED · FAST-CASUAL</text>
+  <circle cx="64" cy="41" r="4" fill="#66f280"/>
+</svg>

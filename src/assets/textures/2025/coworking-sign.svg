@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="48" viewBox="0 0 128 48">
+  <title>2025 co-working entrance LED sign</title>
+  <rect width="128" height="48" fill="#17191e"/>
+  <text x="64" y="20" font-family="sans-serif" font-weight="bold" font-size="12" text-anchor="middle" fill="#f5f7ff">HIVE</text>
+  <text x="64" y="33" font-family="sans-serif" font-size="8" text-anchor="middle" fill="#c6cddd">CO-WORKING · HOT DESKS · PODS</text>
+  <rect x="48" y="38" width="32" height="3" rx="1.5" fill="#f5f7ff"/>
+</svg>

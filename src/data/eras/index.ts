@@ -10,6 +10,7 @@ import { era1945 } from './1945';
 import { era1965 } from './1965';
 import { era1985 } from './1985';
 import { era2005 } from './2005';
+import { era2025 } from './2025';
 
 /** Per-era datasets authored so far, keyed by era id. */
 export const ERA_DATA: Partial<Record<EraId, TimeEra>> = {
@@ -17,6 +18,7 @@ export const ERA_DATA: Partial<Record<EraId, TimeEra>> = {
   '1965': era1965,
   '1985': era1985,
   '2005': era2005,
+  '2025': era2025,
 };
 
 /** Returns the dataset for an era id, or undefined when not yet authored. */
