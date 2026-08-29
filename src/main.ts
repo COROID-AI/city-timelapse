@@ -20,6 +20,7 @@ import { TransformationEngine } from './engine/TransformationEngine';
 import { LodCuller } from './engine/LodCuller';
 import { eraStateStore } from './engine/EraStateStore';
 import { applyEraToModules } from './engine/SceneRegistry';
+import { createEnvironmentSubsystem } from './environment/EnvironmentSubsystem';
 
 function main(): void {
   const mount = document.querySelector(APP_MOUNT_SELECTOR);
@@ -43,6 +44,12 @@ function main(): void {
     const camera = new PerspectiveCamera(60, mount.clientWidth / Math.max(mount.clientHeight, 1), 0.1, 1000);
     camera.position.set(0, 2.2, 6);
 
+    // Environment subsystem: sky, fog, ground, roads, sidewalks, streetlight
+    // rig, color grading, and weather particles. Registers itself into the
+    // SceneRegistry so the TransformationEngine blends it between eras.
+    const environment = createEnvironmentSubsystem(scene, eraStateStore.getSnapshot().selectedYear);
+    scene.add(environment.group);
+
     // Cinematic camera: damped orbit/pan/zoom, bounds clamping, auto-rotate,
     // and per-era fly-to vantage points.
     const controller = new CameraController(camera, renderer.domElement, {
@@ -52,8 +59,10 @@ function main(): void {
     });
 
     // Era transformation blending: lerps material colors, emissive, fog, and
-    // visibility between era datasets over a configurable duration.
-    const transformEngine = new TransformationEngine({ duration: 2 });
+    // visibility between era datasets over a configurable duration. Built
+    // from the registry so every registered era-scoped subsystem (including
+    // the environment) receives applyEraBlend each frame during transitions.
+    const transformEngine = TransformationEngine.fromRegistry({ duration: 2 });
 
     // LOD culling: hides distant/off-screen/occluded groups.
     const lodCuller = new LodCuller();
@@ -77,6 +86,9 @@ function main(): void {
       // Advance era blending toward the currently selected era.
       const state = eraStateStore.getSnapshot();
       transformEngine.update(deltaSec, state.selectedYear);
+
+      // Advance the environment's per-frame animation (particle drift).
+      environment.update(deltaSec);
 
       // Cull distant/occluded groups from the camera's current view.
       lodCuller.update({
