@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>1985 concrete tower facade</title>
+  <rect width="128" height="128" fill="#8b8f96"/>
+  <g fill="#7e8289" stroke="#6e727a" stroke-width="0.5">
+    <rect x="0" y="0" width="16" height="32"/>
+    <rect x="16" y="0" width="16" height="32"/>
+    <rect x="0" y="32" width="16" height="32"/>
+    <rect x="16" y="32" width="16" height="32"/>
+    <rect x="0" y="64" width="16" height="32"/>
+    <rect x="16" y="64" width="16" height="32"/>
+    <rect x="0" y="96" width="16" height="32"/>
+    <rect x="16" y="96" width="16" height="32"/>
+  </g>
+  <g fill="#94989f" opacity="0.4">
+    <rect x="40" y="10" width="56" height="4"/>
+    <rect x="40" y="46" width="56" height="4"/>
+    <rect x="40" y="82" width="56" height="4"/>
+  </g>
+  <g fill="#5d6168" opacity="0.5">
+    <rect x="4" y="8" width="8" height="16"/>
+    <rect x="20" y="8" width="8" height="16"/>
+    <rect x="4" y="44" width="8" height="16"/>
+    <rect x="20" y="44" width="8" height="16"/>
+  </g>
+</svg>
