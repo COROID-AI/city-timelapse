@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { ERA_IDS, ERA_REGISTRY, getEraSpec } from '../../src/engine/eras';
-import { registerEraModule, clearEraModules, getEraModule, listEraModules } from '../../src/engine/SceneRegistry';
+import {
+  registerEraModule,
+  clearEraModules,
+  getEraModule,
+  listEraModules,
+  applyEraToModules,
+} from '../../src/engine/SceneRegistry';
 import type { SceneModule } from '../../src/engine/SceneRegistry';
 import { Group } from 'three';
 
@@ -49,6 +55,25 @@ describe('SceneRegistry pattern', () => {
     clearEraModules();
     registerEraModule(makeModule(), '2005');
     expect(() => registerEraModule(makeModule(), '2005')).toThrow();
+    clearEraModules();
+  });
+
+  it('applies a single selected era to all modules in one pass', () => {
+    clearEraModules();
+    const seen: Array<{ era: string; t: number }> = [];
+    const modA = makeModule();
+    modA.setEra = (era, t) => seen.push({ era, t });
+    const modB = makeModule();
+    modB.setEra = (era, t) => seen.push({ era, t });
+    registerEraModule(modA, '1945');
+    registerEraModule(modB, '1965');
+
+    applyEraToModules('1985', 0.5);
+
+    expect(seen).toEqual([
+      { era: '1985', t: 0.5 },
+      { era: '1985', t: 0.5 },
+    ]);
     clearEraModules();
   });
 });
