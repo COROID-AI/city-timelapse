@@ -5,6 +5,12 @@
  * UI overlays) exposes the same lifecycle as a `SceneModule` and registers
  * itself here keyed by era so the composition root can build and update the
  * scene without knowing module internals.
+ *
+ * The registry also defines `EraScopedSubsystem` — the shared contract for
+ * era-morphing subsystems. Each subsystem registers with `register()` and
+ * supplies its own era datasets through `build(era)`; the TransformationEngine
+ * only drives the blend by calling `applyEraBlend(fromEra, toEra, t)` every
+ * frame during a transition.
  */
 import type { EraId, EraSpec } from './eras';
 import type { Group } from 'three';
@@ -37,6 +43,33 @@ export interface SceneModule {
 }
 
 /**
+ * A scene subsystem that owns its per-era dataset and can morph between two
+ * era datasets in front of the viewer.
+ *
+ * Subsystems build their own era data via `build(era)` (the engine never owns
+ * era data) and register themselves once with `register()`. A subsystem can
+ * own multiple groups; the engine applies the blend to every registered
+ * subsystem — and therefore all of its groups — in one pass each frame.
+ */
+export interface EraScopedSubsystem {
+  /** Stable, unique subsystem id (e.g. 'buildings', 'vehicles'). */
+  readonly groupId: string;
+  /**
+   * Erects the given era's state, returning an opaque handle (Geometry,
+   * Material, light settings, raw data) the subsystem later blends.
+   */
+  build(era: EraId): unknown;
+  /**
+   * Blends every group this subsystem owns from its old-era state to its
+   * new-era state. Called every rendered frame during a transition with `t`
+   * eased 0→1 via smoothstep.
+   */
+  applyEraBlend(fromEra: EraId, toEra: EraId, t: number): void;
+  /** Release GPU/CPU resources. */
+  dispose(): void;
+}
+
+/**
  * Registry mapping era ids to scene modules. Downstream tasks call
  * `registerEraModule()` during initialization; the composition root calls
  * `erectEraModules()` once to populate the scene.
@@ -64,4 +97,35 @@ export function listEraModules(): readonly SceneModule[] {
 /** Clears all registrations (used by tests and hot module disposal). */
 export function clearEraModules(): void {
   eraModules.clear();
+}
+
+/**
+ * Central registry of era-scoped subsystems. Every subsystem task (buildings,
+ * vehicles, pedestrians, storefronts/props, environment, audio, UI) calls
+ * `register()` during initialization so the TransformationEngine can morph
+ * every registered subsystem in one pass.
+ */
+const subsystems = new Map<string, EraScopedSubsystem>();
+
+/** Registers a subsystem. Throws on duplicate group ids. */
+export function register(subsystem: EraScopedSubsystem): void {
+  if (subsystems.has(subsystem.groupId)) {
+    throw new Error(`A subsystem is already registered with groupId '${subsystem.groupId}'.`);
+  }
+  subsystems.set(subsystem.groupId, subsystem);
+}
+
+/** Returns the registered subsystem with the given group id, or undefined. */
+export function getSubsystem(groupId: string): EraScopedSubsystem | undefined {
+  return subsystems.get(groupId);
+}
+
+/** Returns a copy of every registered subsystem. */
+export function listSubsystems(): readonly EraScopedSubsystem[] {
+  return Array.from(subsystems.values());
+}
+
+/** Clears all subsystem registrations (used by tests and hot module disposal). */
+export function clearSubsystems(): void {
+  subsystems.clear();
 }
