@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="48" viewBox="0 0 128 48">
+  <title>2025 QR-code vinyl wrap</title>
+  <rect width="128" height="48" fill="#f2f4f8"/>
+  <text x="64" y="16" font-family="sans-serif" font-weight="bold" font-size="9" text-anchor="middle" fill="#0a0d14">SCAN TO ORDER</text>
+  <text x="64" y="27" font-family="sans-serif" font-size="7" text-anchor="middle" fill="#333a44">QR DELIVERY AT THE CORNER</text>
+  <g fill="#0a0d14">
+    <rect x="30" y="32" width="4" height="4"/><rect x="36" y="32" width="4" height="4"/><rect x="42" y="32" width="4" height="4"/>
+    <rect x="30" y="38" width="4" height="4"/><rect x="36" y="38" width="4" height="4"/><rect x="42" y="38" width="4" height="4"/>
+    <rect x="30" y="44" width="4" height="4"/><rect x="36" y="44" width="4" height="4"/><rect x="42" y="44" width="4" height="4"/>
+    <rect x="84" y="32" width="4" height="4"/><rect x="90" y="32" width="4" height="4"/><rect x="96" y="32" width="4" height="4"/>
+    <rect x="84" y="38" width="4" height="4"/><rect x="90" y="38" width="4" height="4"/><rect x="96" y="38" width="4" height="4"/>
+    <rect x="84" y="44" width="4" height="4"/><rect x="90" y="44" width="4" height="4"/><rect x="96" y="44" width="4" height="4"/>
+  </g>
+</svg>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="48" viewBox="0 0 128 48">
+  <title>2025 plant-shop LED-neon sign</title>
+  <rect width="128" height="48" fill="#0f1a14"/>
+  <text x="64" y="20" font-family="sans-serif" font-weight="bold" font-size="11" text-anchor="middle" fill="#73e68c">FROND &amp; FERN</text>
+  <text x="64" y="33" font-family="sans-serif" font-size="8" text-anchor="middle" fill="#baf2c4">HOUSEPLANTS · TERRARIUMS</text>
+  <path d="M60 42 q4 -8 8 -8 q-4 8 -8 8" fill="none" stroke="#73e68c" stroke-width="2"/>
+</svg>

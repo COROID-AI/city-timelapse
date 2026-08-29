@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="128" viewBox="0 0 64 128">
+  <title>2025 EV fast-charge pedestal</title>
+  <rect width="64" height="128" fill="#1d242c"/>
+  <rect x="10" y="10" width="44" height="108" rx="6" fill="#2c3640" stroke="#46525e" stroke-width="2"/>
+  <circle cx="32" cy="34" r="10" fill="#0b0f13" stroke="#4dccff" stroke-width="3"/>
+  <rect x="20" y="58" width="24" height="10" rx="2" fill="#141a21"/>
+  <rect x="20" y="74" width="24" height="10" rx="2" fill="#141a21"/>
+  <text x="32" y="104" font-family="sans-serif" font-weight="bold" font-size="9" text-anchor="middle" fill="#4dccff">150 kW</text>
+</svg>
