@@ -8,8 +8,8 @@
  */
 
 import * as THREE from 'three';
-import { getEraSegment, type AppState } from '../state';
-import { type EraId } from '../eras';
+import { eraTransitionActive, getEraSegment, type AppState } from '../state';
+import { ERA_IDS, type EraId } from '../eras';
 
 export interface Pedestrians {
   readonly group: THREE.Group;
@@ -118,6 +118,7 @@ function buildWalker(outfit: Outfit): Omit<Walker, 'phase' | 'speed' | 'path' | 
 export function createPedestrians(): Pedestrians {
   const group = new THREE.Group();
   const disposables: Array<{ dispose(): void }> = [];
+  const geometryToDispose: THREE.BufferGeometry[] = [];
   const walkers: Walker[] = [];
 
   const spawns: Array<{
@@ -158,6 +159,13 @@ export function createPedestrians(): Pedestrians {
     group.add(walker.obj);
     walkers.push(walker);
     disposables.push(...collectMaterials(walker.obj));
+    walker.obj.traverse((child) => {
+      const mesh = child as THREE.Mesh;
+      if (mesh.geometry) {
+        const geo = mesh.geometry as THREE.BufferGeometry;
+        if (geometryToDispose.indexOf(geo) === -1) geometryToDispose.push(geo);
+      }
+    });
   });
 
   const env: Pedestrians = {
@@ -167,21 +175,27 @@ export function createPedestrians(): Pedestrians {
       const loOutfits = OUTFITS[ERA_IDS[seg.lo]];
       const hiOutfits = OUTFITS[ERA_IDS[seg.hi]];
       const t = seg.t;
+      const transitioning = eraTransitionActive(state.eraIndex);
+      const scratchA = new THREE.Color();
+      const scratchB = new THREE.Color();
 
       walkers.forEach((w, i) => {
         const lo = loOutfits[i % loOutfits.length];
         const hi = hiOutfits[i % hiOutfits.length];
-        w.torso.color.copy(new THREE.Color(lo.torso)).lerp(new THREE.Color(hi.torso), t);
-        w.legs.color.copy(new THREE.Color(lo.legs)).lerp(new THREE.Color(hi.legs), t);
-
         w.phase += dt * w.speed * 8;
         const swing = Math.sin(w.phase) * 0.55;
         w.armL.rotation.x = swing;
         w.armR.rotation.x = -swing;
         w.legL.rotation.x = -swing;
         w.legR.rotation.x = swing;
+        if (transitioning) {
+          w.torso.color.copy(scratchA.set(lo.torso)).lerp(scratchB.set(hi.torso), t);
+          w.legs.color.copy(scratchA.set(lo.legs)).lerp(scratchB.set(hi.legs), t);
+        }
         if (w.hat) {
-          w.hat.color.copy(new THREE.Color(lo.hat ?? lo.torso)).lerp(new THREE.Color(hi.hat ?? hi.torso), t);
+          if (transitioning) {
+            w.hat.color.copy(scratchA.set(lo.hat ?? lo.torso)).lerp(scratchB.set(hi.hat ?? hi.torso), t);
+          }
         }
 
         // advance along sidewalk
@@ -207,13 +221,12 @@ export function createPedestrians(): Pedestrians {
     },
     dispose(): void {
       for (const d of disposables) d.dispose();
+      for (const g of geometryToDispose) g.dispose();
       group.clear();
     },
   };
   return env;
 }
-
-const ERA_IDS: EraId[] = ['1945', '1965', '1985', '2005', '2025'];
 
 function collectMaterials(root: THREE.Object3D): THREE.Material[] {
   const out: THREE.Material[] = [];

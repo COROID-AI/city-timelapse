@@ -1,6 +1,11 @@
 /**
  * HUD / UI: top timeline slider with era chips, era description, and control
  * toggles (mute, quality). Keyboard operate-able; exposes era change + boot.
+ *
+ * Keyboard model: when focus is inside the HUD (e.g. on the range slider or
+ * chips), native control behavior wins so the slider's own arrow/home/end
+ * keys work. When focus is anywhere else (body/canvas), the global handler
+ * lets ← / → / Home / End travel the timeline.
  */
 
 import { ERA_REGISTRY, getEraSpec, type EraId } from './eras';
@@ -138,12 +143,16 @@ export function createCityUi(callbacks: UiCallbacks): CityUi {
 
   document.body.appendChild(root);
 
+  let currentEra: EraId = ERA_REGISTRY[0].id;
+
   // Wire events
   function applyEra(era: EraId): void {
+    currentEra = era;
     const spec = getEraSpec(era);
     eraTitle.textContent = spec.year.toString();
     desc.textContent = spec.description;
     slider.value = String(ERA_REGISTRY.indexOf(spec));
+    slider.setAttribute('aria-valuetext', `${spec.year} — ${spec.description}`);
     chips.querySelectorAll('button').forEach((b) => {
       const active = (b as HTMLButtonElement).dataset.era === era;
       (b as HTMLButtonElement).style.background = active
@@ -169,27 +178,29 @@ export function createCityUi(callbacks: UiCallbacks): CityUi {
   muteBtn.addEventListener('click', () => callbacks.onToggleMute());
   qualityBtn.addEventListener('click', () => callbacks.onToggleQuality());
 
-  // Keyboard: arrows travel eras
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-      e.preventDefault();
-      const cur = ERA_REGISTRY.findIndex((s) => s.id === currentEra);
-      const nxt = e.key === 'ArrowRight' ? cur + 1 : cur - 1;
-      if (nxt >= 0 && nxt < ERA_REGISTRY.length) {
-        const era = ERA_REGISTRY[nxt].id;
-        callbacks.onEraChange(era);
-        applyEra(era);
-      }
-    }
-  });
+  // Keyboard: travel eras from anywhere except when focus is inside the HUD
+  // (so the slider's native arrow/home/end keys keep working).
+  const onKeyDown = (e: KeyboardEvent): void => {
+    const target = e.target as Node | null;
+    if (target && root.contains(target)) return;
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Home' && e.key !== 'End') return;
+    e.preventDefault();
+    let nxt = ERA_REGISTRY.findIndex((s) => s.id === currentEra);
+    if (e.key === 'ArrowRight') nxt = Math.min(nxt + 1, ERA_REGISTRY.length - 1);
+    else if (e.key === 'ArrowLeft') nxt = Math.max(nxt - 1, 0);
+    else if (e.key === 'Home') nxt = 0;
+    else if (e.key === 'End') nxt = ERA_REGISTRY.length - 1;
+    const era = ERA_REGISTRY[nxt].id;
+    callbacks.onEraChange(era);
+    applyEra(era);
+  };
+  window.addEventListener('keydown', onKeyDown);
 
-  let currentEra: EraId = ERA_REGISTRY[0].id;
   applyEra(currentEra);
 
   const ui: CityUi = {
     root,
     setEra(era: EraId): void {
-      currentEra = era;
       applyEra(era);
     },
     setMuted(muted: boolean): void {
@@ -199,6 +210,7 @@ export function createCityUi(callbacks: UiCallbacks): CityUi {
       qualityBtn.textContent = low ? '⚙ Quality: Low' : '⚙ Quality: High';
     },
     dispose(): void {
+      window.removeEventListener('keydown', onKeyDown);
       root.remove();
     },
   };

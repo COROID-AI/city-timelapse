@@ -5,8 +5,8 @@
  */
 
 import * as THREE from 'three';
-import { getEraSegment, type AppState } from '../state';
-import { type EraId } from '../eras';
+import { eraTransitionActive, getEraSegment, type AppState } from '../state';
+import { ERA_IDS, type EraId } from '../eras';
 import { createCityEnvironment } from './environment';
 import { createBuildings } from './buildings';
 import { createVehicles } from './vehicles';
@@ -20,8 +20,6 @@ export interface CityScene {
   setEra(era: EraId, t: number): void;
   dispose(): void;
 }
-
-const ERA_IDS: EraId[] = ['1945', '1965', '1985', '2005', '2025'];
 
 export function createCityScene(): CityScene {
   const scene = new THREE.Scene();
@@ -40,6 +38,9 @@ export function createCityScene(): CityScene {
   scene.add(vehicles.group);
   scene.add(pedestrians.group);
 
+  // Scratch color reused for the fog lerp instead of allocating per frame.
+  const scratchFog = new THREE.Color();
+
   const env: CityScene = {
     scene,
     atmosphere,
@@ -48,7 +49,9 @@ export function createCityScene(): CityScene {
       buildings.update(dt, state);
       vehicles.update(dt, state);
       pedestrians.update(dt, state);
-      atmosphere.update(dt, state);
+      if (eraTransitionActive(state.eraIndex)) {
+        atmosphere.update(dt, state);
+      }
 
       // Follow the era for fog
       const seg = getEraSegment(state.eraIndex);
@@ -57,9 +60,12 @@ export function createCityScene(): CityScene {
       const loFogSpec = ATMOS_FOG_SPECS[ERA_IDS[seg.lo]];
       const hiFogSpec = ATMOS_FOG_SPECS[ERA_IDS[seg.hi]];
       if (scene.fog instanceof THREE.Fog) {
-        scene.fog.color.copy(new THREE.Color(loFog)).lerp(new THREE.Color(hiFog), seg.t);
-        scene.fog.near = THREE.MathUtils.lerp(loFogSpec.near, hiFogSpec.near, seg.t);
-        scene.fog.far = THREE.MathUtils.lerp(loFogSpec.far, hiFogSpec.far, seg.t);
+        if (eraTransitionActive(state.eraIndex)) {
+          scratchFog.set(loFog);
+          scene.fog.color.copy(scratchFog).lerp(scratchFog.set(hiFog), seg.t);
+          scene.fog.near = THREE.MathUtils.lerp(loFogSpec.near, hiFogSpec.near, seg.t);
+          scene.fog.far = THREE.MathUtils.lerp(loFogSpec.far, hiFogSpec.far, seg.t);
+        }
       }
     },
     setEra(era: EraId, t: number): void {

@@ -8,8 +8,8 @@
  */
 
 import * as THREE from 'three';
-import type { AppState } from '../state';
-import { type EraId } from '../eras';
+import { type AppState, eraTransitionActive } from '../state';
+import { eraRangeWeight, type EraId } from '../eras';
 
 export interface Vehicles {
   readonly group: THREE.Group;
@@ -28,25 +28,26 @@ interface VehicleSpec {
   position: number;
   speed: number;
   color: string;
+  headlight: string;
 }
 
 const SPECS: VehicleSpec[] = [
-  { type: 'trolley', eras: ['1945'], lane: 'x', dir: 1, position: 30, speed: 2.2, color: '#8a2f2f' },
-  { type: 'sedan', eras: ['1945','1965','1985'], lane: 'x', dir: 1, position: 62, speed: 2.6, color: '#3b3f44' },
-  { type: 'coupe', eras: ['1945','1965'], lane: 'x', dir: -1, position: 96, speed: 3.0, color: '#b04a32' },
-  { type: 'truck', eras: ['1945','1965','1985'], lane: 'z', dir: 1, position: 44, speed: 2.0, color: '#5a4a3a' },
-  { type: 'sedan', eras: ['1985', '2005'], lane: 'z', dir: -1, position: 70, speed: 2.7, color: '#c8a23c' },
-  { type: 'suv', eras: ['2005','2025'], lane: 'x', dir: 1, position: 55, speed: 2.9, color: '#2f5f7a' },
-  { type: 'ev', eras: ['2025'], lane: 'x', dir: -1, position: 88, speed: 3.4, color: '#bfe0e8' },
-  { type: 'scooter', eras: ['2025'], lane: 'z', dir: 1, position: 36, speed: 3.2, color: '#e86a3a' },
-  { type: 'suv', eras: ['2005','2025'], lane: 'z', dir: -1, position: 60, speed: 2.6, color: '#5a4a3a' },
-  { type: 'sedan', eras: ['1985','2005'], lane: 'x', dir: -1, position: 74, speed: 3.1, color: '#b8b8c0' },
+  { type: 'trolley', eras: ['1945'], lane: 'x', dir: 1, position: 30, speed: 2.2, color: '#8a2f2f', headlight: '#ffd9a0' },
+  { type: 'sedan', eras: ['1945', '1965', '1985'], lane: 'x', dir: 1, position: 62, speed: 2.6, color: '#3b3f44', headlight: '#ffe2b0' },
+  { type: 'coupe', eras: ['1945', '1965'], lane: 'x', dir: -1, position: 96, speed: 3.0, color: '#b04a32', headlight: '#ffcf8a' },
+  { type: 'truck', eras: ['1945', '1965', '1985'], lane: 'z', dir: 1, position: 44, speed: 2.0, color: '#5a4a3a', headlight: '#ffe2b0' },
+  { type: 'sedan', eras: ['1985', '2005'], lane: 'z', dir: -1, position: 70, speed: 2.7, color: '#c8a23c', headlight: '#e8f3ff' },
+  { type: 'suv', eras: ['2005', '2025'], lane: 'x', dir: 1, position: 55, speed: 2.9, color: '#2f5f7a', headlight: '#e8f3ff' },
+  { type: 'ev', eras: ['2025'], lane: 'x', dir: -1, position: 88, speed: 3.4, color: '#bfe0e8', headlight: '#d8fbff' },
+  { type: 'scooter', eras: ['2025'], lane: 'z', dir: 1, position: 36, speed: 3.2, color: '#e86a3a', headlight: '#ffffff' },
+  { type: 'suv', eras: ['2005', '2025'], lane: 'z', dir: -1, position: 60, speed: 2.6, color: '#5a4a3a', headlight: '#e8f3ff' },
+  { type: 'sedan', eras: ['1985', '2005'], lane: 'x', dir: -1, position: 74, speed: 3.1, color: '#b8b8c0', headlight: '#e8f3ff' },
 ];
 
-function buildVehicle(type: VehicleType, color: string): THREE.Group {
+function buildVehicle(spec: VehicleSpec): THREE.Group {
   const g = new THREE.Group();
   const bodyMat = new THREE.MeshStandardMaterial({
-    color,
+    color: spec.color,
     roughness: 0.35,
     metalness: 0.6,
   });
@@ -61,6 +62,20 @@ function buildVehicle(type: VehicleType, color: string): THREE.Group {
     roughness: 0.15,
     metalness: 1,
   });
+  const lightMat = new THREE.MeshBasicMaterial({
+    color: spec.headlight,
+    transparent: true,
+    opacity: 0.95,
+  });
+
+  const addHeadlights = (): void => {
+    for (const sx of [-1, 1]) {
+      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 6), lightMat);
+      lamp.position.set(sx * 0.55, 0.62, 0.86);
+      lamp.userData.headlight = true;
+      g.add(lamp);
+    }
+  };
 
   const addWheels = (w: number, l: number, r: number): void => {
     const wheelGeo = new THREE.CylinderGeometry(r, r, w, 14);
@@ -74,7 +89,7 @@ function buildVehicle(type: VehicleType, color: string): THREE.Group {
     }
   };
 
-  switch (type) {
+  switch (spec.type) {
     case 'trolley': {
       const body = new THREE.Mesh(new THREE.BoxGeometry(4.6, 1.6, 2.0), bodyMat);
       body.position.y = 1.0;
@@ -98,6 +113,7 @@ function buildVehicle(type: VehicleType, color: string): THREE.Group {
       cabin.position.set(0.1, 1.25, 0);
       g.add(cabin);
       addWheels(1.4, 2.4, 0.35);
+      addHeadlights();
       break;
     }
     case 'coupe': {
@@ -108,6 +124,7 @@ function buildVehicle(type: VehicleType, color: string): THREE.Group {
       nose.position.set(1.5, 0.7, 0);
       g.add(nose);
       addWheels(1.5, 2.6, 0.4);
+      addHeadlights();
       break;
     }
     case 'truck': {
@@ -128,6 +145,7 @@ function buildVehicle(type: VehicleType, color: string): THREE.Group {
       roof.position.y = 1.55;
       g.add(roof);
       addWheels(1.7, 2.5, 0.42);
+      addHeadlights();
       break;
     }
     case 'ev': {
@@ -146,6 +164,7 @@ function buildVehicle(type: VehicleType, color: string): THREE.Group {
       glow.material.opacity = 0.5;
       g.add(glow);
       addWheels(1.6, 2.2, 0.35);
+      addHeadlights();
       break;
     }
     case 'scooter': {
@@ -168,29 +187,39 @@ function buildVehicle(type: VehicleType, color: string): THREE.Group {
 export function createVehicles(): Vehicles {
   const group = new THREE.Group();
   const disposables: Array<{ dispose(): void }> = [];
+  const geometryToDispose: THREE.BufferGeometry[] = [];
   const records: Array<{
     obj: THREE.Group;
     spec: VehicleSpec;
     pos: number;
-    active: boolean;
+    headlights: THREE.Mesh[];
   }> = [];
 
   for (const spec of SPECS) {
-    const obj = buildVehicle(spec.type, spec.color);
+    const obj = buildVehicle(spec);
     group.add(obj);
     disposables.push(...collectMaterials(obj));
-    records.push({ obj, spec, pos: spec.position, active: true });
+    const headlights: THREE.Mesh[] = [];
+    obj.traverse((child) => {
+      const mesh = child as THREE.Mesh;
+      if (mesh.geometry) {
+        const geo = mesh.geometry as THREE.BufferGeometry;
+        if (geometryToDispose.indexOf(geo) === -1) geometryToDispose.push(geo);
+      }
+      if (mesh.userData && mesh.userData.headlight) headlights.push(mesh);
+    });
+    records.push({ obj, spec, pos: spec.position, headlights });
   }
 
   const env: Vehicles = {
     group,
     update(dt: number, state: AppState): void {
+      const transitioning = eraTransitionActive(state.eraIndex);
       for (const rec of records) {
         const s = rec.spec;
-        const isActive = s.eras.includes(state.era);
-        // Smoothly scale to 1 when active, near-0 otherwise.
-        const target = isActive ? 1 : 0.001;
-        const f = THREE.MathUtils.lerp(rec.obj.scale.x, target, 0.1);
+        const weight = eraRangeWeight(state.eraIndex, s.eras);
+        // Smoothly scale to the era-window weight; fade out otherwise.
+        const f = THREE.MathUtils.lerp(rec.obj.scale.x, weight, 0.1);
         rec.obj.scale.setScalar(f);
         rec.obj.visible = f > 0.01;
         if (!rec.obj.visible) continue;
@@ -205,6 +234,12 @@ export function createVehicles(): Vehicles {
         const lim = 130;
         if (rec.pos > lim) rec.pos = -lim;
         if (rec.pos < -lim) rec.pos = lim;
+        if (transitioning) {
+          for (const lamp of rec.headlights) {
+            const mat = lamp.material as THREE.MeshBasicMaterial;
+            mat.opacity = Math.min(1, f + 0.15);
+          }
+        }
       }
     },
     setEra(_era: EraId, _t: number): void {
@@ -212,6 +247,7 @@ export function createVehicles(): Vehicles {
     },
     dispose(): void {
       for (const d of disposables) d.dispose();
+      for (const g of geometryToDispose) g.dispose();
       group.clear();
     },
   };

@@ -16,8 +16,6 @@ export interface EraSpec {
   readonly label: string;
   /** One-line description shown in the HUD. */
   readonly description: string;
-  /** Slider position for non-linear spacing (0..1). */
-  readonly sliderT: number;
 }
 
 export const ERA_IDS: readonly EraId[] = ['1945', '1965', '1985', '2005', '2025'];
@@ -28,35 +26,30 @@ export const ERA_REGISTRY: readonly EraSpec[] = [
     year: 1945,
     label: '1945',
     description: 'Post-war brick & sepia. Victory gardens, gas lamps, trolleys.',
-    sliderT: 0,
   },
   {
     id: '1965',
     year: 1965,
     label: '1965',
     description: 'Mid-century pastels, chrome tailfins, coffee-shop neon.',
-    sliderT: 0.22,
   },
   {
     id: '1985',
     year: 1985,
     label: '1985',
     description: 'Concrete & glass, boxy sedans, arcade glow and sodium lamps.',
-    sliderT: 0.46,
   },
   {
     id: '2005',
     year: 2005,
     label: '2005',
     description: 'Modern glass, SUVs, digital billboards, LED lighting.',
-    sliderT: 0.72,
   },
   {
     id: '2025',
     year: 2025,
     label: '2025',
     description: 'EVs, scooters, smart signage, rooftop greenery and cooler LEDs.',
-    sliderT: 1,
   },
 ];
 
@@ -68,8 +61,26 @@ export function getEraSpec(id: EraId): EraSpec {
   return spec;
 }
 
-export function getEraIndex(id: EraId): number {
-  return ERA_IDS.indexOf(id);
+/**
+ * Continuous activation weight for an era-tagged object (vehicle, rooftop
+ * prop). Returns 1 while `eraIndex` sits inside the object's era window and
+ * fades to 0 across a half-index band at each edge, so items never pop in or
+ * out while the eased transition is mid-flight.
+ */
+export function eraRangeWeight(eraIndex: number, eras: readonly EraId[]): number {
+  if (eras.length === 0) return 0;
+  let minIdx = ERA_IDS.length;
+  let maxIdx = -1;
+  for (const id of eras) {
+    const idx = ERA_IDS.indexOf(id);
+    if (idx < 0) continue;
+    if (idx < minIdx) minIdx = idx;
+    if (idx > maxIdx) maxIdx = idx;
+  }
+  if (maxIdx < minIdx) return 0;
+  const inEdge = Math.min(1, Math.max(0, (eraIndex - minIdx + 0.5) * 2));
+  const outEdge = Math.min(1, Math.max(0, (maxIdx + 0.5 - eraIndex) * 2));
+  return Math.min(inEdge, outEdge);
 }
 
 /**

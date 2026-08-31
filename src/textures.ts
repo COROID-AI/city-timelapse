@@ -34,24 +34,6 @@ export function canvasTexture(
   return tex;
 }
 
-/** Simple brick wall with mortar lines and varied brick tint. */
-export function makeBrickTexture(base: string, mortar = '#5a5752', rows = 8, cols = 6): THREE.CanvasTexture {
-  return canvasTexture((ctx, w, h) => {
-    ctx.fillStyle = mortar;
-    ctx.fillRect(0, 0, w, h);
-    const bw = w / cols;
-    const bh = h / rows;
-    for (let r = 0; r < rows; r++) {
-      const off = r % 2 === 0 ? 0 : bw / 2;
-      for (let c = -1; c < cols + 1; c++) {
-        const shade = 0.85 + 0.3 * Math.random();
-        ctx.fillStyle = shadeTo(base, shade);
-        ctx.fillRect(c * bw + off + 1, r * bh + 1, bw - 2, bh - 2);
-      }
-    }
-  }, 256, 256);
-}
-
 /** Asphalt / concrete surface with subtle noise. */
 export function makeAsphaltTexture(base: string, speckles = 260): THREE.CanvasTexture {
   return canvasTexture((ctx, w, h) => {
@@ -137,11 +119,6 @@ export function makeSignTexture(
     128,
     true,
   );
-}
-
-/** Era-appropriate classic sign (e.g. "WAR BONDS", "COLA 5c"). */
-export function makeClassicSign(text: string, accent = '#f4b942'): THREE.CanvasTexture {
-  return makeSignTexture([text], { bg: '#201c14', fg: accent, glow: '#ffdf8e' });
 }
 
 function shadeTo(hex: string, f: number): string {

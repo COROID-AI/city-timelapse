@@ -5,7 +5,7 @@
 
 import * as THREE from 'three';
 import { getEraSegment, type AppState } from '../state';
-import { type EraId } from '../eras';
+import { ERA_IDS, type EraId } from '../eras';
 import { makeSkyGradientTexture, updateSkyGradientTexture } from '../textures';
 
 export interface Atmosphere {
@@ -13,7 +13,6 @@ export interface Atmosphere {
   update(dt: number, state: AppState): void;
   setEra(era: EraId, t: number): void;
   dispose(): void;
-  setFog(fog: THREE.Fog | null): void;
 }
 
 interface EraAtmosSpec {
@@ -126,19 +125,21 @@ export function createAtmosphere(): Atmosphere {
     fog: false,
     depthWrite: false,
   });
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(220, 32, 20), skyMat);
+  const skyGeo = new THREE.SphereGeometry(220, 32, 20);
+  const sky = new THREE.Mesh(skyGeo, skyMat);
   group.add(sky);
-  disposables.push(skyMat, skyTex);
+  disposables.push(skyMat, skyTex, skyGeo);
 
   // Sun disc
   const sunMat = new THREE.MeshBasicMaterial({
     color: ATMOS['1945'].sunColor,
     fog: false,
   });
-  const sun = new THREE.Mesh(new THREE.SphereGeometry(6, 16, 12), sunMat);
+  const sunGeo = new THREE.SphereGeometry(6, 16, 12);
+  const sun = new THREE.Mesh(sunGeo, sunMat);
   sun.position.set(80, 60, -130);
   group.add(sun);
-  disposables.push(sunMat);
+  disposables.push(sunMat, sunGeo);
 
   // Particle field
   const pGeo = new THREE.BufferGeometry();
@@ -166,6 +167,9 @@ export function createAtmosphere(): Atmosphere {
   const env: Atmosphere = {
     group,
     update(dt: number, state: AppState): void {
+      // Heavy lerp/needsUpdate work only runs while the cursor is mid-flight;
+      // scene.ts gates calls to update() itself, so at rest only the gentle
+      // particle drift remains.
       const seg = getEraSegment(state.eraIndex);
       const lo = ATMOS[ERA_IDS[seg.lo]];
       const hi = ATMOS[ERA_IDS[seg.hi]];
@@ -198,10 +202,6 @@ export function createAtmosphere(): Atmosphere {
     setEra(_era: EraId, _t: number): void {
       // continuous
     },
-    setFog(fog: THREE.Fog | null): void {
-      // ownership: scene assigns via env.setFog
-      void fog;
-    },
     dispose(): void {
       for (const d of disposables) d.dispose();
       group.clear();
@@ -209,8 +209,6 @@ export function createAtmosphere(): Atmosphere {
   };
   return env;
 }
-
-const ERA_IDS: EraId[] = ['1945', '1965', '1985', '2005', '2025'];
 
 function lerpColor(a: string, b: string, t: number): string {
   const ca = parseInt(a.slice(1), 16);

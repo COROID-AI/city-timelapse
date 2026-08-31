@@ -8,8 +8,8 @@
  */
 
 import * as THREE from 'three';
-import { getEraSegment, type AppState } from '../state';
-import { type EraId } from '../eras';
+import { eraTransitionActive, getEraSegment, type AppState } from '../state';
+import { ERA_IDS, eraRangeWeight, type EraId } from '../eras';
 import { makeSignTexture, makeWindowTexture } from '../textures';
 
 export interface Buildings {
@@ -18,8 +18,6 @@ export interface Buildings {
   setEra(era: EraId, t: number): void;
   dispose(): void;
 }
-
-const ERA_IDS: EraId[] = ['1945', '1965', '1985', '2005', '2025'];
 
 function nearestEra(index: number): EraId {
   return ERA_IDS[Math.min(ERA_IDS.length - 1, Math.max(0, Math.round(index)))];
@@ -255,6 +253,7 @@ interface BuildingRecord {
 export function createBuildings(): Buildings {
   const group = new THREE.Group();
   const disposables: Array<{ dispose(): void }> = [];
+  const geometryToDispose: THREE.BufferGeometry[] = [];
   const records: BuildingRecord[] = [];
 
   for (const spec of SPECS) {
@@ -275,6 +274,7 @@ export function createBuildings(): Buildings {
     body.castShadow = true;
     body.receiveShadow = true;
     group.add(body);
+    geometryToDispose.push(bodyGeo);
 
     // Sign billboard (era text)
     const signTex = createSignTexture(spec, '1945');
@@ -283,12 +283,14 @@ export function createBuildings(): Buildings {
       transparent: true,
       side: THREE.DoubleSide,
     });
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 2), signMat);
+    const signGeo = new THREE.PlaneGeometry(5.2, 2);
+    const sign = new THREE.Mesh(signGeo, signMat);
     const sdir = spec.signPos === 'north' ? 1 : -1;
     sign.position.set(spec.x, 4.5, spec.z + (sdir * spec.d) / 2 + 0.3);
     sign.lookAt(sign.position.x, sign.position.y, -sign.position.z * 3);
     sign.rotation.y = spec.signPos === 'north' ? 0 : Math.PI;
     group.add(sign);
+    geometryToDispose.push(signGeo);
 
     // Rooftop props (all created; era visibility toggles opacity)
     const roofProps: THREE.Group[] = [];
@@ -299,10 +301,17 @@ export function createBuildings(): Buildings {
       group.add(prop);
       roofProps.push(prop);
       disposables.push(...collectMaterials(prop));
+      prop.traverse((child) => {
+        const mesh = child as THREE.Mesh;
+        if (mesh.geometry) {
+          const geo = mesh.geometry as THREE.BufferGeometry;
+          if (geometryToDispose.indexOf(geo) === -1) geometryToDispose.push(geo);
+        }
+      });
     }
 
     records.push({ body, facadeMat, windowTex, sign, signMat, signTex, roofProps, spec });
-    disposables.push(facadeMat, signMat, windowTex, signTex, bodyGeo);
+    disposables.push(facadeMat, signMat, windowTex, signTex);
   }
 
   const env: Buildings = {
@@ -312,33 +321,50 @@ export function createBuildings(): Buildings {
       const loEra = ERA_IDS[seg.lo];
       const hiEra = ERA_IDS[seg.hi];
       const t = seg.t;
+      const transitioning = eraTransitionActive(state.eraIndex);
       for (const rec of records) {
         const s = rec.spec;
         const h = THREE.MathUtils.lerp(s.heights[loEra], s.heights[hiEra], t);
         rec.body.scale.y = h;
         rec.body.position.y = h / 2;
 
-        rec.facadeMat.color.copy(new THREE.Color(s.facade[loEra])).lerp(new THREE.Color(s.facade[hiEra]), t);
-        rec.facadeMat.emissive.copy(new THREE.Color(s.windowEmissive[loEra])).lerp(new THREE.Color(s.windowEmissive[hiEra]), t);
-        rec.facadeMat.emissiveIntensity = THREE.MathUtils.lerp(
-          s.windowIntensity[loEra],
-          s.windowIntensity[hiEra],
-          t,
-        );
+        if (transitioning) {
+          rec.facadeMat.color.copy(new THREE.Color(s.facade[loEra])).lerp(new THREE.Color(s.facade[hiEra]), t);
+          rec.facadeMat.emissive.copy(new THREE.Color(s.windowEmissive[loEra])).lerp(new THREE.Color(s.windowEmissive[hiEra]), t);
+          rec.facadeMat.emissiveIntensity = THREE.MathUtils.lerp(
+            s.windowIntensity[loEra],
+            s.windowIntensity[hiEra],
+            t,
+          );
+        }
 
         // Rooftop props ride the building height; era visibility eases opacity.
         for (let i = 0; i < rec.roofProps.length; i++) {
           const prop = rec.roofProps[i];
           const ps = ROOFTOP_PROP_SPECS[i];
           prop.position.y = h;
-          const on = ps.eras.includes(state.era);
-          const mat = firstMaterial(prop);
-          if (mat) {
-            mat.transparent = true;
-            mat.opacity = THREE.MathUtils.lerp(mat.opacity, on ? 1 : 0, 0.18);
-            mat.needsUpdate = true;
+          const weight = eraRangeWeight(state.eraIndex, ps.eras);
+          let maxOpacity = 0;
+          prop.traverse((child) => {
+            const mesh = child as THREE.Mesh;
+            if (!mesh.material) return;
+            const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+            for (const m of mats) {
+              const mat = m as THREE.Material;
+              mat.transparent = true;
+              mat.opacity = THREE.MathUtils.lerp(mat.opacity, weight, 0.18);
+              if (mat.opacity > maxOpacity) maxOpacity = mat.opacity;
+            }
+          });
+          if (transitioning) {
+            prop.traverse((child) => {
+              const mesh = child as THREE.Mesh;
+              if (!mesh.material) return;
+              const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+              for (const m of mats) (m as THREE.Material).needsUpdate = true;
+            });
           }
-          prop.visible = mat ? mat.opacity > 0.02 : on;
+          prop.visible = maxOpacity > 0.02;
         }
 
         // Sign text swap at nearest discrete era.
@@ -358,6 +384,7 @@ export function createBuildings(): Buildings {
     },
     dispose(): void {
       for (const d of disposables) d.dispose();
+      for (const g of geometryToDispose) g.dispose();
       group.clear();
     },
   };
@@ -371,18 +398,6 @@ function createSignTexture(spec: BuildingSpec, era: EraId): THREE.Texture {
     fg: spec.signAccent[era],
     glow: spec.signAccent[era],
   });
-}
-
-function firstMaterial(obj: THREE.Object3D): THREE.Material | null {
-  let found: THREE.Material | null = null;
-  obj.traverse((child) => {
-    if (found) return;
-    const mesh = child as THREE.Mesh;
-    if (mesh.material) {
-      found = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
-    }
-  });
-  return found;
 }
 
 function collectMaterials(root: THREE.Object3D): THREE.Material[] {

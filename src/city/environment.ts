@@ -6,7 +6,7 @@
 
 import * as THREE from 'three';
 import { getEraSegment, type AppState } from '../state';
-import { type EraId } from '../eras';
+import { ERA_IDS, type EraId } from '../eras';
 import { makeAsphaltTexture, makeColorTexture } from '../textures';
 
 export interface CityEnvironment {
@@ -33,10 +33,8 @@ interface EraPalette {
   lamplightIntensity: number;
 }
 
-const ERA_IDS_ARRAY: EraId[] = ['1945', '1965', '1985', '2005', '2025'];
-
 function eraAt(index: number): EraId {
-  return ERA_IDS_ARRAY[Math.min(Math.max(index, 0), ERA_IDS_ARRAY.length - 1)];
+  return ERA_IDS[Math.min(Math.max(index, 0), ERA_IDS.length - 1)];
 }
 
 const PALETTES: Record<EraId, EraPalette> = {
@@ -88,14 +86,13 @@ const PALETTES: Record<EraId, EraPalette> = {
 };
 
 function lerpPalette(a: EraPalette, b: EraPalette, t: number): EraPalette {
-  const c = (src: THREE.Color): THREE.Color => src.clone();
   return {
-    road: c(a.road).lerp(b.road, t),
-    sidewalk: c(a.sidewalk).lerp(b.sidewalk, t),
-    concrete: c(a.concrete).lerp(b.concrete, t),
-    lamp: c(a.lamp).lerp(b.lamp, t),
-    grass: c(a.grass).lerp(b.grass, t),
-    lamplight: c(a.lamplight).lerp(b.lamplight, t),
+    road: a.road.clone().lerp(b.road, t),
+    sidewalk: a.sidewalk.clone().lerp(b.sidewalk, t),
+    concrete: a.concrete.clone().lerp(b.concrete, t),
+    lamp: a.lamp.clone().lerp(b.lamp, t),
+    grass: a.grass.clone().lerp(b.grass, t),
+    lamplight: a.lamplight.clone().lerp(b.lamplight, t),
     lamplightIntensity: THREE.MathUtils.lerp(
       a.lamplightIntensity,
       b.lamplightIntensity,
@@ -107,6 +104,17 @@ function lerpPalette(a: EraPalette, b: EraPalette, t: number): EraPalette {
 export function createCityEnvironment(): CityEnvironment {
   const group = new THREE.Group();
   const disposables: Array<{ dispose(): void }> = [];
+  const geometryToDispose: THREE.BufferGeometry[] = [];
+
+  function trackGeometry(root: THREE.Object3D): void {
+    root.traverse((child) => {
+      const mesh = child as THREE.Mesh;
+      if (mesh.geometry) {
+        const geo = mesh.geometry as THREE.BufferGeometry;
+        if (geometryToDispose.indexOf(geo) === -1) geometryToDispose.push(geo);
+      }
+    });
+  }
 
   const asphaltTex = makeAsphaltTexture('#3a3a3a');
   const sidewalkTex = makeAsphaltTexture('#8f8a84');
@@ -260,15 +268,19 @@ export function createCityEnvironment(): CityEnvironment {
       const lo = PALETTES[eraAt(seg.lo)];
       const hi = PALETTES[eraAt(seg.hi)];
       const p = lerpPalette(lo, hi, seg.t);
-      roadMat.color.copy(p.road);
-      sidewalkMat.color.copy(p.sidewalk);
-      plazaMat.color.copy(p.concrete);
-      groundMat.color.copy(p.concrete).multiplyScalar(0.7);
-      for (const m of grassMats) m.color.copy(p.grass);
-      for (const hm of lampHeads) {
-        hm.emissive.copy(p.lamplight);
-        hm.emissiveIntensity = p.lamplightIntensity;
-        hm.color.copy(p.lamplight);
+      // Only rewrite when the continuous cursor is mid-flight; at rest the
+      // palette is already at the era endpoint.
+      if (Math.abs(state.eraIndex - Math.round(state.eraIndex)) > 0.0001) {
+        roadMat.color.copy(p.road);
+        sidewalkMat.color.copy(p.sidewalk);
+        plazaMat.color.copy(p.concrete);
+        groundMat.color.copy(p.concrete).multiplyScalar(0.7);
+        for (const m of grassMats) m.color.copy(p.grass);
+        for (const hm of lampHeads) {
+          hm.emissive.copy(p.lamplight);
+          hm.emissiveIntensity = p.lamplightIntensity;
+          hm.color.copy(p.lamplight);
+        }
       }
     },
     setEra(_era: EraId, _t: number): void {
@@ -277,6 +289,8 @@ export function createCityEnvironment(): CityEnvironment {
     },
     dispose(): void {
       for (const d of disposables) d.dispose();
+      trackGeometry(group);
+      for (const g of geometryToDispose) g.dispose();
       group.clear();
     },
   };

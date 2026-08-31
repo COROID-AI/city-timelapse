@@ -12,7 +12,7 @@
  * suspended and is resumed on the first user gesture (autoplay policy).
  */
 
-import { ERA_IDS, getEraSpec, type EraId } from '../eras';
+import { ERA_IDS, type EraId } from '../eras';
 import { generateAllEraBuffers, type EraAudioBuffers } from './sfx';
 
 export interface SfxMixerOptions {
@@ -44,10 +44,12 @@ export class SfxMixer {
   private readonly trafficLayers = new Map<EraId, LayerHandle>();
   private readonly musicLayers = new Map<EraId, LayerHandle>();
   private activeEra: EraId = '1945';
+  /** Continuous era cursor (0..ERA_IDS.length-1) for the visual/audio tween. */
+  eraCursor = 0;
+  private appliedCursor = 0;
   private muted = false;
   private started = false;
   private disposed = false;
-  private eventTimer: number | null = null;
   private nextEventAt = 0;
 
   constructor(options?: SfxMixerOptions) {
@@ -169,8 +171,27 @@ export class SfxMixer {
     if (target === 0) this.master.gain.setValueAtTime(0, t + 0.09);
   }
 
-  get mutedState(): boolean {
-    return this.muted;
+  /**
+   * Applies adjacent-era gains from a continuous cursor so the ambient/traffic
+   * layers crossfade across the whole transition rather than snapping.
+   */
+  private applyEraCursor(cursor: number): void {
+    const clamped = Math.min(ERA_IDS.length - 1, Math.max(0, cursor));
+    const lo = Math.floor(clamped);
+    const hi = Math.min(lo + 1, ERA_IDS.length - 1);
+    const t = clamped - lo;
+    const time = this.ctx.currentTime;
+    const fade = 0.12;
+    for (const [era, handle] of this.layers) {
+      const idx = ERA_IDS.indexOf(era);
+      const target = idx === lo ? 1 - t : idx === hi ? t : 0;
+      this.rampTo(handle.gain, target, fade, time);
+    }
+    for (const [era, handle] of this.trafficLayers) {
+      const idx = ERA_IDS.indexOf(era);
+      const target = idx === lo ? 1 - t : idx === hi ? t : 0;
+      this.rampTo(handle.gain, target, fade, time);
+    }
   }
 
   /** Called each frame; schedules one-shot event sounds at an era-based rate. */
@@ -180,6 +201,12 @@ export class SfxMixer {
       this.playEvent();
       const minutes = 60 / this.opts.eventRatePerMinute;
       this.nextEventAt = now + minutes * (0.6 + Math.random() * 0.8);
+    }
+    // Follow the eased era cursor so audio layers crossfade in sync with the
+    // visual transition instead of snapping at the discrete endpoint.
+    if (this.eraCursor !== this.appliedCursor) {
+      this.applyEraCursor(this.eraCursor);
+      this.appliedCursor = this.eraCursor;
     }
   }
 
@@ -226,10 +253,6 @@ export class SfxMixer {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    if (this.eventTimer !== null) {
-      window.clearTimeout(this.eventTimer);
-      this.eventTimer = null;
-    }
     for (const handle of this.layers.values()) {
       try {
         handle.source.stop();
@@ -264,7 +287,3 @@ export class SfxMixer {
   }
 }
 
-/** Convenience: label of the current era for HUD audio status. */
-export function eraLabel(id: EraId): string {
-  return getEraSpec(id).label;
-}

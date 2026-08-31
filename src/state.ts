@@ -36,21 +36,6 @@ export function clamp(x: number, lo = 0, hi = 1): number {
   return Math.min(hi, Math.max(lo, x));
 }
 
-export function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
-
-/** Hermite smoothstep, t clamped to [0,1]. */
-export function smoothstep(t: number): number {
-  const u = clamp(t);
-  return u * u * (3 - 2 * u);
-}
-
-export function easeInOutCubic(t: number): number {
-  const u = clamp(t);
-  return u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
-}
-
 /** Which adjacent era pair a continuous index sits between. */
 export function getEraSegment(eraIndex: number): {
   lo: number;
@@ -63,8 +48,11 @@ export function getEraSegment(eraIndex: number): {
   return { lo, hi, t: i - lo };
 }
 
-/** Focus factor of the era the cursor is currently closest to (0..1). */
-export function eraFocus(eraIndex: number): number {
-  const seg = getEraSegment(eraIndex);
-  return seg.t === 0 ? 1 - Math.abs(eraIndex - seg.lo) : 1 - seg.t;
+/**
+ * True while the continuous era cursor is mid-flight. Scene modules use this
+ * to skip color/texture/material rewrites when the block is at rest, keeping
+ * the steady-state render loop allocation-free.
+ */
+export function eraTransitionActive(eraIndex: number, transitionEpsilon = 0.0001): boolean {
+  return Math.abs(eraIndex - Math.round(eraIndex)) > transitionEpsilon;
 }

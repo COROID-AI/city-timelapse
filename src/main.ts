@@ -11,6 +11,11 @@
  *   3. Show boot overlay; audio is gated behind the "Enter" user gesture.
  *   4. Render loop eases the continuous eraIndex toward the selected era and
  *      calls each module's update().
+ *
+ * Era pipeline: the UI callbacks mutate `eraTarget` — the eased, continuous
+ * cursor state.eraIndex follows it, and every city module interpolates from
+ * state.eraIndex (the single source of truth). Audio crossfades ride the same
+ * eased cursor so visuals and sound stay in sync during a transition.
  */
 
 import * as THREE from 'three';
@@ -65,6 +70,8 @@ renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
+renderer.domElement.style.width = '100%';
+renderer.domElement.style.height = '100%';
 app.appendChild(renderer.domElement);
 
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 600);
@@ -110,11 +117,18 @@ const state: AppState = createInitialState();
 let mixer: SfxMixer | null = null;
 let audioInitialized = false;
 
+// Era easing: eraTarget holds the discrete selection; eraIndex follows it.
+const eraTarget = { value: 0 };
+
+function applyEra(era: EraId): void {
+  state.era = era;
+  eraTarget.value = ERA_IDS.indexOf(era);
+}
+
 const ui = createCityUi(
   {
     onEraChange(era: EraId): void {
-      state.era = era;
-      if (mixer) mixer.setEra(era);
+      applyEra(era);
     },
     onToggleMute(): void {
       state.muted = !state.muted;
@@ -148,7 +162,7 @@ function handleResize(): void {
   const h = app.clientHeight || window.innerHeight;
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  renderer.setSize(w, h, false);
+  renderer.setSize(w, h);
 }
 handleResize();
 const ro = new ResizeObserver(handleResize);
@@ -156,25 +170,36 @@ ro.observe(app);
 
 // ---- Render loop ------------------------------------------------------------
 const timer = new THREE.Timer();
-// Era easing
-const eraTarget = { value: 0 };
 
-function setEraTarget(era: EraId): void {
-  eraTarget.value = ERA_IDS.indexOf(era);
+function stepEra(dt: number): void {
+  const rate = state.reducedMotion ? 6 : 2.4;
+  const diff = eraTarget.value - state.eraIndex;
+  state.eraIndex += clamp(diff, -1, 1) * Math.min(1, dt * rate);
+  if (Math.abs(diff) < 0.002) state.eraIndex = eraTarget.value;
+  state.era = ERA_IDS[Math.round(state.eraIndex)];
 }
-
-ui.setEra(state.era);
 
 function loop(): void {
   timer.update();
   const dt = Math.min(timer.getDelta(), 0.05);
   state.time += dt;
-  const rate = state.reducedMotion ? 6 : 2.4;
-  const diff = eraTarget.value - state.eraIndex;
-  state.eraIndex += clamp(diff, -1, 1) * Math.min(1, dt * rate);
-  if (Math.abs(diff) < 0.002) state.eraIndex = eraTarget.value;
+  stepEra(dt);
 
-  mixer?.update(state.time);
+  // Open the audio context on the first user gesture (autoplay policy).
+  if (!audioInitialized && state.time > 0.5) {
+    try {
+      mixer = new SfxMixer();
+      void mixer.init();
+      audioInitialized = true;
+    } catch (err) {
+      console.warn('Audio unavailable', err);
+      audioInitialized = true;
+    }
+  }
+  if (mixer) {
+    mixer.eraCursor = state.eraIndex;
+    mixer.update(state.time);
+  }
 
   city.update(dt, state);
 
@@ -185,7 +210,7 @@ function loop(): void {
 renderer.setAnimationLoop(loop);
 
 // ---- Initial era ------------------------------------------------------------
-setEraTarget('1945');
+applyEra('1945');
 city.setEra('1945', 0);
 
 // ---- Dispose -----------------------------------------------------------------
@@ -199,5 +224,8 @@ function dispose(): void {
   ui.dispose();
 }
 window.addEventListener('beforeunload', dispose);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) dispose();
+});
 
 setStatus('Ready — drag to explore');
