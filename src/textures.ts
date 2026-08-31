@@ -158,7 +158,20 @@ export function makeSkyGradientTexture(
   mid: string,
   bottom: string,
 ): THREE.DataTexture {
-  const data = new Uint8Array(256 * 4);
+  const tex = new THREE.DataTexture(new Uint8Array(256 * 4), 1, 256, THREE.RGBAFormat);
+  updateSkyGradientTexture(tex, top, mid, bottom);
+  return tex;
+}
+
+/** Rewrites the stops of an existing 1x256 sky gradient texture in place. */
+export function updateSkyGradientTexture(
+  tex: THREE.DataTexture,
+  top: string,
+  mid: string,
+  bottom: string,
+): void {
+  const data = tex.image?.data as Uint8Array | undefined;
+  if (!data) return;
   for (let i = 0; i < 256; i++) {
     const t = i / 255;
     const c = t < 0.5 ? lerpColor(top, mid, t * 2) : lerpColor(mid, bottom, (t - 0.5) * 2);
@@ -167,9 +180,7 @@ export function makeSkyGradientTexture(
     data[i * 4 + 2] = c[2];
     data[i * 4 + 3] = 255;
   }
-  const tex = new THREE.DataTexture(data, 1, 256, THREE.RGBAFormat);
   tex.needsUpdate = true;
-  return tex;
 }
 
 function lerpColor(a: string, b: string, t: number): [number, number, number] {

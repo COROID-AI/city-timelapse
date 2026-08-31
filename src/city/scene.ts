@@ -54,8 +54,12 @@ export function createCityScene(): CityScene {
       const seg = getEraSegment(state.eraIndex);
       const loFog = ATMOS_FOG_COLORS[ERA_IDS[seg.lo]];
       const hiFog = ATMOS_FOG_COLORS[ERA_IDS[seg.hi]];
+      const loFogSpec = ATMOS_FOG_SPECS[ERA_IDS[seg.lo]];
+      const hiFogSpec = ATMOS_FOG_SPECS[ERA_IDS[seg.hi]];
       if (scene.fog instanceof THREE.Fog) {
         scene.fog.color.copy(new THREE.Color(loFog)).lerp(new THREE.Color(hiFog), seg.t);
+        scene.fog.near = THREE.MathUtils.lerp(loFogSpec.near, hiFogSpec.near, seg.t);
+        scene.fog.far = THREE.MathUtils.lerp(loFogSpec.far, hiFogSpec.far, seg.t);
       }
     },
     setEra(era: EraId, t: number): void {
@@ -83,4 +87,12 @@ const ATMOS_FOG_COLORS: Record<EraId, string> = {
   '1985': '#9a9090',
   '2005': '#808a92',
   '2025': '#3a4a5a',
+};
+
+const ATMOS_FOG_SPECS: Record<EraId, { near: number; far: number }> = {
+  '1945': { near: 40, far: 150 },
+  '1965': { near: 45, far: 160 },
+  '1985': { near: 35, far: 140 },
+  '2005': { near: 40, far: 150 },
+  '2025': { near: 45, far: 160 },
 };

@@ -15,7 +15,7 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { ERA_IDS, getEraSpec, type EraId } from './eras';
+import { ERA_IDS, type EraId } from './eras';
 import { createInitialState, clamp, type AppState } from './state';
 import { createCityScene, type CityScene } from './city/scene';
 import { SfxMixer } from './audio/mixer';
@@ -174,6 +174,8 @@ function loop(): void {
   state.eraIndex += clamp(diff, -1, 1) * Math.min(1, dt * rate);
   if (Math.abs(diff) < 0.002) state.eraIndex = eraTarget.value;
 
+  mixer?.update(state.time);
+
   city.update(dt, state);
 
   controls.update();
@@ -199,6 +201,3 @@ function dispose(): void {
 window.addEventListener('beforeunload', dispose);
 
 setStatus('Ready — drag to explore');
-
-// Silence unused-import warnings for helpers kept for API completeness.
-void getEraSpec;

@@ -264,7 +264,7 @@ export function createBuildings(): Buildings {
       roughness: 0.78,
     });
     // Window texture: bright panes on a mid facade; used as map + emissiveMap.
-    const windowTex = makeWindowTexture('#20242e', '#ffdf9a', '#1c2432', 5, 6, 0.42);
+    const windowTex = makeWindowTexture('#3a4150', '#ffdf9a', '#232b3a', 5, 6, 0.42);
     facadeMat.map = windowTex;
     facadeMat.emissive = new THREE.Color(spec.windowEmissive['1945']);
     facadeMat.emissiveMap = windowTex;

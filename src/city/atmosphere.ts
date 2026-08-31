@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { getEraSegment, type AppState } from '../state';
 import { type EraId } from '../eras';
-import { makeSkyGradientTexture } from '../textures';
+import { makeSkyGradientTexture, updateSkyGradientTexture } from '../textures';
 
 export interface Atmosphere {
   readonly group: THREE.Group;
@@ -171,14 +171,14 @@ export function createAtmosphere(): Atmosphere {
       const hi = ATMOS[ERA_IDS[seg.hi]];
       const t = seg.t;
 
-      const skyGrad = makeSkyGradientTexture(
+      updateSkyGradientTexture(
+        skyTex,
         lerpColor(lo.skyTop, hi.skyTop, t),
         lerpColor(lo.skyMid, hi.skyMid, t),
         lerpColor(lo.skyBottom, hi.skyBottom, t),
       );
-      skyMat.map = skyGrad;
+      skyMat.map = skyTex;
       skyMat.needsUpdate = true;
-      skyGrad.needsUpdate = true;
 
       sunMat.color.set(lerpColor(lo.sunColor, hi.sunColor, t));
       pMat.color.set(lerpColor(lo.particleColor, hi.particleColor, t));

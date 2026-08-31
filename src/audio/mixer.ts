@@ -41,6 +41,7 @@ export class SfxMixer {
   private readonly master: GainNode;
   private readonly buffers: Record<EraId, EraAudioBuffers>;
   private readonly layers = new Map<EraId, LayerHandle>();
+  private readonly trafficLayers = new Map<EraId, LayerHandle>();
   private readonly musicLayers = new Map<EraId, LayerHandle>();
   private activeEra: EraId = '1945';
   private muted = false;
@@ -63,13 +64,19 @@ export class SfxMixer {
     this.master.gain.value = this.muted ? 0 : this.opts.masterGain;
     this.master.connect(this.ctx.destination);
     this.buffers = generateAllEraBuffers(this.ctx);
+    // Layer gains are the era-crossfade targets. Ambient bed and traffic loop
+    // are separate looping layers so setEra() can fade them independently.
     for (const id of ERA_IDS) {
-      this.layers.set(id, this.createLoop(this.buffers[id].ambient, 0.5, 0.9));
-      this.layers.set(id, this.createLoop(this.buffers[id].traffic, 0.22, 0.8));
+      this.layers.set(id, this.createLoop(this.buffers[id].ambient, 0.0, 0.9));
+      const traffic = this.createLoop(this.buffers[id].traffic, 0.0, 0.8);
+      traffic.gain.gain.value = 0.0;
+      this.trafficLayers.set(id, traffic);
       const music = this.makeMusicBuffer(id);
       this.musicLayers.set(id, this.createLoop(music, 0.0, 0.4));
     }
-    // Start everything routed through a paused master; nothing is audible yet.
+    // Everything is started at zero gain; the mixer becomes audible only after
+    // init() runs from a user gesture.
+    this.started = true;
     this.startLayer();
   }
 
@@ -82,15 +89,20 @@ export class SfxMixer {
     g.gain.value = gain;
     source.connect(g);
     g.connect(this.master);
-    source.start();
     return { source, gain: g };
   }
 
   /** Schedules the looping sources on a suspended context. */
   private startLayer(): void {
-    for (const handle of this.layers.values()) handle;
-    for (const handle of this.musicLayers.values()) handle;
-    this.started = true;
+    for (const handle of this.layers.values()) {
+      handle.source.start(0);
+    }
+    for (const handle of this.trafficLayers.values()) {
+      handle.source.start(0);
+    }
+    for (const handle of this.musicLayers.values()) {
+      handle.source.start(0);
+    }
   }
 
   /**
@@ -122,6 +134,10 @@ export class SfxMixer {
     const time = this.ctx.currentTime;
     const fade = instant ? 0.01 : this.opts.fadeSeconds;
     for (const [era, handle] of this.layers) {
+      const target = this.started && era === id ? 1 : 0;
+      this.rampTo(handle.gain, target, fade, time);
+    }
+    for (const [era, handle] of this.trafficLayers) {
       const target = this.started && era === id ? 1 : 0;
       this.rampTo(handle.gain, target, fade, time);
     }
@@ -223,6 +239,15 @@ export class SfxMixer {
       handle.source.disconnect();
       handle.gain.disconnect();
     }
+    for (const handle of this.trafficLayers.values()) {
+      try {
+        handle.source.stop();
+      } catch {
+        /* already stopped */
+      }
+      handle.source.disconnect();
+      handle.gain.disconnect();
+    }
     for (const handle of this.musicLayers.values()) {
       try {
         handle.source.stop();
@@ -233,6 +258,7 @@ export class SfxMixer {
       handle.gain.disconnect();
     }
     this.layers.clear();
+    this.trafficLayers.clear();
     this.musicLayers.clear();
     void this.ctx.close().catch(() => undefined);
   }

@@ -102,7 +102,7 @@ export function createCityUi(callbacks: UiCallbacks): CityUi {
   // Era description line
   const desc = document.createElement('div');
   desc.style.cssText = `
-    position: absolute; top: 88px; left: 50%; transform: translateX(-50%);
+    position: absolute; top: 118px; left: 50%; transform: translateX(-50%);
     font-size: 13px; color: #dce3f2; text-shadow: 0 2px 12px rgba(0,0,0,0.8);
     text-align: center; pointer-events: none; max-width: 640px;
   `;
@@ -130,7 +130,7 @@ export function createCityUi(callbacks: UiCallbacks): CityUi {
 
   const eraTitle = document.createElement('div');
   eraTitle.style.cssText = `
-    position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
+    position: absolute; top: 66px; left: 50%; transform: translateX(-50%);
     font-size: 22px; font-weight: 600; letter-spacing: 0.04em; color: #fff;
     text-shadow: 0 3px 18px rgba(0,0,0,0.85); pointer-events: none;
   `;
