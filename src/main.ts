@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createInitialState, setEra, lerp } from './state';
 import type { AppState } from './state';
-import { ERA_REGISTRY, ERA_IDS, getEraSpec } from './eras';
+import { ERA_REGISTRY, ERA_IDS, getEraSpec, type EraId, getEraIndex } from './eras';
 import type { EraId } from './eras';
 import { createTextureSet } from './textures';
 import { createEnvironment } from './scene/environment';
@@ -18,6 +18,7 @@ import { createCity } from './scene/city';
 import { createVehicles } from './scene/vehicles';
 import { createPedestrians } from './scene/pedestrians';
 import { SfxMixer } from './audio/mixer';
+import { getEraId } from './state';
 import './style.css';
 
 interface SceneModule {
@@ -177,6 +178,8 @@ function boot(): void {
       setEra(state, i);
       mixer.unlock();
       state.audioUnlocked = true;
+      mixer.setEra(getEraId(state));
+      mixer.setMuted(state.muted);
       updateUI();
     }
 
@@ -198,6 +201,8 @@ function boot(): void {
     if (!state.audioUnlocked) {
       mixer.unlock();
       state.audioUnlocked = true;
+      mixer.setEra(getEraId(state));
+      mixer.setMuted(state.muted);
     }
   };
   window.addEventListener('pointerdown', unlockAudio, { once: false });
