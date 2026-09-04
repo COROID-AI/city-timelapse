@@ -1,6 +1,8 @@
 // Pedestrians module — simple articulated figures walking on sidewalks,
 // with era-specific clothing palettes (1945 coats & hats, 1965 pastels,
 // 1985 shoulder pads, 2005 casual, 2025 athleisure + glowing sneakers).
+// Walk lanes sit at x = ±8 — between the road (|x| <= 6) and the building
+// band (|x| >= 16) — so figures never clip through facades.
 
 import * as THREE from 'three';
 import type { EraId } from '../eras';
@@ -13,6 +15,7 @@ interface Ped {
   bodyMat: THREE.MeshStandardMaterial;
   coatMat: THREE.MeshStandardMaterial;
   pantMat: THREE.MeshStandardMaterial;
+  hat: THREE.Mesh | null;
   x: number;
   z: number;
   speed: number;
@@ -21,7 +24,7 @@ interface Ped {
   colorIdx: number;
 }
 
-const SIDEWALK_X = [-16, 16];
+const SIDEWALK_X = [-8, 8];
 
 const ERA_PALETTES: Record<EraId, { coat: string[]; pant: string[]; shoe: string[] }> = {
   '1945': { coat: ['#4c443a', '#5c4a3e', '#3e3a34'], pant: ['#3b3b3b', '#2f3237', '#44382e'], shoe: ['#1d1d1f'] },
@@ -72,11 +75,13 @@ export class PedestriansModule implements SceneModule {
       head.position.y = 1.68;
       group.add(head);
 
-      // Hat for 1945
+      // Hat — 1945 only; removed in later eras to avoid anachronisms.
       const hatGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.12, 8);
       const hat = new THREE.Mesh(hatGeo, coatMat);
       hat.position.y = 1.84;
+      hat.visible = false;
       group.add(hat);
+      hatGeo.dispose();
 
       group.position.set(SIDEWALK_X[side], 0, range(rnd, -50, 50));
       const dir: 1 | -1 = i % 2 === 0 ? 1 : -1;
@@ -86,6 +91,7 @@ export class PedestriansModule implements SceneModule {
         bodyMat,
         coatMat,
         pantMat,
+        hat,
         x: SIDEWALK_X[side],
         z: group.position.z,
         speed: range(rnd, 0.5, 1.0),
@@ -96,7 +102,6 @@ export class PedestriansModule implements SceneModule {
       legGeo.dispose();
       torsoGeo.dispose();
       headGeo.dispose();
-      hatGeo.dispose();
       headMat.dispose();
     }
   }
@@ -110,6 +115,7 @@ export class PedestriansModule implements SceneModule {
       p.coatMat.color.set(coat);
       p.pantMat.color.set(pant);
       p.bodyMat.color.set(pant);
+      if (p.hat) p.hat.visible = era === '1945';
     }
   }
 

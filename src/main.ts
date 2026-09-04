@@ -34,6 +34,10 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false;
 }
 
+function hasModifier(e: KeyboardEvent): boolean {
+  return e.ctrlKey || e.metaKey || e.altKey || e.shiftKey;
+}
+
 function main(): void {
   // Validity
   if (!webgl2Available()) {
@@ -108,6 +112,7 @@ function main(): void {
     renderHUD(hud, hudState);
   });
   hud.hidden = false;
+  renderHUD(hud, hudState); // initial label/description visible on load
 
   function showLoadingDone(): void {
     loading.classList.add('hidden');
@@ -117,10 +122,12 @@ function main(): void {
   // Transition driver
   let targetEraIndex = eraIndex(state.era);
 
-  function setEra(id: EraId): void {
+  function setEraIndex(idx: number): void {
+    const clamped = Math.max(0, Math.min(ERA_IDS.length - 1, Math.round(idx)));
+    const id = ERA_IDS[clamped];
     if (id === state.era && !state.transitioning) return;
     state.era = id;
-    targetEraIndex = eraIndex(id);
+    targetEraIndex = clamped;
     state.transitioning = true;
     for (const m of modules) m.setEra(id);
     mixer.setEra(id);
@@ -158,38 +165,39 @@ function main(): void {
     btn.className = 'era-tick';
     btn.dataset.era = ERA_IDS[i];
     btn.textContent = ERA_IDS[i];
+    btn.setAttribute('role', 'radio');
     btn.setAttribute('aria-checked', i === 0 ? 'true' : 'false');
     btn.addEventListener('click', () => {
       ensureAudio();
-      setEra(ERA_IDS[i]);
-      slider.value = String(i);
+      setEraIndex(i);
+      setSlider(i);
     });
     ticksRow.appendChild(btn);
   }
   hud.appendChild(ticksRow);
 
   slider.addEventListener('input', () => {
-    const idx = Math.round(Number(slider.value));
     ensureAudio();
-    setEra(ERA_IDS[idx]);
+    setEraIndex(Number(slider.value));
   });
 
   function setSlider(idx: number): void {
     slider.value = String(idx);
   }
 
-  // Keyboard timeline (A/Left = previous, D/Right = next)
+  // Keyboard timeline (A/Left = previous, D/Right = next), M = mute.
+  // Ignore modified keys so Ctrl/Cmd+A, Alt+D etc. behave natively.
   document.addEventListener('keydown', (e) => {
+    if (hasModifier(e)) return;
+    ensureAudio();
     if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
       const idx = Math.max(0, Math.round(Number(slider.value)) - 1);
-      ensureAudio();
-      setEra(ERA_IDS[idx]);
+      setEraIndex(idx);
       setSlider(idx);
       e.preventDefault();
     } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
       const idx = Math.min(ERA_IDS.length - 1, Math.round(Number(slider.value)) + 1);
-      ensureAudio();
-      setEra(ERA_IDS[idx]);
+      setEraIndex(idx);
       setSlider(idx);
       e.preventDefault();
     } else if (e.key === 'm' || e.key === 'M') {
@@ -224,19 +232,27 @@ function main(): void {
 
   // ---------- Frame loop ----------
   const timer = new THREE.Timer();
+  const TRANSITION_RATE = 1 / 1.6; // reaches target in ~2s regardless of fps
+  const REDUCED_RATE = 1 / 0.7;
+  const SNAP_EPS = 0.0015;
+
   renderer.setAnimationLoop(() => {
     timer.update();
-    const dt = timer.getDelta();
+    const dt = Math.min(timer.getDelta(), 0.1);
 
-    // Ease eraFloat toward target index.
+    // Ease eraFloat toward target index — dt-scaled so morph speed is
+    // frame-rate independent (shorter under prefers-reduced-motion).
     const target = targetEraIndex;
     const dist = target - state.eraFloat;
-    const speed = state.reducedMotion ? 0.2 : 0.06;
-    if (Math.abs(dist) > 0.001) {
-      state.eraFloat += dist * speed;
-      if (Math.abs(dist) < 0.008) state.eraFloat = target;
+    if (Math.abs(dist) > SNAP_EPS) {
+      const rate = state.reducedMotion ? REDUCED_RATE : TRANSITION_RATE;
+      const eased = 1 - Math.exp(-dt * rate);
+      state.eraFloat += dist * eased;
+      if (Math.abs(target - state.eraFloat) < SNAP_EPS) {
+        state.eraFloat = target;
+      }
     }
-    if (Math.abs(state.eraFloat - target) < 0.001) {
+    if (Math.abs(state.eraFloat - target) < SNAP_EPS + 0.0005) {
       state.eraFloat = target;
       state.transitioning = false;
     }

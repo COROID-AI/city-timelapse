@@ -37,6 +37,7 @@ export class GroundModule implements SceneModule {
   private treeMat: THREE.MeshLambertMaterial;
 
   private roadNoise: THREE.CanvasTexture | null = null;
+  private lastMoodT = Number.NaN;
 
   constructor() {
     this.roadMat = new THREE.MeshStandardMaterial({ color: '#3a3330', roughness: 0.95 });
@@ -163,7 +164,10 @@ export class GroundModule implements SceneModule {
   }
 
   update(_dt: number, state: AppState): void {
-    const m = moodAt(state.eraFloat);
+    const ft = state.eraFloat;
+    if (ft === this.lastMoodT) return;
+    this.lastMoodT = ft;
+    const m = moodAt(ft);
     this.roadMat.color.set(m.road);
     this.sidewalkMat.color.set(m.sidewalk);
     this.parkMat.color.set(m.park);

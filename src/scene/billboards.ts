@@ -28,6 +28,7 @@ export class BillboardsModule implements SceneModule {
   readonly group: THREE.Group = new THREE.Group();
 
   private boards: Billboard[] = [];
+  private lastMoodT = Number.NaN;
 
   constructor() {
     const frameGeo = new THREE.BoxGeometry(6, 0.5, 0.5);
@@ -102,6 +103,9 @@ export class BillboardsModule implements SceneModule {
   }
 
   update(_dt: number, state: AppState): void {
+    const ft = state.eraFloat;
+    if (ft === this.lastMoodT) return;
+    this.lastMoodT = ft;
     const mood = getMood(state.era);
     for (const b of this.boards) {
       b.glow.color.set(mood.posterAccent);

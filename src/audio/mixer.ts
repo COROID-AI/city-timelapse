@@ -1,25 +1,35 @@
 // Era-aware crossfade mixer. Owns AudioNodes for every era's beds and
 // smooths the transition between eras with an exponential gain ramp
 // (~1.5s window, click-free). Audio only starts after a user gesture.
+//
+// Buffers are generated lazily: only the first era's beds are synthesized
+// on first gesture, and the remaining eras are generated incrementally
+// across idle frames so the initial user interaction is never janked.
+// Only the active era's sources are running; others are created when
+// their era becomes active.
 
 import type { EraId, SfxEventKind } from '../eras';
-import { ERA_IDS } from '../eras';
+import { ERA_IDS, SFX_ERA_DATA } from '../eras';
 import type { EraAudioBuffers } from './sfx';
-import { generateAllEraBuffers } from './sfx';
+import { generateEraAudioBuffers } from './sfx';
 
 export interface SfxMixerOptions {
   /** Master volume (0..1). */
   volume?: number;
   /** Called on first successful audio init (inside a user gesture). */
   onReady?: () => void;
+  /** Max milliseconds of buffer synthesis per idle tick (default 14). */
+  lazyBudgetPerTickMs?: number;
 }
 
 const CROSSFADE_SECONDS = 1.5;
+const DEFAULT_LAZY_BUDGET_MS = 14;
 
 interface EraVoice {
   ambientGain: GainNode;
   trafficGain: GainNode;
   musicGain: GainNode;
+  sources: { ambient: AudioBufferSourceNode; traffic: AudioBufferSourceNode; music: AudioBufferSourceNode } | null;
 }
 
 export class SfxMixer {
@@ -28,7 +38,7 @@ export class SfxMixer {
   private buses: { ambient: GainNode; traffic: GainNode; music: GainNode } | null = null;
 
   private voices = new Map<EraId, EraVoice>();
-  private buffers: Record<EraId, EraAudioBuffers> | null = null;
+  private buffers: Partial<Record<EraId, EraAudioBuffers>> = {};
 
   private currentEra: EraId;
   private currentVolume: number;
@@ -38,12 +48,16 @@ export class SfxMixer {
   /** Per-era one-shot event scheduler state. */
   private eventState = new Map<EraId, { nextEventAt: number }>();
 
+  private pendingEras: EraId[] = [];
+  private lazyBudgetMs: number;
+
   private onReady?: () => void;
 
   constructor(options: SfxMixerOptions = {}) {
     this.currentEra = ERA_IDS[0];
     this.currentVolume = options.volume ?? 1;
     this.onReady = options.onReady;
+    this.lazyBudgetMs = options.lazyBudgetPerTickMs ?? DEFAULT_LAZY_BUDGET_MS;
   }
 
   get isReady(): boolean {
@@ -60,7 +74,7 @@ export class SfxMixer {
 
   /** Call from a user gesture (pointerdown / keydown) to start audio. */
   init(): void {
-    if (this.ready) return;
+    if (this.ready || this.ctx) return;
     const Ctor: typeof AudioContext | undefined = window.AudioContext;
     if (!Ctor) return;
     this.ctx = new Ctor();
@@ -74,15 +88,14 @@ export class SfxMixer {
       music: this.makeBus(this.ctx, this.master, 1),
     };
 
-    this.buffers = generateAllEraBuffers(this.ctx);
-
+    // Synthesize only the initial era now; the rest lazily in update().
     for (const id of ERA_IDS) {
-      const sets = this.buffers[id];
-      this.voices.set(id, this.voiceFor(id, sets));
+      this.voices.set(id, this.makeVoice(id));
     }
+    this.pendingEras = ERA_IDS.filter((id) => id !== this.currentEra);
+    this.ensureEraBuffers(this.currentEra);
+    this.activateVoice(this.currentEra);
 
-    // Start the current era at full gain; everything else silent.
-    this.applyCrossfade(this.currentEra, this.ctx.currentTime);
     this.ready = true;
     this.onReady?.();
   }
@@ -94,13 +107,14 @@ export class SfxMixer {
     return g;
   }
 
-  private voiceFor(_id: EraId, sets: EraAudioBuffers): EraVoice {
+  private makeVoice(id: EraId): EraVoice {
     if (!this.ctx || !this.buses) throw new Error('Mixer not initialized');
     const ctx = this.ctx;
     const voice: EraVoice = {
       ambientGain: ctx.createGain(),
       trafficGain: ctx.createGain(),
       musicGain: ctx.createGain(),
+      sources: null,
     };
     voice.ambientGain.gain.value = 0;
     voice.trafficGain.gain.value = 0;
@@ -108,40 +122,79 @@ export class SfxMixer {
     voice.ambientGain.connect(this.buses.ambient);
     voice.trafficGain.connect(this.buses.traffic);
     voice.musicGain.connect(this.buses.music);
+    this.eventState.set(id, { nextEventAt: ctx.currentTime + 1 + Math.random() * 2 });
+    return voice;
+  }
 
+  private ensureEraBuffers(id: EraId): void {
+    if (!this.ctx) return;
+    if (this.buffers[id]) return;
+    this.buffers[id] = generateEraAudioBuffers(
+      this.ctx,
+      SFX_ERA_DATA[id],
+    );
+  }
+
+  private startVoiceSources(id: EraId): void {
+    if (!this.ctx || !this.buses) return;
+    const voice = this.voices.get(id);
+    const sets = this.buffers[id];
+    if (!voice || !sets || voice.sources) return;
+    const ctx = this.ctx;
     const srcAmbient = ctx.createBufferSource();
     srcAmbient.buffer = sets.ambient;
     srcAmbient.loop = true;
     srcAmbient.connect(voice.ambientGain);
     srcAmbient.start();
-
     const srcTraffic = ctx.createBufferSource();
     srcTraffic.buffer = sets.traffic;
     srcTraffic.loop = true;
     srcTraffic.connect(voice.trafficGain);
     srcTraffic.start();
-
     const srcMusic = ctx.createBufferSource();
     srcMusic.buffer = sets.music;
     srcMusic.loop = true;
     srcMusic.connect(voice.musicGain);
     srcMusic.start();
-
-    this.eventState.set(_id, { nextEventAt: ctx.currentTime + 1 + Math.random() * 3 });
-    return voice;
+    voice.sources = { ambient: srcAmbient, traffic: srcTraffic, music: srcMusic };
   }
 
-  private applyCrossfade(target: EraId, when: number): void {
+  /** Start sources for the active era at full gain; others at zero. */
+  private activateVoice(id: EraId, previous?: EraId): void {
+    if (!this.ctx) return;
+    this.ensureEraBuffers(id);
+    this.startVoiceSources(id);
+    this.applyCrossfade(id, this.ctx.currentTime, previous);
+    this.eventState.set(id, { nextEventAt: this.ctx.currentTime + 1.5 + Math.random() * 2 });
+  }
+
+  private applyCrossfade(target: EraId, when: number, previous?: EraId): void {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
     const start = Math.max(when, now);
+    // Schedule cleanup of the previously active era's sources after the
+    // crossfade completes so we don't run muted looping sources forever.
+    if (previous && previous !== target) {
+      const stopAt = start + CROSSFADE_SECONDS + 0.15;
+      const prevVoice = this.voices.get(previous);
+      if (prevVoice && prevVoice.sources) {
+        const srcs = prevVoice.sources;
+        for (const s of [srcs.ambient, srcs.traffic, srcs.music]) {
+          try {
+            s.stop(stopAt);
+          } catch {
+            // already stopped
+          }
+        }
+        prevVoice.sources = null;
+      }
+    }
     for (const [id, voice] of this.voices) {
       const active = id === target;
       this.rampTo(voice.ambientGain.gain, active ? 1 : 0, start);
       this.rampTo(voice.trafficGain.gain, active ? 1 : 0, start);
       this.rampTo(voice.musicGain.gain, active ? 1 : 0, start);
     }
-    this.eventState.set(target, { nextEventAt: now + 1.5 + Math.random() * 2 });
   }
 
   private rampTo(param: AudioParam, target: number, start: number): void {
@@ -161,9 +214,10 @@ export class SfxMixer {
 
   /** Switch the active era; crossfades all layers over ~1.5s. */
   setEra(id: EraId): void {
+    const previous = this.currentEra;
     this.currentEra = id;
     if (this.ready && this.ctx) {
-      this.applyCrossfade(id, this.ctx.currentTime);
+      this.activateVoice(id, previous);
     }
   }
 
@@ -188,11 +242,23 @@ export class SfxMixer {
     }
   }
 
-  /** Fire a one-shot event when the era's scheduler says so. */
+  /** Idle-phase lazy buffer generation + one-shot event scheduler. */
   update(delta: number): void {
     if (!this.ready || !this.ctx) return;
     const now = this.ctx.currentTime;
     void delta;
+
+    // Generate remaining era buffers within a small per-tick budget.
+    if (this.pendingEras.length > 0) {
+      const deadline = performance.now() + this.lazyBudgetMs;
+      while (this.pendingEras.length > 0) {
+        const id = this.pendingEras[this.pendingEras.length - 1];
+        this.ensureEraBuffers(id);
+        this.pendingEras.pop();
+        if (performance.now() > deadline) break;
+      }
+    }
+
     const st = this.eventState.get(this.currentEra);
     if (!st) return;
     if (now >= st.nextEventAt) {
@@ -204,6 +270,7 @@ export class SfxMixer {
   private fireEvent(id: EraId, at: number): void {
     if (!this.ctx || !this.buffers) return;
     const sets = this.buffers[id];
+    if (!sets) return;
     const kinds = Object.keys(sets.events) as SfxEventKind[];
     if (kinds.length === 0) return;
     const kind = kinds[Math.floor(Math.random() * kinds.length)];
@@ -238,7 +305,9 @@ export class SfxMixer {
     this.master = null;
     this.buses = null;
     this.voices.clear();
-    this.buffers = null;
+    this.buffers = {};
+    this.pendingEras = [];
     this.ready = false;
   }
 }
+

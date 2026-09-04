@@ -1,12 +1,14 @@
 // Vehicles module — era-specific procedural cars driving up and down the
-// road lanes. Each vehicle rebuilds its body/cabin/fin geometry on era
-// change so silhouettes match the time period (1945 sedan, 1965 fin,
-// 1985 box, 2005 SUV, 2025 EV).
+// road lanes. Each vehicle rebuilds its body/cabin/fin geometry when the
+// discrete era changes so silhouettes match the time period (1945 sedan,
+// 1965 fin, 1985 box, 2005 SUV, 2025 EV), while update() only morphs
+// colors continuously between eras.
 
 import * as THREE from 'three';
 import type { EraId } from '../eras';
 import type { AppState } from '../state';
 import type { SceneModule } from './module';
+import { getMood } from '../mood';
 import { moodAt } from '../mood';
 import { mulberry32, range } from './rand';
 
@@ -32,6 +34,10 @@ export class VehiclesModule implements SceneModule {
   readonly group: THREE.Group = new THREE.Group();
 
   private cars: Car[] = [];
+  private currentEra: EraId = '1945';
+  private lastMoodT = Number.NaN;
+  private cachedBody = new THREE.Color('#b03a2e');
+  private cachedAccent = new THREE.Color('#e0d8c8');
 
   constructor() {
     const rnd = mulberry32(2024);
@@ -65,8 +71,9 @@ export class VehiclesModule implements SceneModule {
     };
   }
 
-  setEra(_era: EraId): void {
-    const v = moodAt(0).vehicle;
+  setEra(era: EraId): void {
+    this.currentEra = era;
+    const v = getMood(era).vehicle;
     for (const car of this.cars) {
       car.bodyMat.color.set(v.color);
       car.accentMat.color.set(v.accent);
@@ -112,7 +119,7 @@ export class VehiclesModule implements SceneModule {
     car.group.add(body);
     car.bodyGeo = bodyGeo;
 
-    // Cabin
+    // Cabin (boxier & taller for 1985, sleeker for 2005/2025)
     const cbw = bw * 0.66;
     const cbh = bh * v.cabinHeight;
     const cbl = bl * 0.52;
@@ -124,7 +131,7 @@ export class VehiclesModule implements SceneModule {
     car.group.add(cabin);
     car.cabinGeo = cabinGeo;
 
-    // Tail fin (1965)
+    // Tail fin (1965 only)
     if (finH > 0) {
       const finGeo = new THREE.BoxGeometry(bw * 0.8, finH, 0.12);
       const fin = new THREE.Mesh(finGeo, car.accentMat);
@@ -150,10 +157,19 @@ export class VehiclesModule implements SceneModule {
   }
 
   update(dt: number, state: AppState): void {
-    const v = moodAt(state.eraFloat).vehicle;
+    // Continuous color morph between eras; silhouettes rebuild on discrete
+    // setEra so 1965 fins / 2005 SUV proportions actually appear.
+    if (state.era !== this.currentEra) this.setEra(state.era);
+    const ft = state.eraFloat;
+    if (ft !== this.lastMoodT) {
+      this.lastMoodT = ft;
+      const v = moodAt(ft).vehicle;
+      this.cachedBody.set(v.color);
+      this.cachedAccent.set(v.accent);
+    }
     for (const car of this.cars) {
-      car.bodyMat.color.set(v.color);
-      car.accentMat.color.set(v.accent);
+      car.bodyMat.color.copy(this.cachedBody);
+      car.accentMat.color.copy(this.cachedAccent);
 
       const dir = car.lane === 0 ? 1 : -1;
       car.z += car.speed * dir * dt * 0.8;

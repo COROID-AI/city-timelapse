@@ -2,12 +2,17 @@
 // and directional lighting, plus the era-dependent atmospheric particle
 // field (dust → smog → neon flakes). No textures — everything is
 // vertex-colored geometry or shader-free materials.
+//
+// The module owns the environment lights, and receives the Scene so the
+// era fog can be updated in place (one shared THREE.Fog instance, no
+// parent-walking and no per-frame allocation). All mood-driven work is
+// gated on eraFloat changes; idle frames only animate the particles.
 
 import * as THREE from 'three';
 import type { EraId } from '../eras';
 import type { AppState } from '../state';
 import type { SceneModule } from './module';
-import { moodAt } from '../mood';
+import { moodAt, type EraMood } from '../mood';
 import { mulberry32, range } from './rand';
 
 const DOME_RADIUS = 420;
@@ -21,10 +26,16 @@ interface ParticleState {
   count: number;
 }
 
+const SCRATCH_TOP = new THREE.Color();
+const SCRATCH_HORIZON = new THREE.Color();
+const SCRATCH_GROUND = new THREE.Color();
+const SCRATCH_OUT = new THREE.Color();
+
 export class SkyModule implements SceneModule {
   readonly name = 'sky';
   readonly group: THREE.Group = new THREE.Group();
 
+  private scene: THREE.Scene;
   private sun: THREE.Mesh;
   private sunMaterial: THREE.MeshBasicMaterial;
   private light: THREE.DirectionalLight;
@@ -33,7 +44,17 @@ export class SkyModule implements SceneModule {
   private domeMaterial: THREE.MeshBasicMaterial;
   private particles: ParticleState | null = null;
 
+  /** Static per-vertex normalized Y, computed once from the dome. */
+  private domeY: Float32Array | null = null;
+
+  /** Mood gate: only re-derive the mood when eraFloat actually moves. */
+  private lastMoodT = Number.NaN;
+  private cachedMood: EraMood | null = null;
+  private particlesTargetOpacity = 0.3;
+  private particlesFlutter = 0.3;
+
   constructor(scene: THREE.Scene) {
+    this.scene = scene;
     this.domeMaterial = new THREE.MeshBasicMaterial({
       side: THREE.BackSide,
       vertexColors: true,
@@ -65,8 +86,6 @@ export class SkyModule implements SceneModule {
     const pos = geo.attributes.position as THREE.BufferAttribute;
     const colors = new Float32Array(pos.count * 3);
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    // Drive per-vertex color from world Y (top → horizon → ground).
-    // Colors are updated every frame from moodAt, so we fill in update().
     const mesh = new THREE.Mesh(geo, this.domeMaterial);
     mesh.frustumCulled = false;
     mesh.renderOrder = -10;
@@ -78,24 +97,39 @@ export class SkyModule implements SceneModule {
   }
 
   update(_dt: number, state: AppState): void {
-    const m = moodAt(state.eraFloat);
-    const sky = m.sky;
+    const ft = state.eraFloat;
+    if (ft !== this.lastMoodT) {
+      this.lastMoodT = ft;
+      this.cachedMood = moodAt(ft);
+      if (this.cachedMood) this.applyMood(this.cachedMood);
+    }
+    this.updateParticles();
+  }
 
-    const top = new THREE.Color(sky.skyTop);
-    const horizon = new THREE.Color(sky.skyHorizon);
-    const ground = new THREE.Color(sky.skyGround);
+  private applyMood(m: EraMood): void {
+    const sky = m.sky;
     const geo = this.dome.geometry as THREE.SphereGeometry;
     const pos = geo.attributes.position as THREE.BufferAttribute;
     const colors = geo.attributes.color as THREE.BufferAttribute;
+    if (!this.domeY) {
+      const ys = new Float32Array(pos.count);
+      for (let i = 0; i < pos.count; i++) ys[i] = pos.getY(i) / DOME_RADIUS;
+      this.domeY = ys;
+    }
+
+    const top = SCRATCH_TOP.set(sky.skyTop);
+    const horizon = SCRATCH_HORIZON.set(sky.skyHorizon);
+    const ground = SCRATCH_GROUND.set(sky.skyGround);
+    const out = SCRATCH_OUT;
+    const ys = this.domeY;
     for (let i = 0; i < pos.count; i++) {
-      const y = pos.getY(i) / DOME_RADIUS; // -1..1
-      let c: THREE.Color;
+      const y = ys[i];
       if (y > 0) {
-        c = top.clone().lerp(horizon, Math.min(1, 1 - y));
+        out.lerpColors(top, horizon, Math.min(1, (1 - y) * 0.9));
       } else {
-        c = horizon.clone().lerp(ground, Math.min(1, -y * 1.4));
+        out.lerpColors(horizon, ground, Math.min(1, -y * 1.4));
       }
-      colors.setXYZ(i, c.r, c.g, c.b);
+      colors.setXYZ(i, out.r, out.g, out.b);
     }
     colors.needsUpdate = true;
 
@@ -112,26 +146,37 @@ export class SkyModule implements SceneModule {
     this.ambient.color.set(sky.ambientColor);
     this.ambient.intensity = sky.ambientIntensity;
 
-    const fog = this.group.parent?.parent as THREE.Scene | undefined;
-    if (fog) {
-      fog.fog = new THREE.Fog(new THREE.Color(sky.fogColor), 40, 320);
-      (fog.fog as THREE.Fog).color.set(sky.fogColor);
+    // Reuse the single Scene fog instance; the update is reachable because
+    // the Scene is injected at construction instead of walking parents.
+    const fog = this.scene.fog;
+    if (fog instanceof THREE.Fog) {
+      fog.color.set(sky.fogColor);
+      // THREE.Fog has no density; scale near/far so density data matters.
+      const d = Math.max(0.006, Math.min(0.02, sky.fogDensity));
+      fog.near = 30 + (d - 0.006) * 1400;
+      fog.far = 380 - (d - 0.006) * 14000;
+    } else if (fog instanceof THREE.FogExp2) {
+      fog.color.set(sky.fogColor);
+      fog.density = Math.max(0.0001, sky.fogDensity);
     }
 
-    this.updateParticles(state, m.particle.color, m.particle.flutter);
+    if (this.particles) {
+      this.particles.material.color.set(m.particle.color);
+      this.particlesTargetOpacity = m.particle.opacity;
+      this.particlesFlutter = m.particle.flutter;
+    }
   }
 
-  private updateParticles(state: AppState, colorHex: string, flutter: number): void {
+  private updateParticles(): void {
     if (!this.particles) return;
     const p = this.particles;
     const mat = p.material;
-    const targetOpacity = moodAt(state.eraFloat).particle.opacity;
-    mat.opacity += (targetOpacity - mat.opacity) * 0.05;
-    mat.color.set(colorHex);
+    mat.opacity += (this.particlesTargetOpacity - mat.opacity) * 0.05;
 
     const time = performance.now() * 0.0005;
     const positions = p.points.geometry.attributes.position as THREE.BufferAttribute;
     const arr = positions.array as Float32Array;
+    const flutter = this.particlesFlutter;
     for (let i = 0; i < p.count; i++) {
       const i3 = i * 3;
       const base = p.basePositions;
