@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createInitialState, setEra, lerp } from './state';
 import type { AppState } from './state';
-import { ERA_REGISTRY, ERA_IDS, getEraSpec, type EraId, getEraIndex } from './eras';
+import { ERA_REGISTRY, ERA_IDS, getEraSpec } from './eras';
 import type { EraId } from './eras';
 import { createTextureSet } from './textures';
 import { createEnvironment } from './scene/environment';
@@ -161,11 +161,15 @@ function boot(): void {
       qualityBtn.classList.toggle('low', state.quality === 'low');
     });
 
-    // keyboard: 1..5 selects eras
+    // keyboard: 1..5 selects eras, arrows step through the timeline
     window.addEventListener('keydown', (e) => {
       const n = Number(e.key);
       if (n >= 1 && n <= ERA_REGISTRY.length) {
         selectEra(n - 1);
+      } else if (e.key === 'ArrowRight') {
+        selectEra(Math.min(state.eraIndex + 1, ERA_REGISTRY.length - 1));
+      } else if (e.key === 'ArrowLeft') {
+        selectEra(Math.max(state.eraIndex - 1, 0));
       }
       if (e.key === 'm' || e.key === 'M') {
         state.muted = !state.muted;
