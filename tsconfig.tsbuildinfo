@@ -1,0 +1,1 @@
+{"root":["./src/eras.ts","./src/main.ts","./src/state.ts","./src/textures.ts","./src/theme.ts","./src/vite-env.d.ts","./src/audio/mixer.ts","./src/audio/sfx.ts","./src/scene/city.ts","./src/scene/environment.ts","./src/scene/pedestrians.ts","./src/scene/vehicles.ts"],"version":"5.9.3"}
