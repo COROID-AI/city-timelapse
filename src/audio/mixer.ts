@@ -12,7 +12,7 @@
 import { SFX_ERA_DATA } from '../eras';
 import type { EraId, SfxEraData, SfxEventType } from '../eras';
 import type { EraAudioBuffers } from './sfx';
-import { generateAllEraBuffers } from './sfx';
+import { generateEraAudioBuffers } from './sfx';
 
 export interface SfxMixerOptions {
   /** Master volume (0..1). */
@@ -35,9 +35,14 @@ interface EventLayer {
 export class SfxMixer {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
-  private buffers: Record<EraId, EraAudioBuffers> | null = null;
+  /** Lazily synthesized era buffers (LRU-capped). */
+  private buffers: Partial<Record<EraId, EraAudioBuffers>> | null = null;
+  /** Most-recently-used era order — oldest first. */
+  private usedEras: EraId[] = [];
   private layers: Record<'ambient' | 'traffic' | 'music', Layer> | null = null;
   private eventLayer: EventLayer | null = null;
+  /** Currently playing one-shot sources (stopped on dispose). */
+  private sourcesToStop: AudioBufferSourceNode[] = [];
   private currentEra: EraId = '1945';
   private fadeSeconds: number;
   private masterVolume: number;
@@ -63,7 +68,8 @@ export class SfxMixer {
       this.master = this.ctx.createGain();
       this.master.gain.value = this.masterVolume;
       this.master.connect(this.ctx.destination);
-      this.buffers = generateAllEraBuffers(this.ctx);
+      this.buffers = {};
+      this.ensureEra(this.currentEra);
       this.buildLayers();
     }
     if (this.ctx.state === 'suspended') {
@@ -86,12 +92,16 @@ export class SfxMixer {
     this.startLoop('ambient');
     this.startLoop('traffic');
     this.startMusic();
+    // Put the buses at the current era's mix levels so the loops are audible.
+    this.openLayerGains(this.ctx.currentTime, 0.3);
   }
 
   private startLoop(layerName: 'ambient' | 'traffic'): void {
-    if (!this.ctx || !this.buffers || !this.layers) return;
+    if (!this.ctx || !this.layers) return;
+    const eraBufs = this.ensureEra(this.currentEra);
+    if (!eraBufs) return;
     const layer = this.layers[layerName];
-    const buf = this.buffers[this.currentEra][layerName];
+    const buf = eraBufs[layerName];
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     src.loop = true;
@@ -103,6 +113,46 @@ export class SfxMixer {
     layer.source = { src, gain: g };
   }
 
+  /** Get (synthesizing on first use) the buffer set for an era, LRU-capped. */
+  private ensureEra(era: EraId): EraAudioBuffers | null {
+    if (!this.ctx || !this.buffers) return null;
+    let eraBufs = this.buffers[era];
+    if (!eraBufs) {
+      eraBufs = generateEraAudioBuffers(this.ctx, SFX_ERA_DATA[era]);
+      this.buffers[era] = eraBufs;
+    }
+    this.usedEras = this.usedEras.filter((e) => e !== era);
+    this.usedEras.push(era);
+    this.trimEraBuffers();
+    return eraBufs;
+  }
+
+  /** Keep at most 3 synthesized eras resident; never the currently playing one. */
+  private trimEraBuffers(): void {
+    if (!this.buffers || this.usedEras.length <= 3) return;
+    while (this.usedEras.length > 3) {
+      const drop = this.usedEras.shift();
+      if (drop && drop !== this.currentEra) delete this.buffers[drop];
+    }
+  }
+
+  /** Ramp every layer bus to the current era's mix gains — click-free. */
+  private openLayerGains(t: number, duration: number): void {
+    if (!this.ctx || !this.layers) return;
+    const data = SFX_ERA_DATA[this.currentEra];
+    const targets: Record<'ambient' | 'traffic' | 'music', number> = {
+      ambient: data.ambient.gain,
+      traffic: data.traffic.gain,
+      music: data.music.gain,
+    };
+    for (const name of ['ambient', 'traffic', 'music'] as const) {
+      const gain = this.layers[name].gain.gain;
+      gain.cancelScheduledValues(t);
+      gain.setValueAtTime(Math.max(0.0001, gain.value), t);
+      gain.exponentialRampToValueAtTime(Math.max(0.0001, targets[name]), t + duration);
+    }
+  }
+
   private startMusic(): void {
     if (!this.ctx || !this.layers) return;
     this.nextNoteTime = this.ctx.currentTime + 0.1;
@@ -111,7 +161,7 @@ export class SfxMixer {
   }
 
   private scheduleMusic(): void {
-    if (!this.ctx || !this.layers || !this.buffers) return;
+    if (!this.ctx || !this.layers) return;
     const data = SFX_ERA_DATA[this.currentEra].music;
     const spb = 60 / data.tempo / 2; // 8th notes
     const lookahead = 0.18;
@@ -171,8 +221,11 @@ export class SfxMixer {
 
   /** Crossfade all layers to the given era. */
   setEra(era: EraId): void {
+    if (era === this.currentEra && this.ctx) return;
     this.currentEra = era;
     if (!this.ctx || !this.buffers || !this.layers) return;
+    const eraBufs = this.ensureEra(era);
+    if (!eraBufs) return;
     const t = this.ctx.currentTime;
     const fade = this.fadeSeconds;
     const swap = (layerName: 'ambient' | 'traffic') => {
@@ -185,7 +238,7 @@ export class SfxMixer {
         old.gain.gain.exponentialRampToValueAtTime(0.0001, t + fade);
         old.src.stop(t + fade + 0.1);
       }
-      const buf = this.buffers![era][layerName];
+      const buf = eraBufs[layerName];
       const src = this.ctx!.createBufferSource();
       src.buffer = buf;
       src.loop = true;
@@ -199,23 +252,26 @@ export class SfxMixer {
     };
     swap('ambient');
     swap('traffic');
-    // Music: retune by scheduling a micro fade of the music bus.
-    this.layers.music.gain.gain.cancelScheduledValues(t);
-    this.layers.music.gain.gain.setValueAtTime(
-      Math.max(0.0001, this.layers.music.gain.gain.value),
-      t,
-    );
-    this.layers.music.gain.gain.exponentialRampToValueAtTime(1, t + 0.25);
+    // Retune the music bus to the new era's level (micro fade).
+    const musicGain = this.layers.music.gain.gain;
+    const musicTarget = Math.max(0.0001, SFX_ERA_DATA[era].music.gain);
+    musicGain.cancelScheduledValues(t);
+    musicGain.setValueAtTime(Math.max(0.0001, musicGain.value), t);
+    musicGain.exponentialRampToValueAtTime(musicTarget, t + 0.25);
+    // Ambient / traffic buses follow the era's mix gains over the same ramp.
+    this.openLayerGains(t, fade);
   }
 
   /** Fire a one-shot ambience event if its era supports it. */
   playEvent(type: SfxEventType): void {
     if (!this.ctx || !this.buffers || !this.layers || !this.eventLayer) return;
-    const buf = this.buffers[this.currentEra].events[type];
+    const eraBufs = this.ensureEra(this.currentEra);
+    const buf = eraBufs?.events[type];
     if (!buf) return;
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     src.connect(this.eventLayer.gain);
+    this.sourcesToStop.push(src);
     const t = this.ctx.currentTime;
     src.start(t);
     src.stop(t + buf.duration + 0.05);
@@ -223,7 +279,7 @@ export class SfxMixer {
 
   /** Chance-based spontaneous event scheduler; call from the update loop. */
   updateSpontaneousEvents(): void {
-    if (!this.ctx || !this.eventLayer || !this.buffers) return;
+    if (!this.ctx || !this.eventLayer) return;
     const data = SFX_ERA_DATA[this.currentEra].events;
     const now = performance.now() / 1000;
     if (now - this.eventLayer.lastPlay < data.interval) return;
@@ -261,6 +317,14 @@ export class SfxMixer {
       this.musicTimer = null;
     }
     if (this.ctx) {
+      for (const src of this.sourcesToStop) {
+        try {
+          src.stop();
+        } catch {
+          // already stopped
+        }
+      }
+      this.sourcesToStop.length = 0;
       void this.ctx.close().catch(() => undefined);
       this.ctx = null;
     }
@@ -268,5 +332,6 @@ export class SfxMixer {
     this.layers = null;
     this.eventLayer = null;
     this.buffers = null;
+    this.usedEras = [];
   }
 }

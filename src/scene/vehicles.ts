@@ -64,6 +64,11 @@ const GRID = 7;
 const BLOCK = 11.2;
 const SPAN = GRID * BLOCK + 8;
 
+/** Fraction of vehicles active per era (index 0..4) — traffic thickens over time. */
+const ERA_TRAFFIC = [0.55, 0.75, 0.9, 1, 1];
+/** Relative traffic speed per era (index 0..4). */
+const ERA_SPEED = [1, 1.08, 1.22, 1.45, 1.6];
+
 export function createVehicles(): VehicleModule {
   const group = new THREE.Group();
   group.name = 'vehicles';
@@ -211,9 +216,18 @@ export function createVehicles(): VehicleModule {
       }
     }
 
-    // move along the axis (wrap around)
-    const speedMul = idx >= 3 ? 1.5 : 1;
-    for (const v of vehicles) {
+    // move along the axis (wrap around); era controls density & speed
+    const x = state.eraFloat;
+    const i0 = Math.max(0, Math.min(4, Math.floor(x)));
+    const i1 = Math.min(i0 + 1, 4);
+    const ft = x - i0;
+    const density = ERA_TRAFFIC[i0] + (ERA_TRAFFIC[i1] - ERA_TRAFFIC[i0]) * ft;
+    const activeCount = Math.round(vehicles.length * density);
+    const speedMul = ERA_SPEED[i0] + (ERA_SPEED[i1] - ERA_SPEED[i0]) * ft;
+    for (let i = 0; i < vehicles.length; i++) {
+      const v = vehicles[i];
+      v.group.visible = i < activeCount;
+      if (!v.group.visible) continue;
       v.phase += dt * v.speed * speedMul * v.dir;
       const pos = ((v.phase % SPAN) + SPAN) % SPAN;
       const coord = -SPAN / 2 + pos;

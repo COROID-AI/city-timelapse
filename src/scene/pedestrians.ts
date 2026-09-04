@@ -39,6 +39,9 @@ const BLOCK = 11.2;
 const SIDEWALK = 0.55; // on the 1.3-wide sidewalk strip, clear of traffic
 const CITY_HALF = (GRID * BLOCK) / 2;
 
+/** Pedestrian density fraction per era (index 0..4) — busier streets over time. */
+const ERA_DENSITY = [0.5, 0.65, 0.8, 0.9, 1];
+
 export function createPedestrians(): PedestrianModule {
   const group = new THREE.Group();
   group.name = 'pedestrians';
@@ -137,8 +140,12 @@ export function createPedestrians(): PedestrianModule {
       applyEra(b.pedestrian.palette);
     }
 
-    // density: fewer pedestrians in 1945, more in 2025
-    const density = 0.6 + t * 0.6;
+    // density: fewer pedestrians in 1945, more in 2025 (interpolated per era)
+    const x = state.eraFloat;
+    const i0 = Math.max(0, Math.min(4, Math.floor(x)));
+    const i1 = Math.min(i0 + 1, 4);
+    const ft = x - i0;
+    const density = ERA_DENSITY[i0] + (ERA_DENSITY[i1] - ERA_DENSITY[i0]) * ft;
     const activeCount = Math.round(people.length * density);
 
     for (let i = 0; i < people.length; i++) {

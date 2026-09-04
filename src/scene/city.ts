@@ -7,8 +7,9 @@
 import * as THREE from 'three';
 import { lerp } from '../state';
 import type { AppState } from '../state';
-import { themePairAt, rgbToHex } from '../theme';
+import { themePairAt, rgbToHex, lerpRgb, THEMES } from '../theme';
 import type { Theme, Rgb } from '../theme';
+import { ERA_IDS } from '../eras';
 import type { TextureSet } from '../textures';
 import {
   createWindowTexture,
@@ -35,7 +36,14 @@ interface BuildingF {
   body: THREE.Mesh;
   windowMats: THREE.MeshStandardMaterial[];
   facadeMats: THREE.MeshStandardMaterial[];
+  facadeSlot: number;
   sign: THREE.Mesh | null;
+  /** texture slot index (0..4) — window tex comes from the shared era cache. */
+  windowSlot: number;
+  /** texture slot index for this building's storefront sign. */
+  signSlot: number;
+  /** texture slot index for this building's billboard. */
+  billSlot: number;
   baseHeight: number;
   eraScales: number[];
   heightScale: number;
@@ -56,6 +64,12 @@ interface LampF {
   light: THREE.PointLight;
   style: 'gas' | 'cobra' | 'sodium' | 'led';
   phase: number;
+}
+
+interface TrafficLight {
+  axis: 'x' | 'z';
+  /** [red, yellow, green] signal materials (per-pole clones). */
+  mats: THREE.MeshStandardMaterial[];
 }
 
 type LampStyle = 'gas' | 'cobra' | 'sodium' | 'led';
@@ -170,21 +184,60 @@ export function createCity(textures: TextureSet): CityModule {
     }
   }
 
+  /** Pre-generated per-era texture cache keyed by [era][slot]. */
+  const eraWindowTex: THREE.CanvasTexture[][] = [];
+  const eraSignTex: THREE.CanvasTexture[][] = [];
+  const eraBillboardTex: THREE.CanvasTexture[][] = [];
+  for (let e = 0; e < ERA_YEARS.length; e++) {
+    const theme = THEMES[ERA_IDS[e]];
+    const w: THREE.CanvasTexture[] = [];
+    const s: THREE.CanvasTexture[] = [];
+    const bb: THREE.CanvasTexture[] = [];
+    for (let k = 0; k < 5; k++) {
+      w.push(
+        createWindowTexture({
+          facade: '#34363c',
+          frame: '#202226',
+          glass: '#1b2a33',
+          emissive: rgbToHex(theme.building.windowEmissive),
+          lit: theme.building.windowLit,
+          columns: 5,
+          rows: 12,
+        }),
+      );
+      s.push(
+        createSignTexture({
+          text: STOREFRONT_TEXTS[e][k],
+          bg: '#232327',
+          fg: rgbToHex(theme.building.windowEmissive),
+          accent: rgbToHex(theme.billboard.accent),
+          glow: 1.2,
+        }),
+      );
+      bb.push(
+        createSignTexture({
+          text: BILLBOARD_TEXTS[e][k],
+          bg: '#101218',
+          fg: '#ffffff',
+          accent: rgbToHex(theme.billboard.accent),
+          glow: 1.8,
+          sub: `EST ${ERA_YEARS[e]}`,
+        }),
+      );
+    }
+    eraWindowTex.push(w);
+    eraSignTex.push(s);
+    eraBillboardTex.push(bb);
+  }
+
   function makeBuilding(x: number, z: number, seed: number): BuildingF {
     const g = new THREE.Group();
     const w = LOT;
     const d = LOT;
     const localRnd = mulberry32(0x5eed0000 + seed * 7919);
 
-    const windowTex = createWindowTexture({
-      facade: '#34363c',
-      frame: '#202226',
-      glass: '#141e26',
-      emissive: '#ffcf9a',
-      lit: 0.5,
-      columns: 5,
-      rows: 9,
-    });
+    const winSlot = Math.floor(localRnd() * 5);
+    const windowTex = eraWindowTex[0][winSlot];
     const windowMat = new THREE.MeshStandardMaterial({
       map: windowTex,
       emissive: '#ffcf9a',
@@ -227,14 +280,9 @@ export function createCity(textures: TextureSet): CityModule {
     canopy.position.set(0, 2.3, d * 0.5 + 0.02);
     g.add(canopy);
 
-    // sign above the entrance (CanvasTexture text)
-    const signTex = createSignTexture({
-      text: STOREFRONT_TEXTS[0][Math.floor(localRnd() * STOREFRONT_TEXTS[0].length)],
-      bg: '#2b2b2f',
-      fg: '#ffd9a0',
-      accent: '#c96f2a',
-      glow: 1.2,
-    });
+    // sign above the entrance (shared pre-generated era texture)
+    const signSlot = Math.floor(localRnd() * 5);
+    const signTex = eraSignTex[0][signSlot];
     const signMat = new THREE.MeshBasicMaterial({ map: signTex });
     const sign = new THREE.Mesh(planeGeo, signMat);
     sign.scale.set(w * 0.8, 0.85, 1);
@@ -246,14 +294,8 @@ export function createCity(textures: TextureSet): CityModule {
     let billboardTex: THREE.CanvasTexture | null = null;
     let billboardGroup: THREE.Group | null = null;
     if (localRnd() < 0.5) {
-      billboardTex = createSignTexture({
-        text: BILLBOARD_TEXTS[0][Math.floor(localRnd() * BILLBOARD_TEXTS[0].length)],
-        bg: '#111318',
-        fg: '#ffffff',
-        accent: '#ff5f9e',
-        glow: 1.6,
-        sub: 'since 1945',
-      });
+      const billSlot = Math.floor(localRnd() * 5);
+      billboardTex = eraBillboardTex[0][billSlot];
       billboardMat = new THREE.MeshStandardMaterial({
         map: billboardTex,
         emissive: '#ffffff',
@@ -291,6 +333,10 @@ export function createCity(textures: TextureSet): CityModule {
       body,
       windowMats: [windowMat],
       facadeMats: [facadeMat],
+      facadeSlot: Math.floor(localRnd() * 5),
+      windowSlot: winSlot,
+      signSlot,
+      billSlot: signSlot,
       sign,
       baseHeight: 7 + localRnd() * 5,
       eraScales,
@@ -447,6 +493,102 @@ export function createCity(textures: TextureSet): CityModule {
     lamps.push({ head, light, style: 'gas', phase: rnd() * Math.PI * 2 });
   }
 
+  /* ================= traffic lights & crosswalks ================= */
+  const signalRed = new THREE.MeshStandardMaterial({
+    color: '#200000',
+    emissive: '#ff2a2a',
+    emissiveIntensity: 0.05,
+  });
+  const signalYellow = new THREE.MeshStandardMaterial({
+    color: '#201a00',
+    emissive: '#ffb32a',
+    emissiveIntensity: 0.05,
+  });
+  const signalGreen = new THREE.MeshStandardMaterial({
+    color: '#00200a',
+    emissive: '#2aff6a',
+    emissiveIntensity: 0.05,
+  });
+  const signalGeo = new THREE.SphereGeometry(0.13, 8, 6);
+  const housingMat = new THREE.MeshStandardMaterial({ color: '#16161a', roughness: 0.55 });
+  const trafficLights: TrafficLight[] = [];
+
+  function makeTrafficLight(
+    px: number,
+    pz: number,
+    dirX: number,
+    dirZ: number,
+    axis: 'x' | 'z',
+  ): void {
+    const g = new THREE.Group();
+    const pole = new THREE.Mesh(cylGeo, lampMat);
+    pole.scale.set(0.12, 4.6, 0.12);
+    pole.position.y = 2.3;
+    g.add(pole);
+    const arm = new THREE.Mesh(boxGeo, lampMat);
+    arm.scale.set(1.9, 0.12, 0.12);
+    arm.position.set(0.95 * dirX, 4.5, 0.95 * dirZ);
+    g.add(arm);
+    const housing = new THREE.Mesh(boxGeo, housingMat);
+    housing.scale.set(0.5, 1.5, 0.3);
+    housing.position.set(1.75 * dirX, 4.5, 1.75 * dirZ);
+    g.add(housing);
+    // signals hang under the housing, facing the approach
+    const mats = [signalRed.clone(), signalYellow.clone(), signalGreen.clone()];
+    for (const [dy, m] of [
+      [0.45, mats[0]],
+      [0, mats[1]],
+      [-0.45, mats[2]],
+    ] as const) {
+      const s = new THREE.Mesh(signalGeo, m);
+      s.position.set(1.75 * dirX, 4.5 + dy, 1.75 * dirZ + (dirX !== 0 ? 0.17 : 0));
+      g.add(s);
+    }
+    g.position.set(px, 0, pz);
+    group.add(g);
+    trafficLights.push({ axis, mats });
+  }
+
+  // four intersections nearest the block centre
+  const INTERSECTIONS: [number, number][] = [
+    [-BLOCK / 2, -BLOCK / 2],
+    [-BLOCK / 2, BLOCK / 2],
+    [BLOCK / 2, -BLOCK / 2],
+    [BLOCK / 2, BLOCK / 2],
+  ];
+  const crossMat = new THREE.MeshBasicMaterial({ color: '#e8e6e0' });
+  for (const [ix, iz] of INTERSECTIONS) {
+    // zebra stripes on each approach
+    for (const sx of [-1, 1] as const) {
+      for (let k = 0; k < 5; k++) {
+        const s = new THREE.Mesh(boxGeo, crossMat);
+        s.scale.set(0.42, 0.02, 2.4);
+        s.position.set(ix + sx * 1.85, 0.02, iz - 1.7 + k * 0.85);
+        group.add(s);
+      }
+    }
+    for (const sz of [-1, 1] as const) {
+      for (let k = 0; k < 5; k++) {
+        const s = new THREE.Mesh(boxGeo, crossMat);
+        s.scale.set(2.4, 0.02, 0.42);
+        s.position.set(ix - 1.7 + k * 0.85, 0.02, iz + sz * 1.85);
+        group.add(s);
+      }
+    }
+    // signal poles at the four corners, arms reaching toward the crossing
+    for (const sx of [-1, 1] as const) {
+      for (const sz of [-1, 1] as const) {
+        makeTrafficLight(
+          ix + sx * 1.9,
+          iz + sz * 1.9,
+          -sx,
+          -sz,
+          sx * sz > 0 ? 'x' : 'z',
+        );
+      }
+    }
+  }
+
   /* ================= benches / hydrants / trees ================= */
   const benchMat = new THREE.MeshStandardMaterial({ color: '#5a4632', roughness: 0.85 });
   {
@@ -489,73 +631,46 @@ export function createCity(textures: TextureSet): CityModule {
   /* ================= era application ================= */
   let lastEraIdx = -1;
 
-  function applyEraTheme(theme: Theme): void {
-    asphaltMat.color.set(rgbToHex(theme.ground.asphalt));
-    sideMat.color.set(rgbToHex(theme.ground.sidewalk));
-    lineMat.color.set(rgbToHex(theme.ground.roadLine));
+  function applyEraGround(a: Theme, b: Theme, t: number): void {
+    asphaltMat.color.set(rgbToHex(lerpRgb(a.ground.asphalt, b.ground.asphalt, t)));
+    sideMat.color.set(rgbToHex(lerpRgb(a.ground.sidewalk, b.ground.sidewalk, t)));
+    lineMat.color.set(rgbToHex(lerpRgb(a.ground.roadLine, b.ground.roadLine, t)));
   }
 
-  function applyBuildingEra(b: BuildingF, idx: number, theme: Theme): void {
-    const winTex = createWindowTexture({
-      facade: '#34363c',
-      frame: '#202226',
-      glass: '#1b2a33',
-      emissive: rgbToHex(theme.building.windowEmissive),
-      lit: theme.building.windowLit,
-      columns: 5,
-      rows: 12,
-    });
-    b.windowTex.dispose();
+  function applyBuildingEra(b: BuildingF, idx: number): void {
+    const winTex = eraWindowTex[idx][b.windowSlot];
     b.windowTex = winTex;
     for (const wm of b.windowMats) {
       wm.map = winTex;
-      wm.emissive.set(rgbToHex(theme.building.windowEmissive));
-      wm.emissiveIntensity = theme.building.windowIntensity;
+      wm.emissive.set(rgbToHex(THEMES[ERA_IDS[idx]].building.windowEmissive));
+      wm.emissiveIntensity = THEMES[ERA_IDS[idx]].building.windowIntensity;
       wm.needsUpdate = true;
     }
-    b.windowEmissive = theme.building.windowEmissive;
-    b.windowIntensity = theme.building.windowIntensity;
+    b.windowEmissive = THEMES[ERA_IDS[idx]].building.windowEmissive;
+    b.windowIntensity = THEMES[ERA_IDS[idx]].building.windowIntensity;
 
-    // facade tint
-    const wall = theme.building.facades[idx % theme.building.facades.length];
+    // facade tint — stable per-building slot so the block keeps variety
+    const wall =
+      THEMES[ERA_IDS[idx]].building.facades[b.facadeSlot % THEMES[ERA_IDS[idx]].building.facades.length];
     for (const fm of b.facadeMats) {
       fm.color.set(rgbToHex(wall));
       fm.needsUpdate = true;
     }
 
-    // storefront sign text
+    // storefront sign texture — shared cache, no synchronous regeneration
     if (b.signTex && b.sign) {
-      const texts = STOREFRONT_TEXTS[idx];
-      const text = texts[Math.floor(rnd() * texts.length)];
-      b.signTex.dispose();
-      b.signTex = createSignTexture({
-        text,
-        bg: '#232327',
-        fg: rgbToHex(theme.building.windowEmissive),
-        accent: rgbToHex(theme.billboard.accent),
-        glow: 1.2,
-      });
+      b.signTex = eraSignTex[idx][b.signSlot];
       b.signMat!.map = b.signTex;
       b.signMat!.needsUpdate = true;
     }
 
-    // billboard
+    // billboard — shared cache
     if (b.billboardMat && b.billboardTex && b.billboardMat.map) {
-      const texts = BILLBOARD_TEXTS[idx];
-      const text = texts[Math.floor(rnd() * texts.length)];
-      b.billboardTex.dispose();
-      b.billboardTex = createSignTexture({
-        text,
-        bg: '#101218',
-        fg: '#ffffff',
-        accent: rgbToHex(theme.billboard.accent),
-        glow: 1.8,
-        sub: `EST ${ERA_YEARS[idx]}`,
-      });
+      b.billboardTex = eraBillboardTex[idx][b.billSlot];
       b.billboardMat.map = b.billboardTex;
-      b.billboardMat.emissive.set(rgbToHex(theme.billboard.accent));
+      b.billboardMat.emissive.set(rgbToHex(THEMES[ERA_IDS[idx]].billboard.accent));
       b.billboardMat.needsUpdate = true;
-      b.billboardGlow = theme.billboard.glow;
+      b.billboardGlow = THEMES[ERA_IDS[idx]].billboard.glow;
     }
 
     // rooftop props visibility
@@ -571,9 +686,9 @@ export function createCity(textures: TextureSet): CityModule {
     const idx = Math.round(state.eraFloat);
     if (idx !== lastEraIdx) {
       lastEraIdx = idx;
-      for (const b of buildings) applyBuildingEra(b, idx, themeB);
+      for (const b of buildings) applyBuildingEra(b, idx);
     }
-    applyEraTheme(themeB);
+    applyEraGround(pair.a, pair.b, pair.t);
 
     // continuous building scale tween
     for (const b of buildings) {
@@ -615,13 +730,28 @@ export function createCity(textures: TextureSet): CityModule {
           lp.head.rotation.y = 0;
         }
       }
-      lp.light.color.set(rgbToHex(themeB.lamp.color));
+      // interpolated lamp colour / intensity
+      lp.light.color.set(
+        rgbToHex(lerpRgb(pair.a.lamp.color, pair.b.lamp.color, pair.t)),
+      );
       const flicker =
         style === 'gas' && state.eraFloat < 0.5
           ? 0.85 + Math.sin(state.elapsed * 6 + lp.phase) * 0.14
           : 1;
-      lp.light.intensity = themeB.lamp.intensity * flicker;
-      lp.light.distance = themeB.lamp.distance;
+      lp.light.intensity =
+        lerp(pair.a.lamp.intensity, pair.b.lamp.intensity, pair.t) * flicker;
+      lp.light.distance = lerp(pair.a.lamp.distance, pair.b.lamp.distance, pair.t);
+    }
+
+    // traffic lights cycle; red signal dominates the older, slower eras
+    for (const tl of trafficLights) {
+      const phase = state.elapsed * 0.18 + (tl.axis === 'x' ? 0 : 2.4);
+      const cycle = phase % 3;
+      const stateIdx = cycle < 1.6 ? 0 : cycle < 1.9 ? 1 : 2;
+      tl.mats.forEach((m, i) => {
+        const on = i === stateIdx;
+        m.emissiveIntensity = on ? (i === 1 ? 0.5 : 1.6) : 0.05;
+      });
     }
   }
 
@@ -629,16 +759,19 @@ export function createCity(textures: TextureSet): CityModule {
 
   function dispose(): void {
     for (const b of buildings) {
-      b.windowTex.dispose();
-      if (b.signTex) b.signTex.dispose();
-      if (b.billboardTex) b.billboardTex.dispose();
+      // Shared cache textures are owned by the caches — dispose once below.
       for (const wm of b.windowMats) wm.dispose();
       for (const fm of b.facadeMats) fm.dispose();
     }
+    for (const era of eraWindowTex) for (const t of era) t.dispose();
+    for (const era of eraSignTex) for (const t of era) t.dispose();
+    for (const era of eraBillboardTex) for (const t of era) t.dispose();
     asphaltMat.dispose();
     sideMat.dispose();
     lineMat.dispose();
     lampMat.dispose();
+    housingMat.dispose();
+    for (const m of [signalRed, signalYellow, signalGreen]) m.dispose();
     group.removeFromParent();
   }
 

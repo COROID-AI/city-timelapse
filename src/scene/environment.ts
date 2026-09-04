@@ -123,7 +123,6 @@ export function createEnvironment(textures: TextureSet): EnvModule {
   group.add(points);
 
   /* ---------------- State ---------------- */
-  let currentEra = 0;
   const tmpColor = new THREE.Color();
 
   function applyTheme(theme: Theme): void {
@@ -155,7 +154,6 @@ export function createEnvironment(textures: TextureSet): EnvModule {
 
   function update(dt: number, state: AppState): void {
     const { a, b, t } = themePairAt(state.eraFloat);
-    currentEra = state.eraFloat;
     if (t < 0.001) {
       applyTheme(a);
     } else if (t > 0.999) {
@@ -205,15 +203,15 @@ export function createEnvironment(textures: TextureSet): EnvModule {
     }
     pos.needsUpdate = true;
 
-    // Gentle sun drift
+    // Gentle sun drift (elevation follows the interpolated era theme)
+    const sunElevation = lerp(a.sky.sunElevation, b.sky.sunElevation, t);
     sun.position.x = 90 + Math.sin(state.elapsed * 0.02) * 6;
-    sun.position.y = 60 * Math.sin(currentEra === 0 ? 0.55 : 0.85) + Math.sin(state.elapsed * 0.1) * 1.2;
+    sun.position.y = 60 * Math.sin(sunElevation) + Math.sin(state.elapsed * 0.1) * 1.2;
+    sun.position.z = -30;
     sunLight.position.copy(sun.position);
   }
 
-  function setEra(era: number): void {
-    currentEra = era;
-  }
+  function setEra(): void {}
 
   function dispose(): void {
     skyGeo.dispose();
