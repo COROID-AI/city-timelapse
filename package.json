@@ -1,0 +1,21 @@
+{
+  "name": "city-time-timelapse",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "3D city block timelapse 1945-2055 with procedural Three.js and synthesized Web Audio SFX",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.185.0",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.7"
+  }
+}
