@@ -232,8 +232,8 @@ function main(): void {
 
   // ---------- Frame loop ----------
   const timer = new THREE.Timer();
-  const TRANSITION_RATE = 1 / 1.6; // reaches target in ~2s regardless of fps
-  const REDUCED_RATE = 1 / 0.7;
+  const TRANSITION_RATE = 1 / 0.8; // reaches target in ~2s regardless of fps
+  const REDUCED_RATE = 1 / 0.35;
   const SNAP_EPS = 0.0015;
 
   renderer.setAnimationLoop(() => {
