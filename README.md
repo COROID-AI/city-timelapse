@@ -1,12 +1,35 @@
 # City Time Period Timelapse
 
-Create a 3D scene of a city block. Emphasis on detail is very important.
+A self-contained 3D city block that transforms through five time periods —
+**1945 · 1965 · 1985 · 2005 · 2025** — driven by a timeline slider at the top.
 
-The scene must have a timeline slider in the top, with the following options:
-1945, 1965, 1985, 2005, 2025 and 2055
+Everything is procedural: no external models, textures, or audio files.
 
-The point of the scene is to be able to select any of the 5 different years, and the scene will transform in front of your eyes to the time period selected from the slider.
+## Highlights
 
-Time period should affect all aspects of the city block. The buildings, the vehicles, the storefronts, advertisements, outfits of the pedestrians, everything.
+- **Timeline slider** with labeled era ticks (1945 → 2025) and full keyboard support
+  (`←`/`→` or `A`/`D`), with smooth eased transitions between years.
+- **Every aspect of the block changes:**
+  - Buildings change facade materials, window grids, emissive glow, storefront text, and rooftop-era props.
+  - Vehicles change silhouette (1945 sedans → 1965 tail fins → 1985 boxes → 2005 SUVs → 2025 EVs).
+  - Pedestrians' outfits change per era.
+  - Street props evolve: gas lamps → cobra/neon → sodium → LED → modern poles.
+  - Billboards show era-appropriate ad copy ("WAR BONDS", "COCA-COLA 5¢", "VIDEO ARCADE", "iPOD", "NEXUS AI").
+  - Sky, sun, fog, atmosphere particles and lighting mood interpolate continuously.
+- **Synthesized SFX** via Web Audio: era ambient noise beds, traffic rumble, one-shot
+  horns/bells/sirens/chimes, and a subtle era music loop. Audio starts on first
+  user gesture; `M` toggles mute.
+- **Navigation**: free orbit camera (drag to look, scroll to zoom).
+- **Resilience**: WebGL2 capability check with a DOM fallback, DPR cap, and
+  reduced-motion friendly transitions.
 
-This must be a polished high end scene with SFX, ability to navigate around and look at things, etc. Go all out.
+## Development
+
+```bash
+npm install
+npm run dev      # local dev server
+npm run build    # type-check + production bundle
+npm run preview  # preview the production build
+```
+
+Built with Vite, TypeScript (strict), Three.js and the Web Audio API.

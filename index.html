@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <title>City Time Period Timelapse — 1945–2025</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230a0e1a'/%3E%3Cpath d='M6 22h4v-8h4v8h4V8h4v14h4' fill='%23f5b04c'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/src/styles.css" />
+</head>
+<body>
+  <div id="app"></div>
+  <div id="loading-screen">
+    <div class="loading-inner">
+      <div class="loading-title">CITY TIME PERIOD TIMELAPSE</div>
+      <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+      <div class="loading-sub">Building five eras of one block…</div>
+    </div>
+  </div>
+  <div id="hud" hidden></div>
+  <div id="fallback" hidden>
+    <div class="fallback-inner">
+      <h1>WebGL required</h1>
+      <p>This experience needs a browser with WebGL2 support to render the city block. Enable hardware acceleration or try another browser.</p>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
