@@ -1,0 +1,20 @@
+{
+  "name": "city-time-period-timelapse",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "3D city block timelapse across 1945 / 1965 / 1985 / 2005 / 2025 with a top timeline slider, procedural Web Audio SFX, and era-driven scene transformation.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.185.0",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
+  }
+}
