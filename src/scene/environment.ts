@@ -99,11 +99,11 @@ export function createEnvironment(textures: TextureSet): EnvModule {
   group.add(ground);
 
   /* ---------------- Ambient particles ---------------- */
-  const particleCount = 300;
+  const MAX_PARTICLES = 300;
   const pGeo = new THREE.BufferGeometry();
-  const pPos = new Float32Array(particleCount * 3);
-  const pVel = new Float32Array(particleCount * 3);
-  for (let i = 0; i < particleCount; i++) {
+  const pPos = new Float32Array(MAX_PARTICLES * 3);
+  const pVel = new Float32Array(MAX_PARTICLES * 3);
+  for (let i = 0; i < MAX_PARTICLES; i++) {
     pPos[i * 3] = (Math.random() - 0.5) * 160;
     pPos[i * 3 + 1] = Math.random() * 40 + 1;
     pPos[i * 3 + 2] = (Math.random() - 0.5) * 160;
@@ -191,6 +191,7 @@ export function createEnvironment(textures: TextureSet): EnvModule {
     const pos = pGeo.attributes.position as THREE.BufferAttribute;
     const arr = pos.array as Float32Array;
     const speed = (a.particles.speed + (b.particles.speed - a.particles.speed) * t) * 0.4;
+    const particleCount = state.quality === 'high' ? MAX_PARTICLES : Math.floor(MAX_PARTICLES * 0.4);
     for (let i = 0; i < particleCount; i++) {
       arr[i * 3] += pVel[i * 3] * dt * speed;
       arr[i * 3 + 1] += pVel[i * 3 + 1] * dt * speed;
@@ -201,6 +202,7 @@ export function createEnvironment(textures: TextureSet): EnvModule {
       if (arr[i * 3 + 2] > 80) arr[i * 3 + 2] = -80;
       if (arr[i * 3 + 2] < -80) arr[i * 3 + 2] = 80;
     }
+    pGeo.setDrawRange(0, particleCount);
     pos.needsUpdate = true;
 
     // Gentle sun drift (elevation follows the interpolated era theme)

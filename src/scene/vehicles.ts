@@ -222,7 +222,9 @@ export function createVehicles(): VehicleModule {
     const i1 = Math.min(i0 + 1, 4);
     const ft = x - i0;
     const density = ERA_TRAFFIC[i0] + (ERA_TRAFFIC[i1] - ERA_TRAFFIC[i0]) * ft;
-    const activeCount = Math.round(vehicles.length * density);
+    const vehicleCount =
+      state.quality === 'high' ? vehicles.length : Math.max(8, Math.floor(vehicles.length * 0.5));
+    const activeCount = Math.round(vehicleCount * density);
     const speedMul = ERA_SPEED[i0] + (ERA_SPEED[i1] - ERA_SPEED[i0]) * ft;
     for (let i = 0; i < vehicles.length; i++) {
       const v = vehicles[i];

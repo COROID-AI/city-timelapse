@@ -174,16 +174,6 @@ export function createCity(textures: TextureSet): CityModule {
   }
 
   /* ================= buildings ================= */
-  for (let r = 0; r < GRID; r++) {
-    for (let c = 0; c < GRID; c++) {
-      // leave every third cross-cell empty as an alley / park strip
-      if ((r + c) % 3 === 2) continue;
-      const x = r * BLOCK - (GRID * BLOCK) / 2 + BLOCK / 2;
-      const z = c * BLOCK - (GRID * BLOCK) / 2 + BLOCK / 2;
-      buildings.push(makeBuilding(x, z, r + c));
-    }
-  }
-
   /** Pre-generated per-era texture cache keyed by [era][slot]. */
   const eraWindowTex: THREE.CanvasTexture[][] = [];
   const eraSignTex: THREE.CanvasTexture[][] = [];
@@ -228,6 +218,16 @@ export function createCity(textures: TextureSet): CityModule {
     eraWindowTex.push(w);
     eraSignTex.push(s);
     eraBillboardTex.push(bb);
+  }
+
+  for (let r = 0; r < GRID; r++) {
+    for (let c = 0; c < GRID; c++) {
+      // leave every third cross-cell empty as an alley / park strip
+      if ((r + c) % 3 === 2) continue;
+      const x = r * BLOCK - (GRID * BLOCK) / 2 + BLOCK / 2;
+      const z = c * BLOCK - (GRID * BLOCK) / 2 + BLOCK / 2;
+      buildings.push(makeBuilding(x, z, r + c));
+    }
   }
 
   function makeBuilding(x: number, z: number, seed: number): BuildingF {
@@ -472,7 +472,10 @@ export function createCity(textures: TextureSet): CityModule {
     led: new THREE.BoxGeometry(0.95, 0.14, 0.32),
   };
   const lamppositions: [number, number][] = [];
+  // Lamp posts along the two central roads; a few posts are skipped so the
+  // point-light count stays reasonable (dense lighting is a perf cost).
   for (let k = 0; k < GRID + 1; k++) {
+    if (rnd() < 0.34) continue;
     lamppositions.push([3, k * BLOCK - cityHalf]);
     lamppositions.push([0, k * BLOCK - cityHalf]);
   }

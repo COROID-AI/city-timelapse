@@ -146,7 +146,9 @@ export function createPedestrians(): PedestrianModule {
     const i1 = Math.min(i0 + 1, 4);
     const ft = x - i0;
     const density = ERA_DENSITY[i0] + (ERA_DENSITY[i1] - ERA_DENSITY[i0]) * ft;
-    const activeCount = Math.round(people.length * density);
+    const personCount =
+      state.quality === 'high' ? people.length : Math.max(6, Math.floor(people.length * 0.5));
+    const activeCount = Math.round(personCount * density);
 
     for (let i = 0; i < people.length; i++) {
       const p = people[i];

@@ -162,6 +162,12 @@ export class SfxMixer {
 
   private scheduleMusic(): void {
     if (!this.ctx || !this.layers) return;
+    // If the tab was backgrounded, setInterval was throttled and our scheduler
+    // clock has gone stale. Jump it to the present so we never burst-start a
+    // backlog of oscillators at once on tab return.
+    if (this.nextNoteTime < this.ctx.currentTime - 0.05) {
+      this.nextNoteTime = this.ctx.currentTime + 0.05;
+    }
     const data = SFX_ERA_DATA[this.currentEra].music;
     const spb = 60 / data.tempo / 2; // 8th notes
     const lookahead = 0.18;

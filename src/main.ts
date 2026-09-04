@@ -74,6 +74,16 @@ function boot(): void {
 
   const state = createInitialState();
 
+  /** Apply the quality toggle — observable rendering change (DPR + shadows). */
+  const applyQuality = (): void => {
+    renderer.setPixelRatio(
+      state.quality === 'high' ? Math.min(window.devicePixelRatio, 2) : 1,
+    );
+    renderer.shadowMap.enabled = state.quality === 'high';
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  };
+  applyQuality();
+
   /* ---------------- modules ---------------- */
   const textures = createTextureSet();
   const env = createEnvironment(textures);
@@ -181,8 +191,8 @@ function boot(): void {
     });
     qualityBtn.addEventListener('click', () => {
       state.quality = state.quality === 'high' ? 'low' : 'high';
-      qualityBtn.textContent = state.quality === 'high' ? '⚙' : '⚙';
       qualityBtn.classList.toggle('low', state.quality === 'low');
+      applyQuality();
     });
 
     // keyboard: 1..5 selects eras, arrows step through the timeline
