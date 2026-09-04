@@ -24,7 +24,7 @@ export interface SfxMixerOptions {
 interface Layer {
   gain: GainNode;
   /** Current era-specific source, if playing. */
-  source: AudioBufferSourceNode | null;
+  source: { src: AudioBufferSourceNode; gain: GainNode } | null;
 }
 
 interface EventLayer {
@@ -95,9 +95,12 @@ export class SfxMixer {
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     src.loop = true;
-    src.connect(layer.gain);
+    const g = this.ctx.createGain();
+    g.gain.value = 1;
+    src.connect(g);
+    g.connect(layer.gain);
     src.start();
-    layer.source = src;
+    layer.source = { src, gain: g };
   }
 
   private startMusic(): void {
@@ -176,19 +179,23 @@ export class SfxMixer {
       const layer = this.layers![layerName];
       const old = layer.source;
       if (old) {
-        old.stop(t + fade + 0.05);
+        // ramp the *old* source's own gain down to silence, then stop it
+        old.gain.gain.cancelScheduledValues(t);
+        old.gain.gain.setValueAtTime(old.gain.gain.value, t);
+        old.gain.gain.exponentialRampToValueAtTime(0.0001, t + fade);
+        old.src.stop(t + fade + 0.1);
       }
       const buf = this.buffers![era][layerName];
       const src = this.ctx!.createBufferSource();
       src.buffer = buf;
       src.loop = true;
-      src.connect(layer.gain);
+      const g = this.ctx!.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(1, t + fade);
+      src.connect(g);
+      g.connect(layer.gain);
       src.start(t + 0.02);
-      layer.source = src;
-      // Reset the layer gain to 0 then ramp up (avoids clicks on swap).
-      layer.gain.gain.cancelScheduledValues(t);
-      layer.gain.gain.setValueAtTime(0, t);
-      layer.gain.gain.exponentialRampToValueAtTime(1, t + fade);
+      layer.source = { src, gain: g };
     };
     swap('ambient');
     swap('traffic');

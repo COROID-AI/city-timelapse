@@ -132,6 +132,7 @@ function boot(): void {
     const btns = Array.from(root.querySelectorAll<HTMLButtonElement>('.era-btn'));
     const muteBtn = root.querySelector('#mute-btn') as HTMLButtonElement;
     const qualityBtn = root.querySelector('#quality-btn') as HTMLButtonElement;
+    const track = root.querySelector('.track') as HTMLElement;
 
     function updateUI(): void {
       const idx = state.eraIndex;
@@ -150,6 +151,29 @@ function boot(): void {
         selectEra(i);
       });
     });
+
+    // draggable slider: pointer position -> nearest era
+    const eraFromPointer = (clientX: number): number => {
+      const rect = track.getBoundingClientRect();
+      const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      return Math.round(x * (ERA_IDS.length - 1));
+    };
+    let dragging = false;
+    const onPointerDown = (e: PointerEvent): void => {
+      dragging = true;
+      track.setPointerCapture(e.pointerId);
+      selectEra(eraFromPointer(e.clientX));
+    };
+    const onPointerMove = (e: PointerEvent): void => {
+      if (dragging) selectEra(eraFromPointer(e.clientX));
+    };
+    const onPointerUp = (): void => {
+      dragging = false;
+    };
+    track.addEventListener('pointerdown', onPointerDown);
+    track.addEventListener('pointermove', onPointerMove);
+    track.addEventListener('pointerup', onPointerUp);
+    track.addEventListener('pointercancel', onPointerUp);
     muteBtn.addEventListener('click', () => {
       state.muted = !state.muted;
       mixer.setMuted(state.muted);

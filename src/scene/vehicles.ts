@@ -90,13 +90,15 @@ export function createVehicles(): VehicleModule {
     axis: 'x' | 'z',
     dir: 1 | -1,
     lane: number,
+    roadIdx: number,
     seed: number,
   ): VehicleF {
     const g = new THREE.Group();
-    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    // per-vehicle paint so each car can keep its own era palette slot
+    const body = new THREE.Mesh(bodyGeo, bodyMat.clone());
     body.castShadow = true;
     g.add(body);
-    const roof = new THREE.Mesh(bodyGeo, roofMat);
+    const roof = new THREE.Mesh(bodyGeo, roofMat.clone());
     g.add(roof);
     const wheels: THREE.Mesh[] = [];
     for (const [wx, wz] of [
@@ -112,14 +114,24 @@ export function createVehicles(): VehicleModule {
       wheels.push(w);
     }
 
-    // start position in the road network
-    const laneOffset = lane === 0 ? -1.0 : 1.0;
+    // start position in the road network: drive along one avenue, offset from
+    // its centre-line median (roads live at i*BLOCK - cityHalf)
+    const roadAxis = roadIdx * BLOCK - (GRID * BLOCK) / 2;
+    const dirSign = dir === 1 ? -1 : 1;
+    const sideCoord = roadAxis + dirSign * (0.85 + lane * 0.6);
     const startCoord = ((seed / 2) * SPAN) % SPAN - SPAN / 2;
-    const sideCoord = laneOffset * dir + lane * 2.0;
-    const gx = axis === 'x' ? startCoord + (dir > 0 ? 2 : -2) : sideCoord;
-    const gz = axis === 'z' ? startCoord + (dir > 0 ? 2 : -2) : sideCoord;
+    const along = startCoord;
+    const gx = axis === 'x' ? along : sideCoord;
+    const gz = axis === 'z' ? along : sideCoord;
     g.position.set(gx, 0, gz);
-    if (axis === 'z') g.rotation.y = dir > 0 ? -Math.PI / 2 : Math.PI / 2;
+    // align the long body axis with the drive axis
+    if (axis === 'z') {
+      g.rotation.y = dir > 0 ? -Math.PI / 2 : Math.PI / 2;
+    } else {
+      g.rotation.y = dir > 0 ? 0 : Math.PI;
+    }
+    // phase starts where the vehicle was placed so the first update doesn't jump
+    const phase = ((startCoord + SPAN / 2) % SPAN + SPAN) % SPAN;
 
     group.add(g);
     return {
@@ -131,17 +143,17 @@ export function createVehicles(): VehicleModule {
       axis,
       dir,
       lane,
-      phase: rnd() * Math.PI * 2,
+      phase,
       kind: 'car',
     };
   }
 
-  // two lanes per axis, two cars per lane
+  // every avenue carries two-way traffic (one lane per direction), offset to
+  // opposite sides of the centre-line so cars never clip through blocks.
   for (const axis of ['x', 'z'] as const) {
-    for (const dir of [1, -1] as const) {
-      for (let lane = 0; lane < 2; lane++) {
-        makeVehicle(axis, dir, lane, vehicles.length);
-        makeVehicle(axis, dir, lane, vehicles.length + 1);
+    for (let roadIdx = 0; roadIdx <= GRID; roadIdx++) {
+      for (const dir of [1, -1] as const) {
+        makeVehicle(axis, dir, 0, roadIdx, vehicles.length);
       }
     }
   }
@@ -202,7 +214,7 @@ export function createVehicles(): VehicleModule {
     // move along the axis (wrap around)
     const speedMul = idx >= 3 ? 1.5 : 1;
     for (const v of vehicles) {
-      v.phase += dt * v.speed * speedMul;
+      v.phase += dt * v.speed * speedMul * v.dir;
       const pos = ((v.phase % SPAN) + SPAN) % SPAN;
       const coord = -SPAN / 2 + pos;
       if (v.axis === 'x') {

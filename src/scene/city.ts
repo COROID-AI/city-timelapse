@@ -244,6 +244,7 @@ export function createCity(textures: TextureSet): CityModule {
     // billboard on a subset of rooftops
     let billboardMat: THREE.MeshStandardMaterial | null = null;
     let billboardTex: THREE.CanvasTexture | null = null;
+    let billboardGroup: THREE.Group | null = null;
     if (localRnd() < 0.5) {
       billboardTex = createSignTexture({
         text: BILLBOARD_TEXTS[0][Math.floor(localRnd() * BILLBOARD_TEXTS[0].length)],
@@ -264,12 +265,15 @@ export function createCity(textures: TextureSet): CityModule {
         new THREE.MeshStandardMaterial({ color: '#26262c', roughness: 0.5 }),
       );
       frame.scale.set(7.4, 2.7, 0.35);
-      frame.position.set((localRnd() - 0.5) * 2, 0, (localRnd() - 0.5) * 2);
-      g.add(frame);
+      const bx = (localRnd() - 0.5) * 2;
+      const bz = (localRnd() - 0.5) * 2;
+      frame.position.set(bx, 0, bz);
       const sign = new THREE.Mesh(planeGeo, billboardMat);
       sign.scale.set(7, 2.4, 1);
-      sign.position.set(frame.position.x, frame.position.y, frame.position.z + 0.2);
-      g.add(sign);
+      sign.position.set(bx, 0, bz + 0.22);
+      billboardGroup = new THREE.Group();
+      billboardGroup.add(frame, sign);
+      g.add(billboardGroup);
     }
 
     // rooftop props
@@ -279,6 +283,8 @@ export function createCity(textures: TextureSet): CityModule {
     const solarG = makeSolar(localRnd() * 1.2, 1.2 + localRnd() * 0.6, [4]);
     const patio = makePatio(0.6 + localRnd(), 2.0 + localRnd(), [4]);
     const props: RooftopProp[] = [waterTower, hvacG, antennaG, solarG, patio];
+    // billboards stand on the roof from 1985 onward
+    if (billboardGroup) props.push({ group: billboardGroup, eras: [2, 3, 4] });
 
     const block: BuildingF = {
       group: g,

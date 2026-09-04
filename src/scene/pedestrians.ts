@@ -36,7 +36,7 @@ interface PedestrianF {
 
 const GRID = 7;
 const BLOCK = 11.2;
-const SIDEWALK = 1.3;
+const SIDEWALK = 0.55; // on the 1.3-wide sidewalk strip, clear of traffic
 const CITY_HALF = (GRID * BLOCK) / 2;
 
 export function createPedestrians(): PedestrianModule {
@@ -50,11 +50,14 @@ export function createPedestrians(): PedestrianModule {
   const boxGeo = new THREE.BoxGeometry(1, 1, 1);
   const headGeo = new THREE.SphereGeometry(0.16, 8, 6);
   const skinMat = new THREE.MeshStandardMaterial({ color: '#d8a878', roughness: 0.8 });
-  const shirtMat = new THREE.MeshStandardMaterial({ color: '#5a6a7a', roughness: 0.9 });
-  const pantsMat = new THREE.MeshStandardMaterial({ color: '#3a3a44', roughness: 0.9 });
+  const shirtBase = new THREE.MeshStandardMaterial({ color: '#5a6a7a', roughness: 0.9 });
+  const pantsBase = new THREE.MeshStandardMaterial({ color: '#3a3a44', roughness: 0.9 });
 
   function makePedestrian(): PedestrianF {
     const g = new THREE.Group();
+    // per-person outfits so the palette is visible on each figure
+    const shirtMat = shirtBase.clone();
+    const pantsMat = pantsBase.clone();
     const body = new THREE.Mesh(boxGeo, shirtMat);
     body.scale.set(0.34, 0.8, 0.22);
     body.position.y = 1.0;
@@ -81,7 +84,8 @@ export function createPedestrians(): PedestrianModule {
     const axis: 'x' | 'z' = rnd() < 0.5 ? 'x' : 'z';
     const dir: 1 | -1 = rnd() < 0.5 ? 1 : -1;
     const roadIdx = Math.floor(rnd() * (GRID + 1));
-    const axisCoord = roadIdx * BLOCK - CITY_HALF + SIDEWALK * (rnd() < 0.5 ? 1 : -1) * (dir > 0 ? 1 : -1);
+    const side = rnd() < 0.5 ? 1 : -1;
+    const axisCoord = roadIdx * BLOCK - CITY_HALF + SIDEWALK * side;
     const along = (rnd() - 0.5) * CITY_HALF * 2;
     const baseX = axis === 'x' ? axisCoord : along;
     const baseZ = axis === 'z' ? axisCoord : along;
@@ -100,7 +104,7 @@ export function createPedestrians(): PedestrianModule {
       speed: 0.8 + rnd() * 0.9,
       dir,
       axis,
-      phase: rnd() * Math.PI * 2,
+      phase: along,
       baseX,
       baseZ,
       stride: 0.9 + rnd() * 0.6,
@@ -142,13 +146,20 @@ export function createPedestrians(): PedestrianModule {
       const active = i < activeCount;
       p.group.visible = active;
       if (!active) continue;
-      // walk along the sidewalk
-      p.phase += dt * p.speed;
+      // walk along the sidewalk (wrap around the block edge)
+      const walkExtent = CITY_HALF * 2;
+      p.phase += dt * p.speed * p.dir;
+      if (p.phase > walkExtent / 2) p.phase = -walkExtent / 2;
+      if (p.phase < -walkExtent / 2) p.phase = walkExtent / 2;
       const walk = Math.sin(p.phase * p.stride);
       if (p.axis === 'x') {
-        p.group.position.x = p.baseX + Math.sin(p.phase * 0.5) * 0.4;
+        // walking along z on a fixed sidewalk strip (x)
+        p.group.position.x = p.baseX;
+        p.group.position.z = p.phase;
       } else {
-        p.group.position.z = p.baseZ + Math.sin(p.phase * 0.5) * 0.4;
+        // walking along x on a fixed sidewalk strip (z)
+        p.group.position.z = p.baseZ;
+        p.group.position.x = p.phase;
       }
       // limbs swing
       p.armL.rotation.x = walk * 0.5;
@@ -177,8 +188,8 @@ export function createPedestrians(): PedestrianModule {
     boxGeo.dispose();
     headGeo.dispose();
     skinMat.dispose();
-    shirtMat.dispose();
-    pantsMat.dispose();
+    shirtBase.dispose();
+    pantsBase.dispose();
     group.removeFromParent();
   }
 
