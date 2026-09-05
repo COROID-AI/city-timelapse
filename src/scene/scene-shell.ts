@@ -16,7 +16,7 @@ export interface SceneShellOptions {
   initialCameraDistance?: number
   /** Fixed eye height used in walk mode (world units). */
   walkEyeHeight?: number
-  /** Ground plane size in world units. */
+  /** Ground plane + shadow volume size in world units. Defaults large enough to frame the 170×110 city-block district. */
   groundSize?: number
   /** Sky-dome radius. Keep large enough to never intersect the camera. */
   skyRadius?: number
@@ -104,7 +104,7 @@ export class SceneShell {
 
   constructor(options: SceneShellOptions = {}) {
     this.container = options.container ?? document.body
-    const groundSize = options.groundSize ?? 60
+    const groundSize = options.groundSize ?? 190
 
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -162,8 +162,6 @@ export class SceneShell {
     const ground = createGround(groundSize)
     this.scene.add(ground)
 
-    this.scene.add(createShadowDemonstrator())
-
     if (options.modules) {
       for (const module of options.modules) this.addModule(module)
     }
@@ -190,6 +188,11 @@ export class SceneShell {
   addModule(module: SceneModule): void {
     this.modules.push(module)
     this.scene.add(module.group)
+  }
+
+  /** Emit an era change to every registered module (era store event). */
+  setEra(eraIndex: number): void {
+    for (const module of this.modules) module.onEraChange?.(eraIndex)
   }
 
   removeModule(module: SceneModule): void {

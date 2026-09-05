@@ -1,7 +1,9 @@
 import './style.css'
 import { SfxMixer } from './audio/mixer'
 import { ERA_IDS } from './eras'
+import { CityBlock } from './scene/city-block'
 import { SceneShell } from './scene/scene-shell'
+import type { SceneModule } from './scene/registry'
 
 const APP_TITLE = 'City Time Period Timelapse'
 const ERAS = ['1945', '1965', '1985', '2005', '2025', '2055']
@@ -60,8 +62,11 @@ const toggleIcon = toggle?.querySelector<HTMLElement>('.audio-toggle-icon') ?? n
 const toggleLabel = toggle?.querySelector<HTMLElement>('.audio-toggle-label') ?? null
 
 const mixer = new SfxMixer()
+const block = new CityBlock()
+const eraModules: SceneModule[] = [block]
 const shell = new SceneShell({
   container: app,
+  modules: eraModules,
   // Every frame: keep the positional listener glued to the camera, then
   // advance crossfades and event scheduling.
   onFrame: (delta) => {
@@ -74,8 +79,10 @@ if (range && output) {
   const update = () => {
     const value = ERAS[Number(range.value)] ?? '1945'
     output.value = value
-    const era = ERA_IDS[Number(range.value)]
+    const index = Number(range.value)
+    const era = ERA_IDS[index]
     if (era) mixer.setEra(era)
+    shell.setEra(index)
   }
   range.addEventListener('input', update)
   update()
