@@ -137,6 +137,114 @@ export interface PedestrianSpec {
   speed: number;
 }
 
+/** Kinds of businesses occupying the ground-floor storefront units. */
+export type StorefrontType =
+  | 'grocery'
+  | 'hardware'
+  | 'pharmacy'
+  | 'bakery'
+  | 'diner'
+  | 'laundromat'
+  | 'boutique'
+  | 'shoes'
+  | 'video'
+  | 'arcade'
+  | 'pizza'
+  | 'records'
+  | 'coffee'
+  | 'mobile'
+  | 'bank'
+  | 'convenience'
+  | 'cafe'
+  | 'coworking'
+  | 'kiosk'
+  | 'restaurant';
+
+/** Physical awning family for a storefront unit's era. */
+export type AwningStyle =
+  | 'canvas-stripes'
+  | 'scalloped'
+  | 'metal-rib'
+  | 'glass-canopy'
+  | 'matte-canopy';
+
+/** Entrance family for a storefront unit's era. */
+export type EntranceStyle =
+  | 'wood-recessed'
+  | 'chrome-glass'
+  | 'neon-frame'
+  | 'glass-slider'
+  | 'automatic-matte';
+
+/** Declarative period-appropriate typography/signage spec for one sign. */
+export interface SignageStyleSpec {
+  /** CSS font stack used for the wordmark (e.g. period serif stacks). */
+  fontFamily: string;
+  /** CSS font weight ('bold', 700, 'normal', …). */
+  fontWeight: string | number;
+  /** Primary wordmark colour (hex). */
+  ink: string;
+  /** Secondary/accent colour (subline, outline, decorations). */
+  accent: string;
+  /** Background colour behind the lettering, or 'transparent' for decals. */
+  background: string;
+  /** Glow colour for neon-style signs; '' means no glow. */
+  glow: string;
+  /** Extra letter spacing in px (matte/corporate eras track wider). */
+  tracking: number;
+}
+
+/** One ground-floor storefront unit in a given era. */
+export interface StorefrontSpec {
+  /** Stable instance id, unique within (and across) eras. */
+  id: string;
+  /** Business kind — drives the painted display motifs. */
+  type: StorefrontType;
+  /** Sign wordmark (as painted/printed on the sign band). */
+  name: string;
+  /** Small tagline drawn under the wordmark. */
+  tagline: string;
+  /** Era awning family (shared by all units of an era). */
+  awning: AwningStyle;
+  /** Era entrance family. */
+  entrance: EntranceStyle;
+  /** Unit facade/backdrop colour. */
+  facadeColor: string;
+  /** Trim/frame colour (sign frame, door frame, awning trim). */
+  trimColor: string;
+  /** Period typography declaration used by the CanvasTexture painters. */
+  signage: SignageStyleSpec;
+  /** Headline painted inside the display window. */
+  windowHeadline: string;
+  /** Sub-text painted inside the display window. */
+  windowSub: string;
+}
+
+/** Advertising media family; each appears only in its correct decades. */
+export type AdMedia = 'mural' | 'neon' | 'billboard' | 'screen';
+
+/** One wall advertisement for an era (mural, neon, billboard or screen). */
+export interface AdSpec {
+  /** Stable instance id, unique within (and across) eras. */
+  id: string;
+  /** Media family — controls the painter and the 3D housing. */
+  media: AdMedia;
+  /** Headline drawn on the ad (largest text). */
+  headline: string;
+  /** Subline drawn under the headline. */
+  subline: string;
+  /** Ad colour palette consumed by the CanvasTexture painter. */
+  palette: {
+    background: string;
+    ink: string;
+    accent: string;
+    /** Neon/screen glow colour; '' = no glow. */
+    glow: string;
+  };
+  /** Period typography declaration. */
+  signage: SignageStyleSpec;
+}
+
 /** Empty-but-typed per-era visual bundle; era tasks fill arrays with content. */
 export interface EraSceneState {
   /** Which era this state describes. */
@@ -144,8 +252,8 @@ export interface EraSceneState {
   buildings: unknown[];
   vehicles: VehicleSpec[];
   pedestrians: PedestrianSpec[];
-  storefronts: unknown[];
-  ads: unknown[];
+  storefronts: StorefrontSpec[];
+  ads: AdSpec[];
   streetFurniture: unknown[];
   /** Period-appropriate sound parameters consumed by the SFX engine. */
   sfx: SfxEraData;
@@ -295,7 +403,312 @@ export const SFX_ERA_DATA: Record<EraId, SfxEraData> = {
   },
 };
 
-/** Per-era scene state stubs — identical anchor contracts, empty content. */
+/** Per-era scene state stubs — identical anchor contracts, declarative content. */
+
+// --- Declarative storefront & advertising specs (consumed by content builders) ---
+
+const SIGN_1945: SignageStyleSpec = {
+  fontFamily: '"Georgia", "Times New Roman", serif',
+  fontWeight: 'bold',
+  ink: '#f5e6c8',
+  accent: '#c9a227',
+  background: '#4a2c1a',
+  glow: '',
+  tracking: 0,
+};
+const SIGN_1965: SignageStyleSpec = {
+  fontFamily: '"Trebuchet MS", "Century Gothic", sans-serif',
+  fontWeight: 700,
+  ink: '#9c2f3d',
+  accent: '#1f6f8b',
+  background: '#e8e2d4',
+  glow: '',
+  tracking: 1,
+};
+const SIGN_1985: SignageStyleSpec = {
+  fontFamily: '"Arial Black", Arial, sans-serif',
+  fontWeight: 900,
+  ink: '#ff2fd6',
+  accent: '#39ffd0',
+  background: '#10101c',
+  glow: '#ff2fd6',
+  tracking: 2,
+};
+const SIGN_2005: SignageStyleSpec = {
+  fontFamily: '"Arial", "Helvetica Neue", sans-serif',
+  fontWeight: 'bold',
+  ink: '#155bd4',
+  accent: '#c0392b',
+  background: '#f2f5f8',
+  glow: '',
+  tracking: 0,
+};
+const SIGN_2025: SignageStyleSpec = {
+  fontFamily: '"Helvetica Neue", Arial, sans-serif',
+  fontWeight: 500,
+  ink: '#1c2026',
+  accent: '#5d6f84',
+  background: '#e6e4dc',
+  glow: '',
+  tracking: 2,
+};
+
+const ERA_SIGN: Record<EraId, SignageStyleSpec> = {
+  '1945': SIGN_1945,
+  '1965': SIGN_1965,
+  '1985': SIGN_1985,
+  '2005': SIGN_2005,
+  '2025': SIGN_2025,
+};
+
+const ERA_AWNING: Record<EraId, AwningStyle> = {
+  '1945': 'canvas-stripes',
+  '1965': 'scalloped',
+  '1985': 'metal-rib',
+  '2005': 'glass-canopy',
+  '2025': 'matte-canopy',
+};
+
+const ERA_ENTRANCE: Record<EraId, EntranceStyle> = {
+  '1945': 'wood-recessed',
+  '1965': 'chrome-glass',
+  '1985': 'neon-frame',
+  '2005': 'glass-slider',
+  '2025': 'automatic-matte',
+};
+
+function storefrontUnit(
+  id: string,
+  era: EraId,
+  type: StorefrontSpec['type'],
+  name: string,
+  tagline: string,
+  facadeColor: string,
+  trimColor: string,
+  windowHeadline: string,
+  windowSub: string,
+): StorefrontSpec {
+  if (!id.startsWith(`s-${era}-`)) {
+    throw new Error(`StorefrontSpec id "${id}" does not match era ${era}`);
+  }
+  return {
+    id,
+    type,
+    name,
+    tagline,
+    awning: ERA_AWNING[era],
+    entrance: ERA_ENTRANCE[era],
+    facadeColor,
+    trimColor,
+    signage: ERA_SIGN[era],
+    windowHeadline,
+    windowSub,
+  };
+}
+
+/** Per-era storefront units in facade-slot order (period-correct signage). */
+export const STOREFRONT_SPECS: Record<EraId, StorefrontSpec[]> = {
+  '1945': [
+    storefrontUnit('s-1945-1', '1945', 'grocery', 'A & P GROCERY', 'FRESH VEGETABLES & MEATS', '#8a3b2e', '#4a2c1a', 'RATION BOOKS HONORED', 'IN STORE TODAY'),
+    storefrontUnit('s-1945-2', '1945', 'hardware', 'BROADWAY HARDWARE', 'POTS · PAILS · TOOLS', '#6e4a2f', '#3d2a18', 'WAR BONDS ON SALE', 'PLEDGE SHEETS HERE'),
+    storefrontUnit('s-1945-3', '1945', 'pharmacy', 'CITY PHARMACY', 'DRUGS & SUNDRIES', '#4a7a5a', '#2c4a38', 'VICTORY GARDEN SEEDS', 'NOVEMBER SPECIALS'),
+    storefrontUnit('s-1945-4', '1945', 'bakery', 'HOMESTEAD BAKERY', 'BREAD DELIVERED DAILY', '#8a5a2e', '#5a3a1e', 'WHEAT LOAF — 14¢', 'VICTORY SHORTENING'),
+    storefrontUnit('s-1945-5', '1945', 'grocery', 'ACME PRODUCE', 'GROCERY & MEAT MARKET', '#7a3a3e', '#4a241e', 'HOMEMADE SAUERKRAUT', 'BUY ONE, SAVE TODAY'),
+    storefrontUnit('s-1945-6', '1945', 'bakery', 'LIBERTY DINER', 'COFFEE 10¢ · PIE 25¢', '#5a4a3e', '#33302a', 'TURKEY SPECIAL', 'ALL DAY'),
+  ],
+  '1965': [
+    storefrontUnit('s-1965-1', '1965', 'diner', 'STARLITE DINER', 'OPEN ALL NIGHT', '#f2c9a6', '#9c2f3d', 'BURGERS 25¢', 'ONLY THE BEST'),
+    storefrontUnit('s-1965-2', '1965', 'laundromat', 'BUBBLE LAUNDROMAT', 'SELF-SERVICE · 24 HRS', '#7ea3a5', '#1f6f8b', 'WASH & DRY 25¢', 'DETERGENT FREE'),
+    storefrontUnit('s-1965-3', '1965', 'pharmacy', 'CORNER DRUGS', 'FOUNTAIN & SUNDRIES', '#c2576b', '#9c2f3d', 'MALT & MILKSHAKE', 'SODA FOUNTAIN'),
+    storefrontUnit('s-1965-4', '1965', 'diner', 'ROUTE 66 CAFE', 'HOME COOKING', '#e8d8b0', '#a46a2c', 'MEATLOAF SPECIAL', 'AMERICAN COOKING'),
+    storefrontUnit('s-1965-5', '1965', 'shoes', 'FAIRFIELD SHOES', 'WALK IN COMFORT', '#9cc9d9', '#1f6f8b', 'NEW MOD LOAFERS', 'STEP INTO STYLE'),
+    storefrontUnit('s-1965-6', '1965', 'laundromat', 'WASH-O-MAT', 'COIN OPERATED', '#c9d0d6', '#3d5568', 'STEAM PRESSING', 'SAME DAY SERVICE'),
+  ],
+  '1985': [
+    storefrontUnit('s-1985-1', '1985', 'video', 'STAR VIDEO', 'RENTALS · SALES', '#2a2a5c', '#ff2fd6', 'NEW RELEASES THIS WEEK', 'MEMBER RENTALS 99¢'),
+    storefrontUnit('s-1985-2', '1985', 'arcade', 'GALAXY ARCADE', '25¢ PLAY', '#1c1c34', '#39ffd0', 'HIGH SCORE 1,230,500', 'INSERT COIN'),
+    storefrontUnit('s-1985-3', '1985', 'video', 'BLOCKBUSTER VIDEO', 'TAKE ONE HOME', '#10101c', '#ffd23f', 'BUY 2 GET 1 FREE', 'NEW RELEASES'),
+    storefrontUnit('s-1985-4', '1985', 'arcade', 'PAC-MAN ARCADE', 'PLAY · EAT · REPEAT', '#3b1c4a', '#ff5c8a', 'TOURNAMENT NIGHT', '9 PM FRIDAY'),
+    storefrontUnit('s-1985-5', '1985', 'pizza', 'PIZZA PALACE', 'SLICE 95¢', '#8a2e3c', '#ffd23f', 'FREE DELIVERY', 'HOT & READY'),
+    storefrontUnit('s-1985-6', '1985', 'records', 'ROCK & ROLL RECORDS', 'NEW & USED VINYL', '#2a3b5c', '#2fd6ff', 'CONCERT TEES', 'NOW IN STOCK'),
+  ],
+  '2005': [
+    storefrontUnit('s-2005-1', '2005', 'mobile', 'MOBILE ZONE', 'NO CONTRACT', '#dfe7ee', '#155bd4', 'NEW PHONES', 'ANY CARRIER'),
+    storefrontUnit('s-2005-2', '2005', 'bank', 'FIRST NATIONAL BANK', 'OPEN SATURDAYS', '#f2f5f8', '#0e4f9a', 'LOW RATE LOANS', 'APPLY ONLINE'),
+    storefrontUnit('s-2005-3', '2005', 'coffee', 'STARBUCKS COFFEE', 'FIND YOUR FLAVOR', '#e8e0d0', '#0b4a32', 'FALL DRINKS', 'NOW BREWING'),
+    storefrontUnit('s-2005-4', '2005', 'convenience', '7-ELEVEN', 'OH THANK HEAVEN', '#c0392b', '#f2f5f8', 'BIG GULP 99¢', 'ALWAYS OPEN'),
+    storefrontUnit('s-2005-5', '2005', 'mobile', 'VERIZON WIRELESS', 'CAN YOU HEAR ME NOW', '#0e4f9a', '#c0392b', '4G NETWORK', 'MOST RELIABLE'),
+    storefrontUnit('s-2005-6', '2005', 'convenience', 'WALGREENS', 'AT THE CORNER OF HAPPY', '#155bd4', '#f2f5f8', 'PHOTO CENTER', 'OPEN 24 HOURS'),
+  ],
+  '2025': [
+    storefrontUnit('s-2025-1', '2025', 'cafe', 'DRIP & FOLD', 'SPECIALTY COFFEE', '#e6e4dc', '#1c2026', 'OAT FLAT WHITE', 'PICKUP OR DINE'),
+    storefrontUnit('s-2025-2', '2025', 'coworking', 'MAKERSPACE 46', 'DESKS · STUDIO · PODS', '#d8dde2', '#5d6f84', 'DAY PASS $25', 'BOOK A DESK'),
+    storefrontUnit('s-2025-3', '2025', 'restaurant', 'URBAN THYME', 'SEASONAL MENU', '#c9d3c2', '#2e4a3a', 'FARM TO TABLE', 'RESERVATIONS'),
+    storefrontUnit('s-2025-4', '2025', 'kiosk', 'CITY KIOSK 01', 'BILLING · TICKETS · MAPS', '#e0d8d0', '#4a3f3a', 'CITY SERVICES', 'SMART CITY'),
+    storefrontUnit('s-2025-5', '2025', 'cafe', 'NOMAD ROASTERS', 'SMALL BATCH ROAST', '#d9d2c4', '#3a342c', 'COLD BREW TAP', 'REUSE CUP'),
+    storefrontUnit('s-2025-6', '2025', 'coworking', 'FOUNDRY LOUNGE', '24/7 MEMBER ACCESS', '#d2d8dc', '#3c4a5a', 'HOT DESK READY', 'MEETING ROOMS'),
+  ],
+};
+
+/** Per-era wall advertisements in media timeline order. */
+export const AD_SPECS: Record<EraId, AdSpec[]> = {
+  '1945': [
+    {
+      id: 'a-1945-1',
+      media: 'mural',
+      headline: 'BACK THE ATTACK',
+      subline: 'BUY WAR BONDS TODAY',
+      palette: { background: '#6e3527', ink: '#f5e6c8', accent: '#d5b25a', glow: '' },
+      signage: SIGN_1945,
+    },
+    {
+      id: 'a-1945-2',
+      media: 'mural',
+      headline: 'UNITED WE STAND',
+      subline: 'VICTORY GARDENS WIN THE WAR',
+      palette: { background: '#6e3527', ink: '#f5e6c8', accent: '#d5b25a', glow: '' },
+      signage: SIGN_1945,
+    },
+    {
+      id: 'a-1945-3',
+      media: 'mural',
+      headline: 'GROW FOOD AT HOME',
+      subline: 'RATION VEGETABLES · 1945',
+      palette: { background: '#6e3527', ink: '#f5e6c8', accent: '#d5b25a', glow: '' },
+      signage: SIGN_1945,
+    },
+    {
+      id: 'a-1945-4',
+      media: 'mural',
+      headline: 'SAVE SCRAP METAL',
+      subline: 'EVERY TON HELPS THE FRONT',
+      palette: { background: '#6e3527', ink: '#f5e6c8', accent: '#d5b25a', glow: '' },
+      signage: SIGN_1945,
+    },
+    {
+      id: 'a-1945-5',
+      media: 'mural',
+      headline: 'THE COFFEE 5¢',
+      subline: 'WHEN THE RATION CARD SPEAKS',
+      palette: { background: '#6e3527', ink: '#f5e6c8', accent: '#d5b25a', glow: '' },
+      signage: SIGN_1945,
+    },
+  ],
+  '1965': [
+    {
+      id: 'a-1965-1',
+      media: 'neon',
+      headline: 'MOTEL',
+      subline: 'VACANCY',
+      palette: { background: '#10151f', ink: '#ffd23f', accent: '#39e6c0', glow: '#ffd23f' },
+      signage: SIGN_1965,
+    },
+    {
+      id: 'a-1965-2',
+      media: 'neon',
+      headline: 'TAXI STAND',
+      subline: '24-HOUR',
+      palette: { background: '#10151f', ink: '#ffd23f', accent: '#39e6c0', glow: '#ffd23f' },
+      signage: SIGN_1965,
+    },
+    {
+      id: 'a-1965-3',
+      media: 'neon',
+      headline: 'FLAME BROILED',
+      subline: 'BURGER KING OF THE ROAD',
+      palette: { background: '#10151f', ink: '#ffd23f', accent: '#39e6c0', glow: '#ffd23f' },
+      signage: SIGN_1965,
+    },
+  ],
+  '1985': [
+    {
+      id: 'a-1985-1',
+      media: 'neon',
+      headline: 'L.E.D. DANCE',
+      subline: 'OPEN TIL 4 AM',
+      palette: { background: '#0b0b12', ink: '#ff2fd6', accent: '#39ffd0', glow: '#ff2fd6' },
+      signage: SIGN_1985,
+    },
+    {
+      id: 'a-1985-2',
+      media: 'neon',
+      headline: 'VIDEO RENTALS',
+      subline: 'TAPES · GAMES · MOVIES',
+      palette: { background: '#0b0b12', ink: '#ff2fd6', accent: '#39ffd0', glow: '#ff2fd6' },
+      signage: SIGN_1985,
+    },
+    {
+      id: 'a-1985-3',
+      media: 'billboard',
+      headline: 'SPARK COLA',
+      subline: 'THE THIRST QUENCHER',
+      palette: { background: '#f4f2ea', ink: '#101018', accent: '#ff5c1a', glow: '' },
+      signage: SIGN_1985,
+    },
+    {
+      id: 'a-1985-4',
+      media: 'billboard',
+      headline: 'MUDD BURGERS',
+      subline: 'BETTER TASTING, BOLDER',
+      palette: { background: '#f4f2ea', ink: '#101018', accent: '#ff5c1a', glow: '' },
+      signage: SIGN_1985,
+    },
+  ],
+  '2005': [
+    {
+      id: 'a-2005-1',
+      media: 'billboard',
+      headline: 'TURBO-CO',
+      subline: '4G TOWERS NOW',
+      palette: { background: '#f4f6f8', ink: '#0e2a6b', accent: '#d2232a', glow: '' },
+      signage: SIGN_2005,
+    },
+    {
+      id: 'a-2005-2',
+      media: 'billboard',
+      headline: 'DRIVE THE FUTURE',
+      subline: 'THE NEW CRACKER SUV',
+      palette: { background: '#f4f6f8', ink: '#0e2a6b', accent: '#d2232a', glow: '' },
+      signage: SIGN_2005,
+    },
+    {
+      id: 'a-2005-3',
+      media: 'screen',
+      headline: 'TELE-STOR 24/7',
+      subline: 'BUY 1 GET 1 FREE',
+      palette: { background: '#062033', ink: '#9fe8ff', accent: '#ffe066', glow: '#7fd4ff' },
+      signage: SIGN_2005,
+    },
+  ],
+  '2025': [
+    {
+      id: 'a-2025-1',
+      media: 'screen',
+      headline: 'NEXUS-AI',
+      subline: 'YOUR CITY HELPER',
+      palette: { background: '#041420', ink: '#cfeaff', accent: '#5effd0', glow: '#3fa8ff' },
+      signage: SIGN_2025,
+    },
+    {
+      id: 'a-2025-2',
+      media: 'screen',
+      headline: 'SMART GRID',
+      subline: 'CHARGE & SAVE 20%',
+      palette: { background: '#041420', ink: '#cfeaff', accent: '#5effd0', glow: '#3fa8ff' },
+      signage: SIGN_2025,
+    },
+    {
+      id: 'a-2025-3',
+      media: 'screen',
+      headline: 'ECO RIDER',
+      subline: 'RIDE THE TIDAL WAVE',
+      palette: { background: '#041420', ink: '#cfeaff', accent: '#5effd0', glow: '#3fa8ff' },
+      signage: SIGN_2025,
+    },
+  ],
+};
+
+/** Per-era scene state stubs — identical anchor contracts, declarative content. */
 export const ERA_SCENE_STATES: Record<EraId, EraSceneState> = {
   '1945': {
     id: '1945',
@@ -378,8 +791,8 @@ export const ERA_SCENE_STATES: Record<EraId, EraSceneState> = {
         speed: 0.66,
       },
     ],
-    storefronts: [],
-    ads: [],
+    storefronts: STOREFRONT_SPECS['1945'],
+    ads: AD_SPECS['1945'],
     streetFurniture: [],
     sfx: SFX_ERA_DATA['1945'],
     anchors: ERA_ANCHOR_SLOTS['1945'],
@@ -475,8 +888,8 @@ export const ERA_SCENE_STATES: Record<EraId, EraSceneState> = {
         speed: 0.7,
       },
     ],
-    storefronts: [],
-    ads: [],
+    storefronts: STOREFRONT_SPECS['1965'],
+    ads: AD_SPECS['1965'],
     streetFurniture: [],
     sfx: SFX_ERA_DATA['1965'],
     anchors: ERA_ANCHOR_SLOTS['1965'],
@@ -572,8 +985,8 @@ export const ERA_SCENE_STATES: Record<EraId, EraSceneState> = {
         speed: 0.76,
       },
     ],
-    storefronts: [],
-    ads: [],
+    storefronts: STOREFRONT_SPECS['1985'],
+    ads: AD_SPECS['1985'],
     streetFurniture: [],
     sfx: SFX_ERA_DATA['1985'],
     anchors: ERA_ANCHOR_SLOTS['1985'],
@@ -659,8 +1072,8 @@ export const ERA_SCENE_STATES: Record<EraId, EraSceneState> = {
         speed: 0.84,
       },
     ],
-    storefronts: [],
-    ads: [],
+    storefronts: STOREFRONT_SPECS['2005'],
+    ads: AD_SPECS['2005'],
     streetFurniture: [],
     sfx: SFX_ERA_DATA['2005'],
     anchors: ERA_ANCHOR_SLOTS['2005'],
@@ -746,8 +1159,8 @@ export const ERA_SCENE_STATES: Record<EraId, EraSceneState> = {
         speed: 0.94,
       },
     ],
-    storefronts: [],
-    ads: [],
+    storefronts: STOREFRONT_SPECS['2025'],
+    ads: AD_SPECS['2025'],
     streetFurniture: [],
     sfx: SFX_ERA_DATA['2025'],
     anchors: ERA_ANCHOR_SLOTS['2025'],
