@@ -173,6 +173,7 @@ export class SceneShell {
     this.disposers.push(() => this.resizeObserver.disconnect())
 
     this.renderer.setAnimationLoop(() => {
+      this.timer.update()
       const delta = this.timer.getDelta()
       this.rig.update(delta)
       for (const module of this.modules) module.update?.(delta)

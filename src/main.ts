@@ -2,6 +2,7 @@ import './style.css'
 import { SfxMixer } from './audio/mixer'
 import { ERA_IDS, type EraId } from './eras'
 import { CityBlock } from './scene/city-block'
+import { StorefrontAdverts } from './scene/storefronts'
 import { SceneShell } from './scene/scene-shell'
 import type { SceneModule } from './scene/registry'
 import { EraStateStore } from './state'
@@ -80,7 +81,8 @@ const store = new EraStateStore()
 
 const mixer = new SfxMixer()
 const block = new CityBlock()
-const eraModules: SceneModule[] = [block]
+const storefronts = new StorefrontAdverts(block.layout)
+const eraModules: SceneModule[] = [block, storefronts]
 const shell = new SceneShell({
   container: sceneCanvas,
   modules: eraModules,
@@ -89,6 +91,10 @@ const shell = new SceneShell({
   onFrame: (delta) => {
     mixer.updateListener(shell.camera)
     mixer.update(delta)
+    // Health: mirror the digital-ad repaint counter into the DOM. The value
+    // advances every time a canvas-dynamic surface (2005 LCD scroll / 2025
+    // billboard cycle) repaints, proving live animation without WebGL readback.
+    sceneCanvas.dataset.digitalTick = String(storefronts.digitalTick)
   },
 })
 
@@ -111,6 +117,7 @@ function renderEraPanel(era: EraId): void {
   eraHeading.textContent = `City block — ${era}`
 }
 
+
 let transitionTimer = 0
 const onEraStateChange = (event: Event): void => {
   const detail = (event as CustomEvent<{ era?: EraId; transitioning?: boolean }>).detail
@@ -121,6 +128,13 @@ const onEraStateChange = (event: Event): void => {
     if (range && index >= 0) range.value = String(index)
     if (output) output.value = detail.era
     mixer.setEra(detail.era)
+  }
+  // Morph the scene content at the END of the store transition: the heavy
+  // storefronts/advertising rebuild (dozens of CanvasTextures + meshes)
+  // must not block the transition event dispatch, or the visible
+  // "Transitioning…" badge window can pass before the UI paints it.
+  if (detail.transitioning === false && detail.era) {
+    shell.setEra(ERA_IDS.indexOf(detail.era))
   }
   // The visible "Transitioning…" badge is cleared by the store's own
   // transitioning:false event (TimelineSlider mirrors it). This timer only
