@@ -123,39 +123,60 @@ function boot(): void {
     morphEngine,
   });
 
-  // Single wiring point: any era change (slider, keyboard, later programmatic)
-  // drives the morph engine and the SFX crossfade.
-  eraState.subscribe((era) => {
-    morphEngine.setEra(era);
-    mixer.setEra(era);
-  });
+  // UI shell: the title + era readout + timeline mount into the fixed
+  // top-center cluster (.top-ui). The body/_.ui-shell data-era attribute
+  // drives the era-matched typography/colour of the whole shell.
+  const shellWrap = document.createElement('div');
+  shellWrap.className = 'ui-shell';
+  shellWrap.dataset.era = eraState.era;
+  document.body.appendChild(shellWrap);
 
-  // UI.
   const topUi = document.createElement('div');
   topUi.className = 'top-ui';
-  app.appendChild(topUi);
+  const title = document.createElement('h1');
+  title.className = 'app-title';
+  title.textContent = 'City Time Period Timelapse';
+  const subtitle = document.createElement('span');
+  subtitle.className = 'app-subtitle';
+  subtitle.textContent = '1945 → 2025 · one city block, eighty years';
+  title.appendChild(subtitle);
+  topUi.appendChild(title);
   const slider = new TimelineSlider({
     container: topUi,
     eraState,
   });
+  shellWrap.appendChild(topUi);
 
   // Mute toggle (first click also unlocks audio per autoplay policy).
   const audioToggle = document.createElement('button');
   audioToggle.type = 'button';
   audioToggle.className = 'audio-toggle';
   audioToggle.textContent = '🔊 Audio';
-  app.appendChild(audioToggle);
+  audioToggle.setAttribute('aria-pressed', mixer.isMuted ? 'true' : 'false');
+  audioToggle.setAttribute('aria-label', 'Toggle era ambient audio');
+  shellWrap.appendChild(audioToggle);
   audioToggle.addEventListener('click', () => {
     mixer.init();
     mixer.unlock();
     const muted = mixer.toggleMute();
     audioToggle.textContent = muted ? '🔇 Muted' : '🔊 Audio';
+    audioToggle.setAttribute('aria-pressed', muted ? 'true' : 'false');
   });
 
   const hint = document.createElement('div');
   hint.className = 'hint';
-  hint.textContent = 'Drag to rotate · Right-drag to pan · Scroll to zoom · ←/→ to change era';
-  app.appendChild(hint);
+  hint.textContent = 'Drag to rotate · Right-drag to pan · Scroll to zoom · Tab to slider, arrows for era';
+  shellWrap.appendChild(hint);
+
+  // Single wiring point: any era change (slider, keyboard, later programmatic)
+  // drives the morph engine and the SFX crossfade on the shared morph timeline.
+  eraState.subscribe((era) => {
+    morphEngine.setEra(era);
+    mixer.setEra(era);
+    // Era-matched UI shell theme (typography/colour) follows the selection.
+    shellWrap.dataset.era = era;
+    document.body.dataset.era = era;
+  });
 
   // Autoplay-safe SFX: initialize on first user gesture anywhere.
   const unlockAudio = (): void => {
@@ -167,8 +188,20 @@ function boot(): void {
   window.addEventListener('pointerdown', unlockAudio);
   window.addEventListener('keydown', unlockAudio);
 
-  // Keyboard timeline shortcuts (accessibility).
+  // Keyboard timeline shortcuts (accessibility). Ignored while the slider
+  // handle (or any other focusable control) has focus — the range input and
+  // tick buttons handle their own arrow keys.
   window.addEventListener('keydown', (event) => {
+    const target = event.target;
+    const focusable =
+      target instanceof HTMLElement &&
+      (target.tagName === 'INPUT' ||
+        target.tagName === 'BUTTON' ||
+        target.tagName === 'A' ||
+        target.getAttribute?.('role') === 'slider');
+    if (focusable) {
+      return;
+    }
     if (event.key === 'ArrowLeft') {
       eraState.step(-1);
     } else if (event.key === 'ArrowRight') {
@@ -226,6 +259,7 @@ function boot(): void {
     window.removeEventListener('resize', onResize);
     window.removeEventListener('pointerdown', unlockAudio);
     window.removeEventListener('keydown', unlockAudio);
+    shellWrap.remove();
   };
   window.addEventListener('beforeunload', dispose, { once: true });
 }
