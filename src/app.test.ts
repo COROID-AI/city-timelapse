@@ -1,13 +1,15 @@
 import { Vector3 } from 'three'
 import { describe, expect, it } from 'vitest'
 import { clampPolar, movementFromKeys } from './scene/camera-rig'
+import { ERA_IDS, ERA_REGISTRY, getEraSpec } from './eras'
 
-describe('placeholder app', () => {
-  it('defines the six era labels for the timeline', () => {
-    const eras = ['1945', '1965', '1985', '2005', '2025', '2055']
-    expect(eras).toHaveLength(6)
-    expect(eras[0]).toBe('1945')
-    expect(eras[eras.length - 1]).toBe('2055')
+describe('era registry (app-level)', () => {
+  it('matches the README timeline: six years through 2055', () => {
+    expect(ERA_IDS).toEqual(['1945', '1965', '1985', '2005', '2025', '2055'])
+    expect(ERA_REGISTRY).toHaveLength(6)
+    expect(ERA_IDS).toContain('2055')
+    expect(getEraSpec('2025').year).toBe(2025)
+    expect(getEraSpec('2055').year).toBe(2055)
   })
 })
 

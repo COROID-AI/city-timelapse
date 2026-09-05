@@ -1,17 +1,17 @@
 /**
- * Shared era types and the audio mood registry.
+ * Shared era types, registry, and the audio mood registry.
  *
- * This module is the single source of truth for era identities and the period
- * descriptors the audio manager synthesizes from. Downstream era-audio tasks
- * wire the mood descriptors here to actual sound sources; the procedural
- * generators in `src/audio/sfx.ts` turn the numeric profiles into
- * AudioBuffers, and `src/audio/mixer.ts` crossfades the per-era channels.
+ * This module is the single source of truth for era identities:
+ * - the README timeline runs six eras 1945–2055, so the registry below
+ *   includes `'2055'` and both the scene/a11y timeline and the audio manager
+ *   get a channel for every timeline position;
+ * - the era-audio tasks wire the mood descriptors here to actual sound
+ *   sources; the procedural generators in `src/audio/sfx.ts` turn the numeric
+ *   profiles into AudioBuffers, and `src/audio/mixer.ts` crossfades the
+ *   per-era channels.
  *
- * Surface note: the app's timeline (README, src/main.ts, e2e smoke) runs six
- * eras 1945–2055, so the union below includes `'2055'`. The five eras named
- * in the audio task brief (1945/1965/1985/2005/2025) are all present and
- * populated; `'2055'` is included to match the repository's concrete
- * 6-era timeline so every timeline position has its own ambience channel.
+ * The branch helpers (`isEraId`, `eraIndex`) are used for runtime validation
+ * of untrusted era values on the `era-change` event channel.
  */
 
 export type EraId = '1945' | '1965' | '1985' | '2005' | '2025' | '2055'
@@ -32,52 +32,74 @@ export interface EraSpec {
   description: string
 }
 
-export const ERA_REGISTRY: readonly EraSpec[] = [
+export const ERA_REGISTRY = [
   {
     id: '1945',
     year: 1945,
-    label: 'Post-War',
+    label: '1945',
     description: 'Brick streets and sepia light; gas lamps, trolleys and victory-garden quiet.',
   },
   {
     id: '1965',
     year: 1965,
-    label: 'Mid-Century',
+    label: '1965',
     description: 'Pastel storefronts, chrome classics, neon tubes and transistor radios.',
   },
   {
     id: '1985',
     year: 1985,
-    label: 'Concrete & Neon',
+    label: '1985',
     description: 'Glass towers, sodium lamps, boxy traffic and boomboxes on the sidewalk.',
   },
   {
     id: '2005',
     year: 2005,
-    label: 'Digital Dawn',
+    label: '2005',
     description: 'LED billboards and SUVs; ring tones and congestion build.',
   },
   {
     id: '2025',
     year: 2025,
-    label: 'Contemporary',
+    label: '2025',
     description: 'EVs, e-scooters, LED screens, cell chatter and delivery drones.',
   },
   {
     id: '2055',
     year: 2055,
-    label: 'Future City',
+    label: '2055',
     description: 'Holographic ads, flying drone traffic, glowing architecture in teal and cyan.',
   },
-] as const
+] as const satisfies readonly EraSpec[]
 
-/** Returns the era descriptor for an id; throws for unknown ids. */
+const ERA_INDEX: ReadonlyMap<EraId, number> = new Map(
+  ERA_IDS.map((id, index) => [id, index]),
+)
+
+const ERA_BY_ID: ReadonlyMap<EraId, EraSpec> = new Map(
+  ERA_REGISTRY.map((spec) => [spec.id, spec]),
+)
+
+/** Type guard for runtime validation of unknown era values. */
+export function isEraId(value: unknown): value is EraId {
+  return typeof value === 'string' && ERA_IDS.some((id) => id === value)
+}
+
+/** Look up the spec for an era id. Throws for unknown ids. */
 export function getEraSpec(id: EraId): EraSpec {
-  const spec = ERA_REGISTRY.find((entry) => entry.id === id)
+  const spec = ERA_BY_ID.get(id)
   if (!spec) {
-    throw new Error(`Unknown era id: "${id}"`)
+    throw new Error(`Unknown era id: ${String(id)}`)
   }
   return spec
+}
+
+/** 0-based position of an era within the ordered registry. Throws for unknown ids. */
+export function eraIndex(id: EraId): number {
+  const index = ERA_INDEX.get(id)
+  if (index === undefined) {
+    throw new Error(`Unknown era id: ${String(id)}`)
+  }
+  return index
 }
 
 export type NoiseColor = 'brown' | 'pink' | 'white'
