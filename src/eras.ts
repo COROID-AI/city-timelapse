@@ -366,6 +366,137 @@ export interface AdSpec {
   signage: SignageStyleSpec;
 }
 
+/** Street furniture model family identifiers used by the procedural builders. */
+export type StreetFurnitureModelId =
+  | 'lamppost-gas-1945'
+  | 'lamppost-sodium-1965'
+  | 'lamppost-cobra-1985'
+  | 'lamppost-led-2005'
+  | 'lamppost-smart-2025'
+  | 'traffic-light-1945'
+  | 'traffic-light-1965'
+  | 'traffic-light-1985'
+  | 'traffic-light-2005'
+  | 'traffic-light-2025'
+  | 'bench-wood-1945'
+  | 'bench-midcentury-1965'
+  | 'bench-metal-1985'
+  | 'bench-modern-2005'
+  | 'bench-smart-2025'
+  | 'hydrant-1945'
+  | 'hydrant-1965'
+  | 'hydrant-1985'
+  | 'hydrant-2005'
+  | 'hydrant-2025'
+  | 'bin-cast-1945'
+  | 'bin-wire-1965'
+  | 'bin-metal-1985'
+  | 'bin-plastic-2005'
+  | 'bin-split-2025'
+  | 'busstop-1945'
+  | 'busstop-1965'
+  | 'busstop-1985'
+  | 'busstop-2005'
+  | 'busstop-2025'
+  | 'payphone-1945'
+  | 'payphone-1965'
+  | 'payphone-1985'
+  | 'newsstand-1945'
+  | 'newsstand-1965'
+  | 'newsstand-1985'
+  | 'newsstand-2005'
+  | 'newsstand-2025'
+  | 'tree-1945'
+  | 'tree-1965'
+  | 'tree-1985'
+  | 'tree-2005'
+  | 'tree-2025'
+  | 'planter-1985'
+  | 'planter-2005'
+  | 'planter-2025';
+
+/** Street furniture family. Each family has its own era-specific model ids. */
+export type StreetFurnitureKind =
+  | 'lamp'
+  | 'traffic_light'
+  | 'bench'
+  | 'hydrant'
+  | 'bin'
+  | 'bus_stop'
+  | 'payphone'
+  | 'newsstand'
+  | 'tree'
+  | 'planter';
+
+/**
+ * One piece of era-aware street furniture. Positions are stable across eras so
+ * the whole street scene can be declaratively re-styled per period (a 1945
+ * cast-iron lamp morphs placement with a 2025 smart pole, etc.). Families that
+ * do not exist in an era are simply absent from that era's array.
+ */
+export interface StreetFurnitureSpec {
+  /** Stable instance id, unique within (and across) eras. */
+  id: string;
+  /** Furniture family. */
+  kind: StreetFurnitureKind;
+  /** Which procedural model family to build (implies the era). */
+  model: StreetFurnitureModelId;
+  /** World position at street level. */
+  x: number;
+  z: number;
+  /** Primary colour. */
+  color: string;
+  /** Secondary/accent colour (trim, canopy, leaves, light head). */
+  accentColor: string;
+  /** Optional heading (radians, used by kiosks/booths/bus shelters). */
+  rotation?: number;
+}
+
+/** Per-era street furniture + road furniture comprehensiveness. */
+export interface StreetFurnitureEraSpec {
+  /** Era this set describes. */
+  era: EraId;
+  /** Street-adjacent pieces (lamps, benches, hydrants, bins, bus stops, payphones, newsstands). */
+  street: StreetFurnitureSpec[];
+  /** Trees and planters (both are declared as furniture so the block green evolves with the timeline). */
+  greenery: StreetFurnitureSpec[];
+  /** True when crosswalks/road markings are painted on the asphalt for this era. */
+  crosswalks: boolean;
+  /** Crosswalk band colour drawn on the road plane. */
+  crosswalkColor: string;
+}
+
+/** Ambient life family identifiers used by the procedural builders. */
+export type AmbientKind =
+  | 'pigeons'
+  | 'steam'
+  | 'chimney_smoke'
+  | 'dust'
+  | 'leaves'
+  | 'chatter';
+
+/**
+ * One era-aware ambient life element. `count` drives the particle/bird
+ * population size, `intensity` scales opacity/size, `color` and `accentColor`
+ * are the two palette stops of the animated particle sprites. The element is
+ * hidden (count 0) when the period had none.
+ */
+export interface AmbientEraSpec {
+  id: string;
+  /** Ambient family. */
+  kind: AmbientKind;
+  /** Particle/bird count (0 = not present in this era). */
+  count: number;
+  /** Opacity/size intensity 0..1. */
+  intensity: number;
+  /** Primary colour. */
+  color: string;
+  /** Secondary palette colour (accent stop). */
+  accentColor: string;
+  /** Height band around which the element lives (ground/street level = 0). */
+  altitude?: number;
+}
+
 /** Empty-but-typed per-era visual bundle; era tasks fill arrays with content. */
 export interface EraSceneState {
   /** Which era this state describes. */
@@ -375,9 +506,11 @@ export interface EraSceneState {
   pedestrians: PedestrianSpec[];
   storefronts: StorefrontSpec[];
   ads: AdSpec[];
-  streetFurniture: unknown[];
+  streetFurniture: StreetFurnitureEraSpec[];
   /** Period-appropriate sound parameters consumed by the SFX engine. */
   sfx: SfxEraData;
+  /** Period-appropriate ambient life elements (birds, steam, smoke, dust, leaves, chatter). */
+  ambient: AmbientEraSpec[];
   /** Shared anchor contract: the same named slots for every era. */
   anchors: EraAnchorSet;
 }
@@ -1339,6 +1472,155 @@ export const AD_SPECS: Record<EraId, AdSpec[]> = {
   ],
 };
 
+// ---------------------------------------------------------------------------
+// Street furniture + ambient life — declarative per-era sets
+// ---------------------------------------------------------------------------
+//
+// Positions are stable across eras so the street scene re-styles per period
+// instead of re-laying out: lamp slots, bench slots, hydrant slots, bin slots,
+// bus-stop slots, tree slots and newsstand slots exist in several adjacent
+// eras; families that disappear (payphones after 1985, steam/smoke after
+// 1985) are simply absent from that era's arrays. The streetfurniture/ and
+// ambient/ modules only consume these specs and never hardcode era logic.
+
+export const STREET_FURNITURE_SPECS: Record<EraId, StreetFurnitureEraSpec> = {
+  '1945': {
+    era: '1945',
+    street: [
+      { id: 'f-1945-lamp-1', kind: 'lamp', model: 'lamppost-gas-1945', x: -3.6, z: 1.9, color: '#1d3a24', accentColor: '#ffd08a' },
+      { id: 'f-1945-lamp-2', kind: 'lamp', model: 'lamppost-gas-1945', x: 0.2, z: 2.0, color: '#1d3a24', accentColor: '#ffd08a' },
+      { id: 'f-1945-lamp-3', kind: 'lamp', model: 'lamppost-gas-1945', x: 4.0, z: 1.9, color: '#1d3a24', accentColor: '#ffd08a' },
+      { id: 'f-1945-traffic-1', kind: 'traffic_light', model: 'traffic-light-1945', x: -4.6, z: 3.4, color: '#22262b', accentColor: '#e83030' },
+      { id: 'f-1945-bench-1', kind: 'bench', model: 'bench-wood-1945', x: -2.4, z: 2.6, color: '#5c4426', accentColor: '#2a2e33' },
+      { id: 'f-1945-hydrant-1', kind: 'hydrant', model: 'hydrant-1945', x: -1.2, z: 2.15, color: '#b23a2a', accentColor: '#7f2c20' },
+      { id: 'f-1945-bin-1', kind: 'bin', model: 'bin-cast-1945', x: 2.1, z: 2.7, color: '#2f3a2c', accentColor: '#46543f' },
+      { id: 'f-1945-busstop-1', kind: 'bus_stop', model: 'busstop-1945', x: 5.0, z: 2.75, color: '#3a3f45', accentColor: '#d8b24a' },
+      { id: 'f-1945-payphone-1', kind: 'payphone', model: 'payphone-1945', x: 0.6, z: 2.35, color: '#2e3b40', accentColor: '#6b7278' },
+      { id: 'f-1945-payphone-2', kind: 'payphone', model: 'payphone-1945', x: -3.0, z: 2.4, color: '#2e3b40', accentColor: '#6b7278' },
+      { id: 'f-1945-newsstand-1', kind: 'newsstand', model: 'newsstand-1945', x: 4.2, z: 2.6, color: '#4e3a26', accentColor: '#c8a14e', rotation: -0.6 },
+    ],
+    greenery: [
+      { id: 'f-1945-tree-1', kind: 'tree', model: 'tree-1945', x: -5.6, z: 1.2, color: '#4a6b3a', accentColor: '#2c4328' },
+      { id: 'f-1945-tree-2', kind: 'tree', model: 'tree-1945', x: 5.8, z: 1.4, color: '#547445', accentColor: '#2c4328' },
+    ],
+    crosswalks: true,
+    crosswalkColor: '#d8d2c4',
+  },
+  '1965': {
+    era: '1965',
+    street: [
+      { id: 'f-1965-lamp-1', kind: 'lamp', model: 'lamppost-sodium-1965', x: -3.6, z: 1.9, color: '#3c4a52', accentColor: '#ffd9a0' },
+      { id: 'f-1965-lamp-2', kind: 'lamp', model: 'lamppost-sodium-1965', x: 0.2, z: 2.0, color: '#3c4a52', accentColor: '#ffd9a0' },
+      { id: 'f-1965-lamp-3', kind: 'lamp', model: 'lamppost-sodium-1965', x: 4.0, z: 1.9, color: '#3c4a52', accentColor: '#ffd9a0' },
+      { id: 'f-1965-traffic-1', kind: 'traffic_light', model: 'traffic-light-1965', x: -4.6, z: 3.4, color: '#1f2426', accentColor: '#c73a2a' },
+      { id: 'f-1965-bench-1', kind: 'bench', model: 'bench-midcentury-1965', x: -2.4, z: 2.6, color: '#d7cdb4', accentColor: '#3d6a72' },
+      { id: 'f-1965-hydrant-1', kind: 'hydrant', model: 'hydrant-1965', x: -1.2, z: 2.15, color: '#b23a2a', accentColor: '#7f2c20' },
+      { id: 'f-1965-bin-1', kind: 'bin', model: 'bin-wire-1965', x: 2.1, z: 2.7, color: '#4a535a', accentColor: '#7a848b' },
+      { id: 'f-1965-busstop-1', kind: 'bus_stop', model: 'busstop-1965', x: 5.0, z: 2.75, color: '#3f4a52', accentColor: '#e8b23a' },
+      { id: 'f-1965-payphone-1', kind: 'payphone', model: 'payphone-1965', x: 0.6, z: 2.35, color: '#22272b', accentColor: '#8a9299' },
+      { id: 'f-1965-payphone-2', kind: 'payphone', model: 'payphone-1965', x: -3.0, z: 2.4, color: '#22272b', accentColor: '#8a9299' },
+      { id: 'f-1965-newsstand-1', kind: 'newsstand', model: 'newsstand-1965', x: 4.2, z: 2.6, color: '#5a6670', accentColor: '#d8e0e4', rotation: -0.6 },
+    ],
+    greenery: [
+      { id: 'f-1965-tree-1', kind: 'tree', model: 'tree-1965', x: -5.6, z: 1.2, color: '#5d7b3f', accentColor: '#a8332e' },
+      { id: 'f-1965-tree-2', kind: 'tree', model: 'tree-1965', x: 5.8, z: 1.4, color: '#5d7b3f', accentColor: '#a8332e' },
+    ],
+    crosswalks: true,
+    crosswalkColor: '#dcd8c8',
+  },
+  '1985': {
+    era: '1985',
+    street: [
+      { id: 'f-1985-lamp-1', kind: 'lamp', model: 'lamppost-cobra-1985', x: -3.6, z: 1.9, color: '#2c333a', accentColor: '#ffb347' },
+      { id: 'f-1985-lamp-2', kind: 'lamp', model: 'lamppost-cobra-1985', x: 0.2, z: 2.0, color: '#2c333a', accentColor: '#ffb347' },
+      { id: 'f-1985-lamp-3', kind: 'lamp', model: 'lamppost-cobra-1985', x: 4.0, z: 1.9, color: '#2c333a', accentColor: '#ffb347' },
+      { id: 'f-1985-traffic-1', kind: 'traffic_light', model: 'traffic-light-1985', x: -4.6, z: 3.4, color: '#181c20', accentColor: '#c73a2a' },
+      { id: 'f-1985-bench-1', kind: 'bench', model: 'bench-metal-1985', x: -2.4, z: 2.6, color: '#39424a', accentColor: '#c0392b' },
+      { id: 'f-1985-hydrant-1', kind: 'hydrant', model: 'hydrant-1985', x: -1.2, z: 2.15, color: '#d33b2b', accentColor: '#9c2418' },
+      { id: 'f-1985-bin-1', kind: 'bin', model: 'bin-metal-1985', x: 2.1, z: 2.7, color: '#3a4249', accentColor: '#e8b23a' },
+      { id: 'f-1985-busstop-1', kind: 'bus_stop', model: 'busstop-1985', x: 5.0, z: 2.75, color: '#2b3338', accentColor: '#e8b23a' },
+      { id: 'f-1985-payphone-1', kind: 'payphone', model: 'payphone-1985', x: 0.6, z: 2.35, color: '#23292e', accentColor: '#4f9e52' },
+      { id: 'f-1985-payphone-2', kind: 'payphone', model: 'payphone-1985', x: -3.0, z: 2.4, color: '#23292e', accentColor: '#4f9e52' },
+      { id: 'f-1985-newsstand-1', kind: 'newsstand', model: 'newsstand-1985', x: 4.2, z: 2.6, color: '#6a3d2f', accentColor: '#e8c23a', rotation: -0.6 },
+    ],
+    greenery: [
+      { id: 'f-1985-tree-1', kind: 'tree', model: 'tree-1985', x: -5.6, z: 1.2, color: '#4a6b3a', accentColor: '#528a4a' },
+      { id: 'f-1985-planter-1', kind: 'planter', model: 'planter-1985', x: 5.8, z: 2.0, color: '#5c5f64', accentColor: '#4a7a3d' },
+    ],
+    crosswalks: true,
+    crosswalkColor: '#d8d6cc',
+  },
+  '2005': {
+    era: '2005',
+    street: [
+      { id: 'f-2005-lamp-1', kind: 'lamp', model: 'lamppost-led-2005', x: -3.6, z: 1.9, color: '#4a5158', accentColor: '#eef4ff' },
+      { id: 'f-2005-lamp-2', kind: 'lamp', model: 'lamppost-led-2005', x: 0.2, z: 2.0, color: '#4a5158', accentColor: '#eef4ff' },
+      { id: 'f-2005-lamp-3', kind: 'lamp', model: 'lamppost-led-2005', x: 4.0, z: 1.9, color: '#4a5158', accentColor: '#eef4ff' },
+      { id: 'f-2005-traffic-1', kind: 'traffic_light', model: 'traffic-light-2005', x: -4.6, z: 3.4, color: '#2e3338', accentColor: '#3fa24f' },
+      { id: 'f-2005-bench-1', kind: 'bench', model: 'bench-modern-2005', x: -2.4, z: 2.6, color: '#5d6b5f', accentColor: '#39413b' },
+      { id: 'f-2005-hydrant-1', kind: 'hydrant', model: 'hydrant-2005', x: -1.2, z: 2.15, color: '#e23f2e', accentColor: '#a6281b' },
+      { id: 'f-2005-bin-1', kind: 'bin', model: 'bin-plastic-2005', x: 2.1, z: 2.7, color: '#355c3c', accentColor: '#8a949c' },
+      { id: 'f-2005-busstop-1', kind: 'bus_stop', model: 'busstop-2005', x: 5.0, z: 2.75, color: '#4a6a7a', accentColor: '#cfe6f2' },
+      { id: 'f-2005-newsstand-1', kind: 'newsstand', model: 'newsstand-2005', x: 4.2, z: 2.6, color: '#6c757c', accentColor: '#2f6fbf', rotation: -0.6 },
+    ],
+    greenery: [
+      { id: 'f-2005-tree-1', kind: 'tree', model: 'tree-2005', x: -5.6, z: 1.2, color: '#3f6b3a', accentColor: '#2f4f2c' },
+      { id: 'f-2005-planter-1', kind: 'planter', model: 'planter-2005', x: 5.8, z: 2.0, color: '#7a8085', accentColor: '#3a6b4a' },
+    ],
+    crosswalks: true,
+    crosswalkColor: '#c8ccd2',
+  },
+  '2025': {
+    era: '2025',
+    street: [
+      { id: 'f-2025-lamp-1', kind: 'lamp', model: 'lamppost-smart-2025', x: -3.6, z: 1.9, color: '#22262e', accentColor: '#7fd4e8' },
+      { id: 'f-2025-lamp-2', kind: 'lamp', model: 'lamppost-smart-2025', x: 0.2, z: 2.0, color: '#22262e', accentColor: '#7fd4e8' },
+      { id: 'f-2025-lamp-3', kind: 'lamp', model: 'lamppost-smart-2025', x: 4.0, z: 1.9, color: '#22262e', accentColor: '#7fd4e8' },
+      { id: 'f-2025-traffic-1', kind: 'traffic_light', model: 'traffic-light-2025', x: -4.6, z: 3.4, color: '#181c22', accentColor: '#3fa24f' },
+      { id: 'f-2025-bench-1', kind: 'bench', model: 'bench-smart-2025', x: -2.4, z: 2.6, color: '#3a4048', accentColor: '#52c2a4' },
+      { id: 'f-2025-hydrant-1', kind: 'hydrant', model: 'hydrant-2025', x: -1.2, z: 2.15, color: '#e23f2e', accentColor: '#c8d2d8' },
+      { id: 'f-2025-bin-1', kind: 'bin', model: 'bin-split-2025', x: 2.1, z: 2.7, color: '#2f6f4a', accentColor: '#2f4a90' },
+      { id: 'f-2025-busstop-1', kind: 'bus_stop', model: 'busstop-2025', x: 5.0, z: 2.75, color: '#333a42', accentColor: '#8fd4e8' },
+      { id: 'f-2025-newsstand-1', kind: 'newsstand', model: 'newsstand-2025', x: 4.2, z: 2.6, color: '#d8dee4', accentColor: '#52c2a4', rotation: -0.6 },
+    ],
+    greenery: [
+      { id: 'f-2025-tree-1', kind: 'tree', model: 'tree-2025', x: -5.6, z: 1.2, color: '#3f7d44', accentColor: '#2f5c34' },
+      { id: 'f-2025-planter-1', kind: 'planter', model: 'planter-2025', x: 5.8, z: 2.0, color: '#8a9096', accentColor: '#3a7d4a' },
+    ],
+    crosswalks: true,
+    crosswalkColor: '#c2c8cc',
+  },
+};
+
+export const AMBIENT_SPECS: Record<EraId, AmbientEraSpec[]> = {
+  '1945': [
+    { id: 'a-1945-pigeons', kind: 'pigeons', count: 7, intensity: 0.9, color: '#6b6f75', accentColor: '#3d4145', altitude: 1.4 },
+    { id: 'a-1945-steam', kind: 'steam', count: 26, intensity: 0.55, color: '#e4e0d2', accentColor: '#bdb6a4', altitude: 0.3 },
+    { id: 'a-1945-smoke', kind: 'chimney_smoke', count: 18, intensity: 0.5, color: '#6b6254', accentColor: '#9a8f7c', altitude: 3.2 },
+    { id: 'a-1945-dust', kind: 'dust', count: 14, intensity: 0.3, color: '#8f8470', accentColor: '#6e6454', altitude: 0.1 },
+  ],
+  '1965': [
+    { id: 'a-1965-pigeons', kind: 'pigeons', count: 8, intensity: 0.9, color: '#6f7378', accentColor: '#404549', altitude: 1.4 },
+    { id: 'a-1965-steam', kind: 'steam', count: 20, intensity: 0.45, color: '#ece9de', accentColor: '#cac5b6', altitude: 0.3 },
+    { id: 'a-1965-smoke', kind: 'chimney_smoke', count: 16, intensity: 0.4, color: '#7a7266', accentColor: '#a39a8a', altitude: 3.4 },
+    { id: 'a-1965-leaves', kind: 'leaves', count: 16, intensity: 0.35, color: '#b09a55', accentColor: '#7d6b3a', altitude: 0.2 },
+  ],
+  '1985': [
+    { id: 'a-1985-pigeons', kind: 'pigeons', count: 9, intensity: 0.95, color: '#5f6468', accentColor: '#33373a', altitude: 1.4 },
+    { id: 'a-1985-steam', kind: 'steam', count: 22, intensity: 0.5, color: '#d8d4c8', accentColor: '#b0aa9c', altitude: 0.3 },
+    { id: 'a-1985-smoke', kind: 'chimney_smoke', count: 14, intensity: 0.38, color: '#6a7078', accentColor: '#9aa0a8', altitude: 3.6 },
+    { id: 'a-1985-dust', kind: 'dust', count: 20, intensity: 0.4, color: '#a89c88', accentColor: '#7d7362', altitude: 0.1 },
+  ],
+  '2005': [
+    { id: 'a-2005-pigeons', kind: 'pigeons', count: 4, intensity: 0.5, color: '#6f7479', accentColor: '#414649', altitude: 1.4 },
+    { id: 'a-2005-leaves', kind: 'leaves', count: 18, intensity: 0.4, color: '#9a8a4a', accentColor: '#6e6234', altitude: 0.2 },
+  ],
+  '2025': [
+    { id: 'a-2025-pigeons', kind: 'pigeons', count: 5, intensity: 0.55, color: '#7a7f84', accentColor: '#494e52', altitude: 1.4 },
+    { id: 'a-2025-leaves', kind: 'leaves', count: 22, intensity: 0.45, color: '#8fa05a', accentColor: '#5f7136', altitude: 0.2 },
+  ],
+};
+
 /** Per-era scene state stubs — identical anchor contracts, declarative content. */
 export const ERA_SCENE_STATES: Record<EraId, EraSceneState> = {
   '1945': {
@@ -1424,7 +1706,8 @@ export const ERA_SCENE_STATES: Record<EraId, EraSceneState> = {
     ],
     storefronts: STOREFRONT_SPECS['1945'],
     ads: AD_SPECS['1945'],
-    streetFurniture: [],
+    streetFurniture: [STREET_FURNITURE_SPECS['1945']],
+    ambient: AMBIENT_SPECS['1945'],
     sfx: SFX_ERA_DATA['1945'],
     anchors: ERA_ANCHOR_SLOTS['1945'],
   },
@@ -1521,7 +1804,8 @@ export const ERA_SCENE_STATES: Record<EraId, EraSceneState> = {
     ],
     storefronts: STOREFRONT_SPECS['1965'],
     ads: AD_SPECS['1965'],
-    streetFurniture: [],
+    streetFurniture: [STREET_FURNITURE_SPECS['1965']],
+    ambient: AMBIENT_SPECS['1965'],
     sfx: SFX_ERA_DATA['1965'],
     anchors: ERA_ANCHOR_SLOTS['1965'],
   },
@@ -1618,7 +1902,8 @@ export const ERA_SCENE_STATES: Record<EraId, EraSceneState> = {
     ],
     storefronts: STOREFRONT_SPECS['1985'],
     ads: AD_SPECS['1985'],
-    streetFurniture: [],
+    streetFurniture: [STREET_FURNITURE_SPECS['1985']],
+    ambient: AMBIENT_SPECS['1985'],
     sfx: SFX_ERA_DATA['1985'],
     anchors: ERA_ANCHOR_SLOTS['1985'],
   },
@@ -1705,7 +1990,8 @@ export const ERA_SCENE_STATES: Record<EraId, EraSceneState> = {
     ],
     storefronts: STOREFRONT_SPECS['2005'],
     ads: AD_SPECS['2005'],
-    streetFurniture: [],
+    streetFurniture: [STREET_FURNITURE_SPECS['2005']],
+    ambient: AMBIENT_SPECS['2005'],
     sfx: SFX_ERA_DATA['2005'],
     anchors: ERA_ANCHOR_SLOTS['2005'],
   },
@@ -1792,7 +2078,8 @@ export const ERA_SCENE_STATES: Record<EraId, EraSceneState> = {
     ],
     storefronts: STOREFRONT_SPECS['2025'],
     ads: AD_SPECS['2025'],
-    streetFurniture: [],
+    streetFurniture: [STREET_FURNITURE_SPECS['2025']],
+    ambient: AMBIENT_SPECS['2025'],
     sfx: SFX_ERA_DATA['2025'],
     anchors: ERA_ANCHOR_SLOTS['2025'],
   },
