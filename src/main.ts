@@ -16,6 +16,8 @@ import { SfxMixer } from './audio/mixer';
 import { Lighting } from './env/Lighting';
 import { Weather } from './env/Weather';
 import { MorphEngine } from './core/MorphEngine';
+import { CameraDirector } from './core/CameraDirector';
+import { Polish } from './core/Polish';
 import { SceneShell } from './scene/SceneShell';
 import { EraState } from './state/EraState';
 import { TimelineSlider } from './ui/TimelineSlider';
@@ -102,12 +104,24 @@ function boot(): void {
   controls.minDistance = 2;
   controls.maxDistance = 80;
 
+  const lighting = new Lighting(scene, eraState, morphEngine);
+  const weather = new Weather(scene, eraState, morphEngine);
+  // Cinematic polish + camera director. Polish is constructed BEFORE the
+  // SceneShell so its era subscription (detail veil capture) runs before the
+  // building module rebuilds/disposes the leaving era's detail meshes.
+  const polish = new Polish(scene, camera, renderer, eraState, morphEngine);
+  scene.add(polish.group);
+
   // Scene modules (each exposes group/update/dispose; none own a loop).
   const shell = new SceneShell(eraState, morphEngine);
   scene.add(shell.group);
 
-  const lighting = new Lighting(scene, eraState, morphEngine);
-  const weather = new Weather(scene, eraState, morphEngine);
+  const director = new CameraDirector({
+    camera,
+    controls,
+    eraState,
+    morphEngine,
+  });
 
   // Single wiring point: any era change (slider, keyboard, later programmatic)
   // drives the morph engine and the SFX crossfade.
@@ -167,6 +181,7 @@ function boot(): void {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    polish.setSize(window.innerWidth, window.innerHeight);
   };
   window.addEventListener('resize', onResize);
 
@@ -180,10 +195,12 @@ function boot(): void {
 
     controls.update();
     morphEngine.update(dt);
+    director.update();
     lighting.update();
     weather.update(dt);
     shell.update(dt);
-    renderer.render(scene, camera);
+    polish.update(dt);
+    polish.render();
 
     if (firstFrame) {
       firstFrame = false;
@@ -201,6 +218,8 @@ function boot(): void {
     shell.dispose();
     lighting.dispose();
     weather.dispose();
+    polish.dispose();
+    director.dispose();
     mixer.dispose();
     controls.dispose();
     renderer.dispose();
