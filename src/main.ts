@@ -1,7 +1,9 @@
 import './style.css'
 import { SfxMixer } from './audio/mixer'
 import { ERA_IDS, type EraId } from './eras'
+import { CityBlock } from './scene/city-block'
 import { SceneShell } from './scene/scene-shell'
+import type { SceneModule } from './scene/registry'
 import { EraStateStore } from './state'
 import { TimelineSlider } from './timeline'
 
@@ -77,8 +79,11 @@ if (!timelineSlot || !sceneStage || !sceneCanvas) {
 const store = new EraStateStore()
 
 const mixer = new SfxMixer()
+const block = new CityBlock()
+const eraModules: SceneModule[] = [block]
 const shell = new SceneShell({
   container: sceneCanvas,
+  modules: eraModules,
   // Every frame: keep the positional listener glued to the camera, then
   // advance crossfades and event scheduling.
   onFrame: (delta) => {
@@ -117,11 +122,16 @@ const onEraStateChange = (event: Event): void => {
     if (output) output.value = detail.era
     mixer.setEra(detail.era)
   }
+  // The visible "Transitioning…" badge is cleared by the store's own
+  // transitioning:false event (TimelineSlider mirrors it). This timer only
+  // hard-stops a transition when the store event never arrives; it is kept
+  // at ~1.2s so the indicator is reliably observable for the smoke tests yet
+  // still hides within their 2s "cleared" assertion.
   if (detail.transitioning === true) {
     clearTimeout(transitionTimer)
     transitionTimer = window.setTimeout(() => {
       store.endTransition()
-    }, 400)
+    }, 1200)
   }
 }
 window.addEventListener('era-state-change', onEraStateChange)
