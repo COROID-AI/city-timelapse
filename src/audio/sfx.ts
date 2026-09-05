@@ -15,6 +15,8 @@ export interface EraAudioBuffers {
   ambient: AudioBuffer;
   /** Seamless looping traffic rumble layer, density-aware. */
   traffic: AudioBuffer;
+  /** Seamless looping era-styled music bed (from SfxEraData.musicStyle). */
+  music: AudioBuffer;
   /** One-shot event sounds (horns, bells, sirens, whines). */
   events: AudioBuffer[];
 }
@@ -125,6 +127,81 @@ export function generateTrafficBuffer(ctx: AudioContext, data: SfxEraData): Audi
     out[i] = out[i] * env + out[out.length - seam + i] * (1 - env);
   }
   normalize(out, 0.28 * (0.4 + data.trafficDensity));
+  return buffer;
+}
+
+/**
+ * Era-styled looping music bed, procedurally synthesized from a style label.
+ * Each style uses a distinct scale/chord set and timbre so the five era music
+ * layers are audibly different (swing radio → motown → synthwave → pop anthem
+ * → neon ambient) without any external assets.
+ */
+export function generateMusicBuffer(
+  ctx: AudioContext,
+  style: string,
+): AudioBuffer {
+  const seconds = 8;
+  const buffer = createBuffer(ctx, seconds);
+  const out = buffer.getChannelData(0);
+  const noteDur = 0.4;
+  let t = 0;
+  let noteIndex = 0;
+
+  // Note pair (freq, weight) per style — short, recognizable gestures.
+  const scales: Record<string, number[][]> = {
+    swing_radio: [
+      [392, 0.5], [523.25, 0.35], [659.25, 0.25], [587.33, 0.3],
+      [493.88, 0.4], [392, 0.3], [587.33, 0.35], [523.25, 0.4],
+    ],
+    motown_pop: [
+      [261.63, 0.5], [329.63, 0.4], [392, 0.45], [493.88, 0.35],
+      [392, 0.4], [329.63, 0.45], [293.66, 0.5], [261.63, 0.3],
+    ],
+    synthwave: [
+      [110, 0.6], [164.81, 0.45], [220, 0.5], [164.81, 0.4],
+      [110, 0.55], [146.83, 0.4], [220, 0.5], [164.81, 0.45],
+    ],
+    pop_anthem: [
+      [220, 0.5], [277.18, 0.4], [329.63, 0.45], [440, 0.4],
+      [329.63, 0.45], [277.18, 0.4], [246.94, 0.5], [220, 0.3],
+    ],
+    neon_ambient: [
+      [261.63, 0.3], [329.63, 0.35], [392, 0.3], [523.25, 0.25],
+      [392, 0.3], [329.63, 0.35], [440, 0.3], [523.25, 0.25],
+    ],
+  };
+  const notes = scales[style] ?? scales.neon_ambient;
+
+  const tau = 2 * Math.PI;
+  const sampleRate = SAMPLE_RATE;
+  const total = out.length;
+  while (t < seconds && noteIndex < notes.length * Math.ceil(seconds / (notes.length * noteDur))) {
+    const [freq, weight] = notes[noteIndex % notes.length];
+    const start = Math.floor(t * sampleRate);
+    // Soft attack, held body, gentle release (no clicks at note boundaries).
+    for (let i = start; i < Math.min(total, start + Math.floor(noteDur * sampleRate)); i += 1) {
+      const lt = (i - start) / sampleRate;
+      const env =
+        lt < 0.03
+          ? lt / 0.03
+          : lt > noteDur - 0.06
+            ? Math.max(0, 1 - (lt - (noteDur - 0.06)) / 0.06)
+            : 1;
+      const sine = Math.sin(tau * freq * lt);
+      const octave = Math.sin(tau * freq * 2 * lt) * 0.2;
+      out[i] += (sine + octave) * weight * env;
+    }
+    t += noteDur;
+    noteIndex += 1;
+  }
+
+  // Crossfade the loop seam so 8s of melody loops smoothly.
+  const seam = Math.floor(seconds * SAMPLE_RATE * 0.08);
+  for (let i = 0; i < seam; i += 1) {
+    const env = i / seam;
+    out[i] = out[i] * env + out[out.length - seam + i] * (1 - env);
+  }
+  normalize(out, 0.24);
   return buffer;
 }
 
@@ -265,6 +342,7 @@ export function generateEraAudioBuffers(
   return {
     ambient: generateAmbientBuffer(ctx, data),
     traffic: generateTrafficBuffer(ctx, data),
+    music: generateMusicBuffer(ctx, data.musicStyle),
     events: events.map((event) => generateEventBuffer(ctx, event)),
   };
 }
