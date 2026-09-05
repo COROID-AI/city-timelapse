@@ -20,7 +20,6 @@
 
 import { ERA_IDS, type EraId } from '../../eras'
 import {
-  buildBlockLayoutData,
   ROAD_GRID_LENGTH,
   ROAD_GRID_WIDTH,
   STREET_CENTER,
@@ -74,16 +73,6 @@ export function usesDedicatedLanes(era: EraId): boolean {
   return era === '2025'
 }
 
-function addLanePoint(
-  out: Waypoint[],
-  x: number,
-  z: number,
-  last?: Waypoint,
-): void {
-  if (last && Math.abs(last.x - x) < 0.001 && Math.abs(last.z - z) < 0.001) return
-  out.push({ x, z })
-}
-
 interface RoadSide {
   id: string
   /** Axis the road runs along: 'z' for north-south roads, 'x' for east-west. */
@@ -108,11 +97,12 @@ interface RoadSide {
  * The two east-west roads run along X at z = ±STREET_CENTER and span the full
  * ROAD_GRID_LENGTH; the two north-south roads run along Z at x = ±STREET_CENTER
  * and span ROAD_GRID_WIDTH. Every road keeps an inner lane (toward the block)
- * and an outer lane, so the eight auto lanes tile the whole ring. 2025 adds a
- * center bus lane and curb bike lanes on the west/north demonstrated corridors.
+ * plus a second lane, so the eight transit lanes tile the whole ring. On the
+ * demonstrated corridors (west/north) 2025 replaces the outer auto lane with a
+ * dedicated bus lane and adds curb bike lanes, so traffic density and lane
+ * usage visibly shift with the era.
  */
 export function buildEraLanes(era: EraId): EraLaneProfile {
-  const layout = buildBlockLayoutData()
   const halfLen = ROAD_GRID_LENGTH / 2
   const halfWid = ROAD_GRID_WIDTH / 2
   const center = STREET_CENTER
@@ -121,13 +111,10 @@ export function buildEraLanes(era: EraId): EraLaneProfile {
   const bus = usesDedicatedLanes(era)
 
   // Lane centerline offsets from the street center:
-  //   auto inner lane on each side of the center line,
-  //   bus lane just inside the inner auto lanes (2025),
-  //   bike lane at the curb (2025).
+  //   inner lane at ±1.05, outer lane at ±5.15, bike at ±7.6 (at the curb).
   const autoOffsetInner = 1.05
   const autoOffsetOuter = 5.15
   const bikeOffset = 7.6
-  const busOffset = 0.35
 
   const lanes: LaneDef[] = []
 
@@ -145,6 +132,8 @@ export function buildEraLanes(era: EraId): EraLaneProfile {
     const innerOffset = autoOffsetInner * side.towardBlock
     const outerOffset = autoOffsetOuter * side.towardBlock
     const nextId = `${side.id}-auto`
+    // The west/north corridors carry the dedicated transit lane in 2025.
+    const busCorridor = bus && (side.id === 'ns-west' || side.id === 'ew-north')
 
     const points = (
       offset: number,
@@ -178,34 +167,33 @@ export function buildEraLanes(era: EraId): EraLaneProfile {
       stops: [stopPoint(innerOffset)],
       width: AUTO_LANE_WIDTH,
     })
-    lanes.push({
-      id: `${nextId}-outer`,
-      kind: 'auto',
-      direction: side.forward,
-      points: points(outerOffset),
-      stops: [stopPoint(outerOffset)],
-      width: AUTO_LANE_WIDTH,
-    })
-  }
-
-  if (bus) {
-    // Center bus lanes on the demonstrated west/north corridors.
-    const busSides = [sides[0], sides[3]]
-    for (const side of busSides) {
-      const offset = busOffset * side.towardBlock
+    if (busCorridor) {
+      // The transit lane replaces the general outer lane on this corridor.
       lanes.push({
         id: `corridor-bus-${side.axis}-${side.towardBlock === 1 ? 'near' : 'far'}`,
         kind: 'bus',
         direction: side.forward,
-        points: side.axis === 'z'
-          ? [{ x: side.center + offset, z: -halfWid }, { x: side.center + offset, z: halfWid }]
-          : [{ x: -halfLen, z: side.center + offset }, { x: halfLen, z: side.center + offset }],
-        stops: side.axis === 'z'
-          ? [{ waypointIndex: 0, x: side.center + offset, z: side.stopAlong }]
-          : [{ waypointIndex: 0, x: side.stopAlong, z: side.center + offset }],
+        points: points(outerOffset),
+        stops: [stopPoint(outerOffset)],
         width: BUS_LANE_WIDTH,
       })
+    } else {
+      lanes.push({
+        id: `${nextId}-outer`,
+        kind: 'auto',
+        direction: side.forward,
+        points: points(outerOffset),
+        stops: [stopPoint(outerOffset)],
+        width: AUTO_LANE_WIDTH,
+      })
     }
+  }
+
+  if (bus) {
+    // Center-style bus corridors are no longer added here; the transit lane
+    // above already occupies the outer slot on the two demonstrated corridors.
+    const busSides = [sides[0], sides[3]]
+    void busSides
   }
 
   if (bike) {
@@ -237,10 +225,10 @@ export function buildEraLanes(era: EraId): EraLaneProfile {
   return { lanes, bikeLane: bike, busLane: bus }
 }
 
-/** Duplicate the first point as the last so every lane is a closed loop. */
+/** Close a lane loop: straight roads stay open (traversal wraps at the ends). */
 export function closeLaneLoop(points: Waypoint[]): Waypoint[] {
   const copy = points.map((p) => ({ x: p.x, z: p.z }))
-  if (copy.length > 0) {
+  if (copy.length > 2) {
     copy.push({ x: copy[0].x, z: copy[0].z })
   }
   return copy

@@ -4,6 +4,7 @@ import { ERA_IDS, type EraId } from './eras'
 import { CityBlock } from './scene/city-block'
 import { SceneShell } from './scene/scene-shell'
 import type { SceneModule } from './scene/registry'
+import { TrafficSystem } from './scene/vehicles/traffic-system'
 import { EraStateStore } from './state'
 import { TimelineSlider } from './timeline'
 
@@ -80,7 +81,9 @@ const store = new EraStateStore()
 
 const mixer = new SfxMixer()
 const block = new CityBlock()
-const eraModules: SceneModule[] = [block]
+const traffic = new TrafficSystem()
+traffic.setEra('1945')
+const eraModules: SceneModule[] = [block, traffic]
 const shell = new SceneShell({
   container: sceneCanvas,
   modules: eraModules,
@@ -121,6 +124,7 @@ const onEraStateChange = (event: Event): void => {
     if (range && index >= 0) range.value = String(index)
     if (output) output.value = detail.era
     mixer.setEra(detail.era)
+    shell.setEra(index)
   }
   // The visible "Transitioning…" badge is cleared by the store's own
   // transitioning:false event (TimelineSlider mirrors it). This timer only
