@@ -64,13 +64,86 @@ export interface EraAnchorSet {
   shelf: EraAnchor;
 }
 
-/** Empty-but-typed per-era visual bundle; later tasks fill arrays with content. */
+/** Vehicle model family identifiers used by the procedural vehicle builders. */
+export type VehicleModelId =
+  | 'sedan-1945'
+  | 'trolley-1945'
+  | 'sedan-1965'
+  | 'wagon-1965'
+  | 'sedan-1985'
+  | 'hatchback-1985'
+  | 'van-1985'
+  | 'suv-2005'
+  | 'hatchback-2005'
+  | 'ev-2025'
+  | 'shuttle-2025';
+
+/** Declarative blueprint of one period vehicle on the era street. */
+export interface VehicleSpec {
+  /** Stable instance id, unique within (and across) eras. */
+  id: string;
+  /** Which procedural model family to build. */
+  model: VehicleModelId;
+  /** Primary paint colour. */
+  color: string;
+  /** Secondary/two-tone body colour (roof, lower band, etc.). */
+  accentColor: string;
+  /** Trim/chrome colour. */
+  trimColor: string;
+  /** Street lane: 0 = outer (heading east), 1 = inner (heading west). */
+  lane: 0 | 1;
+  /** Cruise speed along the street in metres/second. */
+  speed: number;
+  /** Start position along the street as a 0..1 fraction. */
+  offset: number;
+}
+
+/** Pedestrian model family identifiers used by the procedural outfit builders. */
+export type PedestrianModelId =
+  | 'worker-1945'
+  | 'coat-1945'
+  | 'dress-1945'
+  | 'suit-1965'
+  | 'dress-1965'
+  | 'skirt-1965'
+  | 'disco-1985'
+  | 'leather-1985'
+  | 'neon-1985'
+  | 'hoodie-2005'
+  | 'denim-2005'
+  | 'cargo-2005'
+  | 'athleisure-2025'
+  | 'techwear-2025';
+
+/** Declarative blueprint of one period pedestrian on the sidewalk loop. */
+export interface PedestrianSpec {
+  /** Stable instance id, unique within (and across) eras. */
+  id: string;
+  /** Which procedural outfit family to build. */
+  model: PedestrianModelId;
+  /** Primary garment colour. */
+  color: string;
+  /** Secondary garment/accent colour. */
+  accentColor: string;
+  /** Skin colour. */
+  skinColor: string;
+  /** Hair colour. */
+  hairColor: string;
+  /** Fabric descriptor; drives material roughness (wool, denim, leather…). */
+  fabric: string;
+  /** Start position along the sidewalk loop as a 0..1 fraction. */
+  phase: number;
+  /** Walking speed in metres/second. */
+  speed: number;
+}
+
+/** Empty-but-typed per-era visual bundle; era tasks fill arrays with content. */
 export interface EraSceneState {
   /** Which era this state describes. */
   id: EraId;
   buildings: unknown[];
-  vehicles: unknown[];
-  pedestrians: unknown[];
+  vehicles: VehicleSpec[];
+  pedestrians: PedestrianSpec[];
   storefronts: unknown[];
   ads: unknown[];
   streetFurniture: unknown[];
@@ -227,8 +300,84 @@ export const ERA_SCENE_STATES: Record<EraId, EraSceneState> = {
   '1945': {
     id: '1945',
     buildings: [],
-    vehicles: [],
-    pedestrians: [],
+    vehicles: [
+      {
+        id: 'v-1945-1',
+        model: 'sedan-1945',
+        color: '#17181c',
+        accentColor: '#101216',
+        trimColor: '#969aa3',
+        lane: 0,
+        speed: 5.4,
+        offset: 0.06,
+      },
+      {
+        id: 'v-1945-2',
+        model: 'sedan-1945',
+        color: '#26262b',
+        accentColor: '#1a1b1f',
+        trimColor: '#b8bcc4',
+        lane: 1,
+        speed: 4.8,
+        offset: 0.48,
+      },
+      {
+        id: 'v-1945-3',
+        model: 'trolley-1945',
+        color: '#7a3026',
+        accentColor: '#dbc47e',
+        trimColor: '#a6a295',
+        lane: 0,
+        speed: 4.1,
+        offset: 0.74,
+      },
+    ],
+    pedestrians: [
+      {
+        id: 'p-1945-1',
+        model: 'worker-1945',
+        color: '#5b6068',
+        accentColor: '#3a3d42',
+        skinColor: '#c08b66',
+        hairColor: '#33261f',
+        fabric: 'cotton_duck',
+        phase: 0.08,
+        speed: 0.62,
+      },
+      {
+        id: 'p-1945-2',
+        model: 'coat-1945',
+        color: '#4a453e',
+        accentColor: '#2d2a26',
+        skinColor: '#d3a07c',
+        hairColor: '#31221a',
+        fabric: 'wool',
+        phase: 0.33,
+        speed: 0.55,
+      },
+      {
+        id: 'p-1945-3',
+        model: 'dress-1945',
+        color: '#7b6a4e',
+        accentColor: '#5c4b36',
+        skinColor: '#e0b291',
+        hairColor: '#452e26',
+        fabric: 'cotton',
+        phase: 0.57,
+        speed: 0.58,
+      },
+      {
+        id: 'p-1945-4',
+        model: 'coat-1945',
+        color: '#353c44',
+        accentColor: '#23282d',
+        skinColor: '#c08b66',
+        hairColor: '#1d1612',
+        fabric: 'wool',
+        phase: 0.84,
+        speed: 0.66,
+      },
+    ],
     storefronts: [],
     ads: [],
     streetFurniture: [],
@@ -238,8 +387,94 @@ export const ERA_SCENE_STATES: Record<EraId, EraSceneState> = {
   '1965': {
     id: '1965',
     buildings: [],
-    vehicles: [],
-    pedestrians: [],
+    vehicles: [
+      {
+        id: 'v-1965-1',
+        model: 'sedan-1965',
+        color: '#2e6f79',
+        accentColor: '#e8e2d4',
+        trimColor: '#ccc9bd',
+        lane: 0,
+        speed: 6.0,
+        offset: 0.12,
+      },
+      {
+        id: 'v-1965-2',
+        model: 'sedan-1965',
+        color: '#d9c195',
+        accentColor: '#c2a876',
+        trimColor: '#d8d5c9',
+        lane: 1,
+        speed: 5.4,
+        offset: 0.41,
+      },
+      {
+        id: 'v-1965-3',
+        model: 'wagon-1965',
+        color: '#a4552e',
+        accentColor: '#d7b06a',
+        trimColor: '#c9c6ba',
+        lane: 0,
+        speed: 5.7,
+        offset: 0.63,
+      },
+      {
+        id: 'v-1965-4',
+        model: 'wagon-1965',
+        color: '#4d6a9e',
+        accentColor: '#e2ddc8',
+        trimColor: '#d0cdc1',
+        lane: 1,
+        speed: 5.2,
+        offset: 0.87,
+      },
+    ],
+    pedestrians: [
+      {
+        id: 'p-1965-1',
+        model: 'suit-1965',
+        color: '#3d5568',
+        accentColor: '#c9d0d6',
+        skinColor: '#d3a07c',
+        hairColor: '#1f2022',
+        fabric: 'wool_blend',
+        phase: 0.1,
+        speed: 0.72,
+      },
+      {
+        id: 'p-1965-2',
+        model: 'dress-1965',
+        color: '#c2576b',
+        accentColor: '#f4f0e6',
+        skinColor: '#e0b291',
+        hairColor: '#3a2a1e',
+        fabric: 'silk',
+        phase: 0.36,
+        speed: 0.66,
+      },
+      {
+        id: 'p-1965-3',
+        model: 'skirt-1965',
+        color: '#7ea3a5',
+        accentColor: '#e9e2cc',
+        skinColor: '#c8956f',
+        hairColor: '#241a12',
+        fabric: 'cotton_blend',
+        phase: 0.61,
+        speed: 0.64,
+      },
+      {
+        id: 'p-1965-4',
+        model: 'suit-1965',
+        color: '#6b5138',
+        accentColor: '#d9cfbb',
+        skinColor: '#c08b66',
+        hairColor: '#171310',
+        fabric: 'wool_blend',
+        phase: 0.82,
+        speed: 0.7,
+      },
+    ],
     storefronts: [],
     ads: [],
     streetFurniture: [],
@@ -249,8 +484,94 @@ export const ERA_SCENE_STATES: Record<EraId, EraSceneState> = {
   '1985': {
     id: '1985',
     buildings: [],
-    vehicles: [],
-    pedestrians: [],
+    vehicles: [
+      {
+        id: 'v-1985-1',
+        model: 'sedan-1985',
+        color: '#a72f2f',
+        accentColor: '#1e1f22',
+        trimColor: '#9ba0a8',
+        lane: 0,
+        speed: 6.6,
+        offset: 0.05,
+      },
+      {
+        id: 'v-1985-2',
+        model: 'sedan-1985',
+        color: '#a9adb3',
+        accentColor: '#2c2e33',
+        trimColor: '#78808a',
+        lane: 1,
+        speed: 6.1,
+        offset: 0.33,
+      },
+      {
+        id: 'v-1985-3',
+        model: 'hatchback-1985',
+        color: '#2f6f74',
+        accentColor: '#232629',
+        trimColor: '#a0a6ae',
+        lane: 0,
+        speed: 6.3,
+        offset: 0.58,
+      },
+      {
+        id: 'v-1985-4',
+        model: 'van-1985',
+        color: '#e4e0d4',
+        accentColor: '#3b5f9e',
+        trimColor: '#8b95a1',
+        lane: 1,
+        speed: 5.9,
+        offset: 0.79,
+      },
+    ],
+    pedestrians: [
+      {
+        id: 'p-1985-1',
+        model: 'disco-1985',
+        color: '#b23a8f',
+        accentColor: '#282b63',
+        skinColor: '#e0b291',
+        hairColor: '#191b22',
+        fabric: 'spandex',
+        phase: 0.12,
+        speed: 0.78,
+      },
+      {
+        id: 'p-1985-2',
+        model: 'leather-1985',
+        color: '#1d1e22',
+        accentColor: '#c0392b',
+        skinColor: '#c08b66',
+        hairColor: '#0f1013',
+        fabric: 'leather',
+        phase: 0.38,
+        speed: 0.74,
+      },
+      {
+        id: 'p-1985-3',
+        model: 'neon-1985',
+        color: '#1f8a5f',
+        accentColor: '#ffd23f',
+        skinColor: '#d3a07c',
+        hairColor: '#211d18',
+        fabric: 'nylon',
+        phase: 0.6,
+        speed: 0.8,
+      },
+      {
+        id: 'p-1985-4',
+        model: 'disco-1985',
+        color: '#2fa8c9',
+        accentColor: '#6a2f9e',
+        skinColor: '#c8956f',
+        hairColor: '#262019',
+        fabric: 'spandex',
+        phase: 0.86,
+        speed: 0.76,
+      },
+    ],
     storefronts: [],
     ads: [],
     streetFurniture: [],
@@ -260,8 +581,84 @@ export const ERA_SCENE_STATES: Record<EraId, EraSceneState> = {
   '2005': {
     id: '2005',
     buildings: [],
-    vehicles: [],
-    pedestrians: [],
+    vehicles: [
+      {
+        id: 'v-2005-1',
+        model: 'suv-2005',
+        color: '#7d8a99',
+        accentColor: '#565f6a',
+        trimColor: '#3c4148',
+        lane: 0,
+        speed: 7.2,
+        offset: 0.09,
+      },
+      {
+        id: 'v-2005-2',
+        model: 'suv-2005',
+        color: '#232a33',
+        accentColor: '#171b21',
+        trimColor: '#8a929c',
+        lane: 1,
+        speed: 6.6,
+        offset: 0.44,
+      },
+      {
+        id: 'v-2005-3',
+        model: 'hatchback-2005',
+        color: '#a63c2a',
+        accentColor: '#1c2026',
+        trimColor: '#aeb4bc',
+        lane: 0,
+        speed: 6.9,
+        offset: 0.71,
+      },
+    ],
+    pedestrians: [
+      {
+        id: 'p-2005-1',
+        model: 'hoodie-2005',
+        color: '#4f5b66',
+        accentColor: '#2a3138',
+        skinColor: '#d3a07c',
+        hairColor: '#171310',
+        fabric: 'fleece',
+        phase: 0.07,
+        speed: 0.82,
+      },
+      {
+        id: 'p-2005-2',
+        model: 'denim-2005',
+        color: '#3e5d7a',
+        accentColor: '#c97b3b',
+        skinColor: '#c08b66',
+        hairColor: '#1d1612',
+        fabric: 'denim',
+        phase: 0.3,
+        speed: 0.78,
+      },
+      {
+        id: 'p-2005-3',
+        model: 'cargo-2005',
+        color: '#8b8762',
+        accentColor: '#3a4436',
+        skinColor: '#e0b291',
+        hairColor: '#241a12',
+        fabric: 'canvas',
+        phase: 0.55,
+        speed: 0.8,
+      },
+      {
+        id: 'p-2005-4',
+        model: 'hoodie-2005',
+        color: '#6d2b36',
+        accentColor: '#21151a',
+        skinColor: '#c8956f',
+        hairColor: '#0f1013',
+        fabric: 'fleece',
+        phase: 0.81,
+        speed: 0.84,
+      },
+    ],
     storefronts: [],
     ads: [],
     streetFurniture: [],
@@ -271,8 +668,84 @@ export const ERA_SCENE_STATES: Record<EraId, EraSceneState> = {
   '2025': {
     id: '2025',
     buildings: [],
-    vehicles: [],
-    pedestrians: [],
+    vehicles: [
+      {
+        id: 'v-2025-1',
+        model: 'ev-2025',
+        color: '#e8e9e6',
+        accentColor: '#b8bcbe',
+        trimColor: '#2c343d',
+        lane: 0,
+        speed: 7.6,
+        offset: 0.14,
+      },
+      {
+        id: 'v-2025-2',
+        model: 'ev-2025',
+        color: '#21344f',
+        accentColor: '#0f1823',
+        trimColor: '#5d6f84',
+        lane: 1,
+        speed: 7.0,
+        offset: 0.52,
+      },
+      {
+        id: 'v-2025-3',
+        model: 'shuttle-2025',
+        color: '#2d3d3a',
+        accentColor: '#9fe8d6',
+        trimColor: '#b9c9c4',
+        lane: 0,
+        speed: 6.4,
+        offset: 0.76,
+      },
+    ],
+    pedestrians: [
+      {
+        id: 'p-2025-1',
+        model: 'athleisure-2025',
+        color: '#20262e',
+        accentColor: '#41d9c4',
+        skinColor: '#e0b291',
+        hairColor: '#171310',
+        fabric: 'synthetic',
+        phase: 0.1,
+        speed: 0.92,
+      },
+      {
+        id: 'p-2025-2',
+        model: 'techwear-2025',
+        color: '#1c2026',
+        accentColor: '#7aa2f7',
+        skinColor: '#c08b66',
+        hairColor: '#0f1013',
+        fabric: 'goretex',
+        phase: 0.34,
+        speed: 0.88,
+      },
+      {
+        id: 'p-2025-3',
+        model: 'athleisure-2025',
+        color: '#8b8f96',
+        accentColor: '#e0813f',
+        skinColor: '#c8956f',
+        hairColor: '#241a12',
+        fabric: 'synthetic',
+        phase: 0.58,
+        speed: 0.9,
+      },
+      {
+        id: 'p-2025-4',
+        model: 'techwear-2025',
+        color: '#24342b',
+        accentColor: '#8ae08a',
+        skinColor: '#d3a07c',
+        hairColor: '#1d1612',
+        fabric: 'goretex',
+        phase: 0.83,
+        speed: 0.94,
+      },
+    ],
     storefronts: [],
     ads: [],
     streetFurniture: [],

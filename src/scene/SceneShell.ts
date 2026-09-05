@@ -20,6 +20,8 @@ import * as THREE from 'three';
 
 import { createCanvasTexture } from '../assets';
 import type { MorphEngine } from '../core/MorphEngine';
+import { EraVehicles } from '../content/vehicles/EraVehicles';
+import { EraPedestrians } from '../content/pedestrians/EraPedestrians';
 import { ERA_ANCHOR_SLOTS, type EraId } from '../eras';
 import { EraState } from '../state/EraState';
 
@@ -27,9 +29,19 @@ export class SceneShell {
   readonly group = new THREE.Group();
   private readonly facadeMaterial: THREE.MeshStandardMaterial;
   private readonly unsubscribe: () => void;
+  private readonly vehicles: EraVehicles;
+  private readonly pedestrians: EraPedestrians;
 
   constructor(eraState: EraState, morphEngine: MorphEngine) {
     this.group.name = 'SceneShell';
+
+    // Era-specific population modules. They own their own groups and plug into
+    // the shared morph timeline for transition-safe era swaps (vehicles drive
+    // off / new era drives in; pedestrians crossfade on the sidewalk loop).
+    this.vehicles = new EraVehicles(eraState.era, morphEngine);
+    this.pedestrians = new EraPedestrians(eraState.era, morphEngine);
+    this.group.add(this.vehicles.group);
+    this.group.add(this.pedestrians.group);
 
     // Ground: procedural canvas texture (asphalt/per-sidewalk), era-neutral.
     const groundTexture = createCanvasTexture({ kind: 'shape', size: 512 }).texture;
@@ -89,16 +101,20 @@ export class SceneShell {
 
   /** Advance per-frame logic. */
   update(_dt: number): void {
-    // Reserved for era-content tasks.
+    this.vehicles.update(_dt);
+    this.pedestrians.update(_dt);
   }
 
-  setEra(_era: EraId, _t: number): void {
-    // Morph engine drives transitions from EraState; shell just holds stubs.
+  setEra(era: EraId, _t: number): void {
+    this.vehicles.setEra(era);
+    this.pedestrians.setEra(era);
   }
 
   dispose(): void {
     this.unsubscribe();
     this.facadeMaterial.dispose();
+    this.vehicles.dispose();
+    this.pedestrians.dispose();
     this.group.clear();
   }
 }
