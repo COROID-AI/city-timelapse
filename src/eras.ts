@@ -64,11 +64,136 @@ export interface EraAnchorSet {
   shelf: EraAnchor;
 }
 
-/** Empty-but-typed per-era visual bundle; later tasks fill arrays with content. */
+/** Facade material language of a building plot. */
+export type BuildingFacadeKind =
+  | 'brick'
+  | 'glass'
+  | 'precast'
+  | 'concrete'
+  | 'curtain'
+  | 'timber';
+
+/** Rooftop treatment declared for a plot (built on the envelope top). */
+export type BuildingRoofKind =
+  | 'parapet'
+  | 'water_tank'
+  | 'ac_units'
+  | 'satellite_field'
+  | 'screen_mast'
+  | 'solar_array'
+  | 'green_roof';
+
+/** Kind of era-specific construction detail attachable to a shared anchor. */
+export type BuildingDetailKind =
+  | 'billboard'
+  | 'scaffold'
+  | 'water_tank'
+  | 'satellite_dish'
+  | 'ac_unit'
+  | 'neon_sign'
+  | 'screen'
+  | 'solar_panel'
+  | 'green_wall'
+  | 'canopy';
+
+/**
+ * One declarative construction detail. Details are *attachable anchor meshes*:
+ * each one registers against one of the shared anchor groups (doorway, window,
+ * shelf) and is rebuilt per era, so the same anchor hosts fully different
+ * period-correct construction detail (billboards, scaffolds, water tanks,
+ * satellite dishes, solar panels, …).
+ */
+export interface BuildingDetailSpec {
+  kind: BuildingDetailKind;
+  /** Shared anchor group the detail attaches to (defaults per kind). */
+  anchor?: keyof EraAnchorSet;
+  /** Text shown by text-bearing details (billboards/screens/neon signs). */
+  label?: string;
+  /** Optional accent color override. */
+  color?: string;
+  /** Optional repeat count for repeated details (dishes, panels, units). */
+  count?: number;
+}
+
+/** Window pattern laid across a plot facade. */
+export interface BuildingWindowPattern {
+  /** Window columns along the facade width. */
+  columns: number;
+  /** Window rows per story. */
+  rows: number;
+  /** Horizontal gap between window units (world units). */
+  gapX: number;
+  /** Vertical gap between window rows (world units). */
+  gapY: number;
+}
+
+/**
+ * One building plot of the shared block. `id` and street position (`x`, `z`)
+ * are stable across every era so plot N in 1945 maps 1:1 to plot N in 2025;
+ * the *dimensions* (width/depth/stories) evolve per era, which is exactly what
+ * the vertex-morph engine interpolates losslessly (same topology, no index
+ * remapping).
+ */
+export interface BuildingPlotSpec {
+  id: string;
+  /** Plot center along the street (world units, stable across eras). */
+  x: number;
+  /** Plot center depth from the street (world units, stable across eras). */
+  z: number;
+  /** Facade width (world units). */
+  width: number;
+  /** Facade depth (world units). */
+  depth: number;
+  /** Number of stories above ground. */
+  stories: number;
+  /** Story height (world units). */
+  storyHeight: number;
+  /** Parapet/roof-band height (world units). */
+  parapetHeight: number;
+  /** Facade material language. */
+  facade: BuildingFacadeKind;
+  /** Rooftop treatment. */
+  roof: BuildingRoofKind;
+  /** Optional per-plot facade color override. */
+  facadeColor?: string;
+  /** Period accent color (trim, signage, window frame). */
+  accentColor: string;
+  /** Window pattern for the facade. */
+  windows: BuildingWindowPattern;
+  /** Era-specific construction details attached to shared anchors. */
+  details: BuildingDetailSpec[];
+}
+
+/**
+ * The whole block's declarative building spec for one era. This is the single
+ * source the building constructor consumes; it never hardcodes era differences
+ * into imperative scene code.
+ */
+export interface BuildingEraSpec {
+  blockName: string;
+  /** Shared trim/parapet color. */
+  trimColor: string;
+  /** Shared signage/neon accent color. */
+  accentColor: string;
+  /** Default billboard/screen copy for the era. */
+  billboard: string;
+  /** Emissive window glow color. */
+  windowGlowColor: string;
+  /** Emissive window glow intensity. */
+  windowGlowIntensity: number;
+  /** The five plots that make up the block (same ids/positions every era). */
+  plots: BuildingPlotSpec[];
+}
+
+/**
+ * Per-era declarative visual bundle. `buildings` carries the building content
+ * (declarative plot specs from BUILDING_ERA_SPECS); the remaining arrays are
+ * filled by later era-content tasks.
+ */
 export interface EraSceneState {
   /** Which era this state describes. */
   id: EraId;
-  buildings: unknown[];
+  buildings: BuildingPlotSpec[];
   vehicles: unknown[];
   pedestrians: unknown[];
   storefronts: unknown[];
@@ -222,11 +347,521 @@ export const SFX_ERA_DATA: Record<EraId, SfxEraData> = {
   },
 };
 
-/** Per-era scene state stubs — identical anchor contracts, empty content. */
+// ---------------------------------------------------------------------------
+// Building content — declarative per-era building sets
+// ---------------------------------------------------------------------------
+//
+// Every era defines the SAME five block plots (stable ids/street positions);
+// only the per-era dimensions, materials, window patterns and construction
+// details evolve. The building module consumes these specs and never hardcodes
+// era differences into imperative scene code.
+
+/**
+ * The declarative building set for every era. Plots are ordered from left to
+ * right along the street; ids and x/z positions stay constant so the morph
+ * engine can vertex-morph plot N between eras losslessly.
+ */
+export const BUILDING_ERA_SPECS: Record<EraId, BuildingEraSpec> = {
+  // 1945 — post-war brick low-rise row with billboard-holding facades.
+  '1945': {
+    blockName: 'post-war brick row',
+    trimColor: '#c8b997',
+    accentColor: '#8c6a3f',
+    billboard: 'WAR BONDS',
+    windowGlowColor: '#ffca7a',
+    windowGlowIntensity: 0.55,
+    plots: [
+      {
+        id: 'plot-a',
+        x: -3.15,
+        z: -2.1,
+        width: 3.0,
+        depth: 2.3,
+        stories: 3,
+        storyHeight: 2.7,
+        parapetHeight: 0.7,
+        facade: 'brick',
+        roof: 'water_tank',
+        accentColor: '#8c6a3f',
+        windows: { columns: 2, rows: 2, gapX: 0.45, gapY: 0.3 },
+        details: [
+          { kind: 'billboard', anchor: 'window', label: 'WAR BONDS', color: '#7a1f1f' },
+          { kind: 'water_tank', anchor: 'window' },
+        ],
+      },
+      {
+        id: 'plot-b',
+        x: 0,
+        z: -2.25,
+        width: 3.6,
+        depth: 2.7,
+        stories: 3,
+        storyHeight: 2.7,
+        parapetHeight: 0.8,
+        facade: 'brick',
+        roof: 'parapet',
+        accentColor: '#9a7b4f',
+        windows: { columns: 3, rows: 2, gapX: 0.4, gapY: 0.3 },
+        details: [
+          { kind: 'scaffold', anchor: 'shelf' },
+          { kind: 'billboard', anchor: 'window', label: 'Coca-Cola 5¢', color: '#8a2f2f' },
+          { kind: 'canopy', anchor: 'doorway' },
+        ],
+      },
+      {
+        id: 'plot-c',
+        x: 3.15,
+        z: -2.1,
+        width: 3.0,
+        depth: 2.3,
+        stories: 3,
+        storyHeight: 2.7,
+        parapetHeight: 0.7,
+        facade: 'brick',
+        roof: 'water_tank',
+        accentColor: '#7d6748',
+        windows: { columns: 2, rows: 2, gapX: 0.45, gapY: 0.3 },
+        details: [
+          { kind: 'billboard', anchor: 'window', label: 'Ration Fair', color: '#5c4a30' },
+          { kind: 'water_tank', anchor: 'window' },
+        ],
+      },
+      {
+        id: 'plot-d',
+        x: -3.15,
+        z: -6.65,
+        width: 3.4,
+        depth: 2.5,
+        stories: 2,
+        storyHeight: 2.6,
+        parapetHeight: 0.6,
+        facade: 'brick',
+        roof: 'parapet',
+        accentColor: '#8a6644',
+        windows: { columns: 2, rows: 2, gapX: 0.55, gapY: 0.3 },
+        details: [{ kind: 'scaffold', anchor: 'shelf' }],
+      },
+      {
+        id: 'plot-e',
+        x: 3.15,
+        z: -6.65,
+        width: 3.2,
+        depth: 2.5,
+        stories: 2,
+        storyHeight: 2.6,
+        parapetHeight: 0.6,
+        facade: 'brick',
+        roof: 'parapet',
+        accentColor: '#96724a',
+        windows: { columns: 2, rows: 2, gapX: 0.55, gapY: 0.3 },
+        details: [
+          { kind: 'billboard', anchor: 'window', label: 'Victory Laundry', color: '#6b5231' },
+          { kind: 'canopy', anchor: 'doorway' },
+        ],
+      },
+    ],
+  },
+
+  // 1965 — modernist glass and precast slabs with slim corporate towers.
+  '1965': {
+    blockName: 'modernist glass & precast',
+    trimColor: '#dfe6ea',
+    accentColor: '#3f6b8f',
+    billboard: 'SPACE AGE LIVING',
+    windowGlowColor: '#bfe3ff',
+    windowGlowIntensity: 0.6,
+    plots: [
+      {
+        id: 'plot-a',
+        x: -3.15,
+        z: -2.1,
+        width: 3.2,
+        depth: 2.3,
+        stories: 6,
+        storyHeight: 2.75,
+        parapetHeight: 0.55,
+        facade: 'precast',
+        roof: 'parapet',
+        accentColor: '#3f6b8f',
+        windows: { columns: 4, rows: 2, gapX: 0.18, gapY: 0.28 },
+        details: [{ kind: 'neon_sign', anchor: 'window', label: 'ORBIT MOTORS', color: '#ff2d78' }],
+      },
+      {
+        id: 'plot-b',
+        x: 0,
+        z: -2.25,
+        width: 3.8,
+        depth: 2.7,
+        stories: 8,
+        storyHeight: 2.75,
+        parapetHeight: 0.5,
+        facade: 'glass',
+        roof: 'ac_units',
+        accentColor: '#5c8fb8',
+        windows: { columns: 5, rows: 2, gapX: 0.16, gapY: 0.26 },
+        details: [
+          { kind: 'neon_sign', anchor: 'window', label: 'ATLANTIS AIR', color: '#2dffb8' },
+          { kind: 'ac_unit', anchor: 'shelf' },
+        ],
+      },
+      {
+        id: 'plot-c',
+        x: 3.15,
+        z: -2.1,
+        width: 3.2,
+        depth: 2.3,
+        stories: 6,
+        storyHeight: 2.75,
+        parapetHeight: 0.55,
+        facade: 'precast',
+        roof: 'parapet',
+        accentColor: '#4b7a9e',
+        windows: { columns: 4, rows: 2, gapX: 0.18, gapY: 0.28 },
+        details: [{ kind: 'neon_sign', anchor: 'window', label: 'VESPA', color: '#ffd42d' }],
+      },
+      {
+        id: 'plot-d',
+        x: -3.15,
+        z: -6.65,
+        width: 3.6,
+        depth: 2.5,
+        stories: 4,
+        storyHeight: 2.7,
+        parapetHeight: 0.5,
+        facade: 'precast',
+        roof: 'ac_units',
+        accentColor: '#5f8faa',
+        windows: { columns: 3, rows: 2, gapX: 0.22, gapY: 0.28 },
+        details: [
+          { kind: 'scaffold', anchor: 'shelf' },
+          { kind: 'ac_unit', anchor: 'shelf' },
+        ],
+      },
+      {
+        id: 'plot-e',
+        x: 3.15,
+        z: -6.65,
+        width: 3.6,
+        depth: 2.5,
+        stories: 4,
+        storyHeight: 2.7,
+        parapetHeight: 0.5,
+        facade: 'glass',
+        roof: 'ac_units',
+        accentColor: '#4e7f9e',
+        windows: { columns: 3, rows: 2, gapX: 0.22, gapY: 0.28 },
+        details: [{ kind: 'neon_sign', anchor: 'window', label: 'LAUNDROMAT', color: '#ff8a2d' }],
+      },
+    ],
+  },
+
+  // 1985 — neon-trimmed towers with brutalist concrete corners and rooftop AC.
+  '1985': {
+    blockName: 'neon towers & brutal slabs',
+    trimColor: '#5d6570',
+    accentColor: '#8f96a8',
+    billboard: 'NEW WAVE 98FM',
+    windowGlowColor: '#ffb8ff',
+    windowGlowIntensity: 0.85,
+    plots: [
+      {
+        id: 'plot-a',
+        x: -3.15,
+        z: -2.1,
+        width: 3.4,
+        depth: 2.4,
+        stories: 11,
+        storyHeight: 2.8,
+        parapetHeight: 0.9,
+        facade: 'concrete',
+        roof: 'ac_units',
+        accentColor: '#ff2d78',
+        windows: { columns: 3, rows: 2, gapX: 0.3, gapY: 0.26 },
+        details: [
+          { kind: 'neon_sign', anchor: 'window', label: 'RADIO 98', color: '#ff2d78' },
+          { kind: 'ac_unit', anchor: 'shelf', count: 3 },
+        ],
+      },
+      {
+        id: 'plot-b',
+        x: 0,
+        z: -2.25,
+        width: 4.0,
+        depth: 2.8,
+        stories: 14,
+        storyHeight: 2.8,
+        parapetHeight: 1.0,
+        facade: 'glass',
+        roof: 'ac_units',
+        accentColor: '#2dffb8',
+        windows: { columns: 4, rows: 2, gapX: 0.24, gapY: 0.24 },
+        details: [
+          { kind: 'neon_sign', anchor: 'window', label: 'VIDEO CITY', color: '#2dffb8' },
+          { kind: 'ac_unit', anchor: 'shelf', count: 4 },
+          { kind: 'billboard', anchor: 'window', label: 'Pay Phones', color: '#14161c' },
+        ],
+      },
+      {
+        id: 'plot-c',
+        x: 3.15,
+        z: -2.1,
+        width: 3.4,
+        depth: 2.4,
+        stories: 11,
+        storyHeight: 2.8,
+        parapetHeight: 0.9,
+        facade: 'concrete',
+        roof: 'ac_units',
+        accentColor: '#ffd42d',
+        windows: { columns: 3, rows: 2, gapX: 0.3, gapY: 0.26 },
+        details: [
+          { kind: 'neon_sign', anchor: 'window', label: 'CINEMA', color: '#ffd42d' },
+          { kind: 'scaffold', anchor: 'shelf' },
+        ],
+      },
+      {
+        id: 'plot-d',
+        x: -3.15,
+        z: -6.65,
+        width: 3.8,
+        depth: 2.6,
+        stories: 6,
+        storyHeight: 2.75,
+        parapetHeight: 0.7,
+        facade: 'concrete',
+        roof: 'ac_units',
+        accentColor: '#b8c0d0',
+        windows: { columns: 3, rows: 2, gapX: 0.28, gapY: 0.26 },
+        details: [
+          { kind: 'ac_unit', anchor: 'shelf', count: 3 },
+          { kind: 'satellite_dish', anchor: 'window' },
+        ],
+      },
+      {
+        id: 'plot-e',
+        x: 3.15,
+        z: -6.65,
+        width: 3.8,
+        depth: 2.6,
+        stories: 6,
+        storyHeight: 2.75,
+        parapetHeight: 0.7,
+        facade: 'precast',
+        roof: 'satellite_field',
+        accentColor: '#7a8496',
+        windows: { columns: 3, rows: 2, gapX: 0.28, gapY: 0.26 },
+        details: [
+          { kind: 'neon_sign', anchor: 'window', label: 'NITE CLUB', color: '#b84dff' },
+          { kind: 'satellite_dish', anchor: 'window' },
+        ],
+      },
+    ],
+  },
+
+  // 2005 — glass towers with screen facades and grayscale digital signage.
+  '2005': {
+    blockName: 'glass towers & screen facades',
+    trimColor: '#b9c4cf',
+    accentColor: '#7e93ab',
+    billboard: 'Go Digital!',
+    windowGlowColor: '#cfe6ff',
+    windowGlowIntensity: 0.75,
+    plots: [
+      {
+        id: 'plot-a',
+        x: -3.15,
+        z: -2.1,
+        width: 3.8,
+        depth: 2.4,
+        stories: 16,
+        storyHeight: 2.8,
+        parapetHeight: 0.6,
+        facade: 'curtain',
+        roof: 'screen_mast',
+        accentColor: '#8ea6c4',
+        windows: { columns: 5, rows: 2, gapX: 0.12, gapY: 0.24 },
+        details: [{ kind: 'screen', anchor: 'window', label: 'GIGABYTE', color: '#25e0fa' }],
+      },
+      {
+        id: 'plot-b',
+        x: 0,
+        z: -2.25,
+        width: 4.4,
+        depth: 2.9,
+        stories: 20,
+        storyHeight: 2.8,
+        parapetHeight: 0.65,
+        facade: 'curtain',
+        roof: 'ac_units',
+        accentColor: '#9fb4cc',
+        windows: { columns: 6, rows: 2, gapX: 0.1, gapY: 0.22 },
+        details: [
+          { kind: 'screen', anchor: 'window', label: 'NOKIA', color: '#1fa4ff' },
+          { kind: 'ac_unit', anchor: 'shelf', count: 5 },
+        ],
+      },
+      {
+        id: 'plot-c',
+        x: 3.15,
+        z: -2.1,
+        width: 3.8,
+        depth: 2.4,
+        stories: 16,
+        storyHeight: 2.8,
+        parapetHeight: 0.6,
+        facade: 'curtain',
+        roof: 'screen_mast',
+        accentColor: '#8ea6c4',
+        windows: { columns: 5, rows: 2, gapX: 0.12, gapY: 0.24 },
+        details: [{ kind: 'screen', anchor: 'window', label: 'BLAZE', color: '#ff6b2d' }],
+      },
+      {
+        id: 'plot-d',
+        x: -3.15,
+        z: -6.65,
+        width: 4.0,
+        depth: 2.7,
+        stories: 9,
+        storyHeight: 2.75,
+        parapetHeight: 0.55,
+        facade: 'curtain',
+        roof: 'parapet',
+        accentColor: '#9db3cc',
+        windows: { columns: 5, rows: 2, gapX: 0.14, gapY: 0.24 },
+        details: [{ kind: 'screen', anchor: 'window', label: 'YAHOO!', color: '#8a52ff' }],
+      },
+      {
+        id: 'plot-e',
+        x: 3.15,
+        z: -6.65,
+        width: 4.0,
+        depth: 2.7,
+        stories: 9,
+        storyHeight: 2.75,
+        parapetHeight: 0.55,
+        facade: 'curtain',
+        roof: 'parapet',
+        accentColor: '#93a8c2',
+        windows: { columns: 5, rows: 2, gapX: 0.14, gapY: 0.24 },
+        details: [{ kind: 'screen', anchor: 'window', label: 'eBay', color: '#25e0fa' }],
+      },
+    ],
+  },
+
+  // 2025 — mixed-use timber-and-glass with green walls and rooftop solar arrays.
+  '2025': {
+    blockName: 'timber & glass mixed-use',
+    trimColor: '#7fa58f',
+    accentColor: '#3f9d78',
+    billboard: 'NEXUS AI',
+    windowGlowColor: '#c8ffe4',
+    windowGlowIntensity: 0.7,
+    plots: [
+      {
+        id: 'plot-a',
+        x: -3.15,
+        z: -2.1,
+        width: 3.9,
+        depth: 2.5,
+        stories: 10,
+        storyHeight: 2.9,
+        parapetHeight: 0.5,
+        facade: 'timber',
+        roof: 'green_roof',
+        accentColor: '#3f9d78',
+        windows: { columns: 4, rows: 2, gapX: 0.18, gapY: 0.24 },
+        details: [
+          { kind: 'screen', anchor: 'window', label: 'NEXUS AI', color: '#2de892' },
+          { kind: 'green_wall', anchor: 'shelf' },
+        ],
+      },
+      {
+        id: 'plot-b',
+        x: 0,
+        z: -2.25,
+        width: 4.4,
+        depth: 3.0,
+        stories: 12,
+        storyHeight: 2.9,
+        parapetHeight: 0.55,
+        facade: 'glass',
+        roof: 'solar_array',
+        accentColor: '#4db88f',
+        windows: { columns: 5, rows: 2, gapX: 0.15, gapY: 0.22 },
+        details: [
+          { kind: 'screen', anchor: 'window', label: 'TESSERACT', color: '#25d0ff' },
+          { kind: 'green_wall', anchor: 'shelf' },
+          { kind: 'solar_panel', anchor: 'window', count: 3 },
+        ],
+      },
+      {
+        id: 'plot-c',
+        x: 3.15,
+        z: -2.1,
+        width: 3.9,
+        depth: 2.5,
+        stories: 10,
+        storyHeight: 2.9,
+        parapetHeight: 0.5,
+        facade: 'timber',
+        roof: 'green_roof',
+        accentColor: '#3f9d78',
+        windows: { columns: 4, rows: 2, gapX: 0.18, gapY: 0.24 },
+        details: [
+          { kind: 'screen', anchor: 'window', label: 'GreenCharge', color: '#7de84a' },
+          { kind: 'green_wall', anchor: 'shelf' },
+        ],
+      },
+      {
+        id: 'plot-d',
+        x: -3.15,
+        z: -6.65,
+        width: 4.2,
+        depth: 2.8,
+        stories: 6,
+        storyHeight: 2.85,
+        parapetHeight: 0.5,
+        facade: 'timber',
+        roof: 'solar_array',
+        accentColor: '#4ba77f',
+        windows: { columns: 4, rows: 2, gapX: 0.18, gapY: 0.24 },
+        details: [
+          { kind: 'solar_panel', anchor: 'window', count: 4 },
+          { kind: 'green_wall', anchor: 'shelf' },
+        ],
+      },
+      {
+        id: 'plot-e',
+        x: 3.15,
+        z: -6.65,
+        width: 4.2,
+        depth: 2.8,
+        stories: 6,
+        storyHeight: 2.85,
+        parapetHeight: 0.5,
+        facade: 'glass',
+        roof: 'solar_array',
+        accentColor: '#43a27c',
+        windows: { columns: 4, rows: 2, gapX: 0.18, gapY: 0.24 },
+        details: [
+          { kind: 'solar_panel', anchor: 'window', count: 4 },
+          { kind: 'screen', anchor: 'window', label: 'LOOP CAFÉ', color: '#2de892' },
+        ],
+      },
+    ],
+  },
+};
+
+/** Convenience accessor for one era's declarative building set. */
+export function getBuildingEraSpec(id: EraId): BuildingEraSpec {
+  return BUILDING_ERA_SPECS[id];
+}
+
+/** Per-era scene states — identical anchor contracts and declarative content. */
 export const ERA_SCENE_STATES: Record<EraId, EraSceneState> = {
   '1945': {
     id: '1945',
-    buildings: [],
+    buildings: BUILDING_ERA_SPECS['1945'].plots,
     vehicles: [],
     pedestrians: [],
     storefronts: [],
@@ -237,7 +872,7 @@ export const ERA_SCENE_STATES: Record<EraId, EraSceneState> = {
   },
   '1965': {
     id: '1965',
-    buildings: [],
+    buildings: BUILDING_ERA_SPECS['1965'].plots,
     vehicles: [],
     pedestrians: [],
     storefronts: [],
@@ -248,7 +883,7 @@ export const ERA_SCENE_STATES: Record<EraId, EraSceneState> = {
   },
   '1985': {
     id: '1985',
-    buildings: [],
+    buildings: BUILDING_ERA_SPECS['1985'].plots,
     vehicles: [],
     pedestrians: [],
     storefronts: [],
@@ -259,7 +894,7 @@ export const ERA_SCENE_STATES: Record<EraId, EraSceneState> = {
   },
   '2005': {
     id: '2005',
-    buildings: [],
+    buildings: BUILDING_ERA_SPECS['2005'].plots,
     vehicles: [],
     pedestrians: [],
     storefronts: [],
@@ -270,7 +905,7 @@ export const ERA_SCENE_STATES: Record<EraId, EraSceneState> = {
   },
   '2025': {
     id: '2025',
-    buildings: [],
+    buildings: BUILDING_ERA_SPECS['2025'].plots,
     vehicles: [],
     pedestrians: [],
     storefronts: [],
