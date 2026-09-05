@@ -8,6 +8,8 @@ export interface SceneShellOptions {
   container?: HTMLElement
   /** Triggered after the first frame completes (used by browser smoke tests). */
   onFirstRender?: () => void
+  /** Called every frame after the camera rig updates, before rendering. */
+  onFrame?: (deltaSeconds: number) => void
   /** Extra `SceneModule`s registered at construction (in addition to addModule). */
   modules?: SceneModule[]
   /** Camera starting distance from the orbit target, clamped to [min,max]. */
@@ -97,6 +99,7 @@ export class SceneShell {
   private readonly disposers: Array<() => void> = []
   private readonly resizeObserver: ResizeObserver
   private readonly onFirstRender: (() => void) | null
+  private readonly onFrame: ((deltaSeconds: number) => void) | null
   private firstRenderCalled = false
 
   constructor(options: SceneShellOptions = {}) {
@@ -166,6 +169,7 @@ export class SceneShell {
     }
 
     this.onFirstRender = options.onFirstRender ?? null
+    this.onFrame = options.onFrame ?? null
     this.resizeObserver = new ResizeObserver(() => this.handleResize())
     this.resizeObserver.observe(this.container)
     this.disposers.push(() => this.resizeObserver.disconnect())
@@ -174,6 +178,7 @@ export class SceneShell {
       const delta = this.timer.getDelta()
       this.rig.update(delta)
       for (const module of this.modules) module.update?.(delta)
+      this.onFrame?.(delta)
       this.renderer.render(this.scene, this.camera)
       if (!this.firstRenderCalled) {
         this.firstRenderCalled = true

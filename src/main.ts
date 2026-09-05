@@ -1,4 +1,6 @@
 import './style.css'
+import { SfxMixer } from './audio/mixer'
+import { ERA_IDS } from './eras'
 import { SceneShell } from './scene/scene-shell'
 
 const APP_TITLE = 'City Time Period Timelapse'
@@ -27,6 +29,17 @@ app.innerHTML = `
         </datalist>
         <output id="era-output" for="era-range">1945</output>
       </div>
+      <button
+        id="audio-toggle"
+        type="button"
+        class="audio-toggle"
+        aria-pressed="false"
+        aria-label="Unmute sound"
+        title="Unmute sound"
+      >
+        <span class="audio-toggle-icon" aria-hidden="true">🔇</span>
+        <span class="audio-toggle-label">Sound off</span>
+      </button>
     </header>
     <p class="tagline">
       Drag to orbit &middot; scroll to zoom. Press <kbd>M</kbd> to switch to
@@ -42,12 +55,27 @@ app.innerHTML = `
 
 const range = document.querySelector<HTMLInputElement>('#era-range')
 const output = document.querySelector<HTMLOutputElement>('#era-output')
-const shell = new SceneShell({ container: app })
+const toggle = document.querySelector<HTMLButtonElement>('#audio-toggle')
+const toggleIcon = toggle?.querySelector<HTMLElement>('.audio-toggle-icon') ?? null
+const toggleLabel = toggle?.querySelector<HTMLElement>('.audio-toggle-label') ?? null
+
+const mixer = new SfxMixer()
+const shell = new SceneShell({
+  container: app,
+  // Every frame: keep the positional listener glued to the camera, then
+  // advance crossfades and event scheduling.
+  onFrame: (delta) => {
+    mixer.updateListener(shell.camera)
+    mixer.update(delta)
+  },
+})
 
 if (range && output) {
   const update = () => {
     const value = ERAS[Number(range.value)] ?? '1945'
     output.value = value
+    const era = ERA_IDS[Number(range.value)]
+    if (era) mixer.setEra(era)
   }
   range.addEventListener('input', update)
   update()
@@ -58,4 +86,24 @@ if (badge) {
   shell.rig.onModeChange = (mode) => {
     badge.textContent = `Mode: ${mode}`
   }
+}
+
+// Visible mute/unmute toggle. The first click is the user gesture that
+// unlocks the AudioContext; the mixer starts muted, so audio only ever
+// starts after the gesture.
+if (toggle) {
+  const syncToggle = () => {
+    const muted = mixer.state.muted
+    toggle.setAttribute('aria-pressed', String(!muted))
+    toggle.setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound')
+    toggle.title = muted ? 'Unmute sound' : 'Mute sound'
+    if (toggleIcon) toggleIcon.textContent = muted ? '🔇' : '🔊'
+    if (toggleLabel) toggleLabel.textContent = muted ? 'Sound off' : 'Sound on'
+  }
+  toggle.addEventListener('click', () => {
+    mixer.unlockOnGesture()
+    mixer.toggleMuted()
+    syncToggle()
+  })
+  syncToggle()
 }

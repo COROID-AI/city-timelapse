@@ -15,6 +15,9 @@ test('serves the scene shell and keeps the timeline functional', async ({ page }
   await expect(page.getByLabel('Year')).toHaveValue('0')
   await expect(page.locator('#era-output')).toHaveText('1945')
   await expect(page.locator('#mode-badge')).toContainText('orbit')
+  // Audio toggle starts muted (no autoplay before a gesture).
+  await expect(page.locator('#audio-toggle')).toHaveAttribute('aria-pressed', 'false')
+  await expect(page.locator('#audio-toggle')).toContainText('Sound off')
 
   // Full-viewport WebGL canvas was created and renders.
   await expect(page.locator('canvas')).toBeVisible()
@@ -38,6 +41,13 @@ test('serves the scene shell and keeps the timeline functional', async ({ page }
     input.dispatchEvent(new Event('input', { bubbles: true }))
   }, 5)
   await expect(page.locator('#era-output')).toHaveText('2055')
+
+  // Clicking the audio toggle flips the visible state (gesture-gated).
+  await page.locator('#audio-toggle').click()
+  await expect(page.locator('#audio-toggle')).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('#audio-toggle')).toContainText('Sound on')
+  await page.locator('#audio-toggle').click()
+  await expect(page.locator('#audio-toggle')).toHaveAttribute('aria-pressed', 'false')
 
   // No console errors on load.
   expect(consoleErrors).toEqual([])
