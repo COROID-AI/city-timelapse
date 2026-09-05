@@ -5,6 +5,7 @@ import { CityBlock } from './scene/city-block'
 import { StorefrontAdverts } from './scene/storefronts'
 import { SceneShell } from './scene/scene-shell'
 import type { SceneModule } from './scene/registry'
+import { TrafficSystem } from './scene/vehicles/traffic-system'
 import { EraStateStore } from './state'
 import { TimelineSlider } from './timeline'
 
@@ -82,7 +83,9 @@ const store = new EraStateStore()
 const mixer = new SfxMixer()
 const block = new CityBlock()
 const storefronts = new StorefrontAdverts(block.layout)
-const eraModules: SceneModule[] = [block, storefronts]
+const traffic = new TrafficSystem()
+traffic.setEra('1945')
+const eraModules: SceneModule[] = [block, storefronts, traffic]
 const shell = new SceneShell({
   container: sceneCanvas,
   modules: eraModules,
@@ -128,6 +131,7 @@ const onEraStateChange = (event: Event): void => {
     if (range && index >= 0) range.value = String(index)
     if (output) output.value = detail.era
     mixer.setEra(detail.era)
+    shell.setEra(index)
   }
   // Morph the scene content at the END of the store transition: the heavy
   // storefronts/advertising rebuild (dozens of CanvasTextures + meshes)
