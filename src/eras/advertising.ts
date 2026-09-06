@@ -270,6 +270,9 @@ const PANEL_H = 2.4;
 export function createAdvertisingFactory(): AdvertisingFactory {
   let rigs: AdRig[] = [];
   let currentYear: EraKey | null = null;
+  // The scene the rigs are currently attached to (set on bootstrap) so that
+  // `update` can reattach the freshly built rigs for a new era.
+  let sceneRef: THREE.Scene | null = null;
   let frame = 0;
 
   function buildRig(year: EraKey, index: number): AdRig {
@@ -319,6 +322,7 @@ export function createAdvertisingFactory(): AdvertisingFactory {
     bootstrap(scene: THREE.Scene): AdRig[] {
       const year: EraKey = currentYear ?? 1945;
       currentYear = year;
+      sceneRef = scene;
       const theme = ERA_AD_THEMES[year];
       rigs = theme.ads.map((_, i) => buildRig(year, i));
       for (const rig of rigs) {
@@ -337,9 +341,10 @@ export function createAdvertisingFactory(): AdvertisingFactory {
         }
       }
       rigs = next;
-      for (const rig of rigs) {
-        if (rig.group.parent !== null) {
-          rig.group.parent.add(rig.group);
+      // Reattach the newly built rigs.
+      if (sceneRef) {
+        for (const rig of rigs) {
+          sceneRef.add(rig.group);
         }
       }
       return rigs;
@@ -352,6 +357,7 @@ export function createAdvertisingFactory(): AdvertisingFactory {
       }
       rigs = [];
       currentYear = null;
+      sceneRef = null;
     },
   };
 }

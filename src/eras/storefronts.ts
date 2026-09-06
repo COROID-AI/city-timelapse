@@ -482,6 +482,9 @@ const WINDOW_H = 1.5;
 export function createStorefrontsFactory(): StorefrontsFactory {
   let rigs: StorefrontRig[] = [];
   let currentYear: EraKey | null = null;
+  // The scene the rigs are currently attached to (set on bootstrap) so that
+  // `update` can reattach the freshly built rigs for a new era.
+  let sceneRef: THREE.Scene | null = null;
   let frame = 0;
 
   function buildRig(year: EraKey, index: number): StorefrontRig {
@@ -571,6 +574,7 @@ export function createStorefrontsFactory(): StorefrontsFactory {
       // Default to the earliest era on bootstrap.
       const year: EraKey = currentYear ?? 1945;
       currentYear = year;
+      sceneRef = scene;
       const theme = ERA_THEMES[year];
       rigs = theme.shops.map((_, i) => buildRig(year, i));
       for (const rig of rigs) {
@@ -591,9 +595,10 @@ export function createStorefrontsFactory(): StorefrontsFactory {
         }
       }
       rigs = next;
-      for (const rig of rigs) {
-        if (rig.group.parent !== null) {
-          rig.group.parent.add(rig.group);
+      // Reattach the newly built rigs.
+      if (sceneRef) {
+        for (const rig of rigs) {
+          sceneRef.add(rig.group);
         }
       }
       return rigs;
@@ -606,6 +611,7 @@ export function createStorefrontsFactory(): StorefrontsFactory {
       }
       rigs = [];
       currentYear = null;
+      sceneRef = null;
     },
   };
 }
