@@ -1,23 +1,25 @@
 /**
- * city-timelapse entrypoint.
+ * city-timelapse application composition root.
  *
- * Bootstraps the Three.js renderer + clock loop mounted into
- * `#scene-container`, and mounts the top timeline HUD into `#timeline-hud`.
- * The scene subscribes to the HUD's `yearChange` event so future era-content
- * tasks can react to year selection.
+ * This module is the single composition owner. It:
+ *   - mounts the CityScene (renderer, clock loop, era factories, morph engine,
+ *     camera navigation) into `#scene-container`,
+ *   - mounts the top timeline HUD into `#timeline-hud`,
+ *   - wires the HUD `yearChange` event into `CityScene.setYear` so selecting
+ *     any of the 5 years transforms the whole scene in one eased transition,
+ *   - owns the resize handler and the `app` handle used by downstream wiring.
  *
- * This task owns the scaffold only: no era-specific 3D content is added here.
- * Downstream era modules will attach their content to the exported scene /
- * clock loop.
+ * Lifecycle: `bootstrap` (module load) -> `update` (per frame via CityScene) ->
+ * `dispose` (teardown).
  */
-import * as THREE from 'three';
 import { TimelineHud, YEAR_CHANGE_EVENT } from './ui/timeline';
 import type { YearChangeDetail } from './ui/timeline';
-import { ERA_KEYS, eraRegistry } from './data/eraRegistry';
+import { ERA_KEYS } from './data/eraRegistry';
 import type { EraKey } from './data/eraDefinition';
+import { CityScene } from './scene';
 import './style.css';
 
-// --- Renderer shell -------------------------------------------------------
+// --- Mount points ---------------------------------------------------------
 
 const containerRaw = document.getElementById('scene-container');
 const hudHostRaw = document.getElementById('timeline-hud');
@@ -27,63 +29,31 @@ if (!containerRaw || !hudHostRaw) {
 const container: HTMLElement = containerRaw;
 const hudHost: HTMLElement = hudHostRaw;
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0b0e13);
+// --- Composition root -----------------------------------------------------
 
-const camera = new THREE.PerspectiveCamera(
-  60,
-  container.clientWidth / container.clientHeight,
-  0.1,
-  2000,
-);
-camera.position.set(0, 8, 24);
-camera.lookAt(0, 0, 0);
+const scene = new CityScene({
+  container,
+  hudHost,
+  initialYear: ERA_KEYS[0],
+});
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, canvas: container.querySelector('canvas') ?? undefined });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(container.clientWidth, container.clientHeight);
-
-if (!renderer.domElement.parentElement) {
-  container.appendChild(renderer.domElement);
-}
-
-// Minimal, eras-agnostic baseline so the scene is non-empty and lit.
-// Era-specific visuals are out of scope for this task.
-scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-const sun = new THREE.DirectionalLight(0xffffff, 1.2);
-sun.position.set(20, 30, 10);
-scene.add(sun);
-
-const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(120, 120),
-  new THREE.MeshStandardMaterial({ color: 0x8a7f6d, roughness: 0.9 }),
-);
-ground.rotation.x = -Math.PI / 2;
-scene.add(ground);
-
-// --- Clock loop -----------------------------------------------------------
-
-const clock = new THREE.Clock();
+// --- Clock loop (CityScene owns the renderer + morph + navigation) --------
 
 function animate(): void {
   requestAnimationFrame(animate);
-  const delta = clock.getDelta();
-  // Reserved for downstream era modules to drive time-based visuals.
-  void delta;
-  renderer.render(scene, camera);
+  const delta = scene.clock.getDelta();
+  scene.tick(delta);
 }
 animate();
 
-// --- Timeline HUD ---------------------------------------------------------
+// --- Timeline HUD wiring ---------------------------------------------------
 
 const hud = new TimelineHud(hudHost, ERA_KEYS[0]);
 
-/** Log the current era definition whenever the year changes. */
+/** Forward a year selection from the HUD into the scene morph engine. */
 function onYearChange(event: Event): void {
   const detail = (event as CustomEvent<YearChangeDetail>).detail;
-  const era = eraRegistry[detail.year];
-  // eslint-disable-next-line no-console
-  console.log(`yearChange -> ${detail.year}`, era);
+  scene.setYear(detail.year);
 }
 
 hudHost.addEventListener(YEAR_CHANGE_EVENT, onYearChange);
@@ -93,25 +63,22 @@ hudHost.addEventListener(YEAR_CHANGE_EVENT, onYearChange);
 function handleResize(): void {
   const width = container.clientWidth;
   const height = container.clientHeight;
-  camera.aspect = width / height;
-  camera.updateProjectionMatrix();
-  renderer.setSize(width, height);
+  scene.camera.aspect = width / height;
+  scene.camera.updateProjectionMatrix();
+  scene.renderer.setSize(width, height);
 }
 window.addEventListener('resize', handleResize);
 
-// Expose a minimal, typed handle for downstream integration/testing.
+// --- App handle (downstream wiring / integration) --------------------------
+
 export interface AppHandle {
-  scene: THREE.Scene;
-  camera: THREE.PerspectiveCamera;
-  renderer: THREE.WebGLRenderer;
+  scene: CityScene;
   hud: TimelineHud;
   setYear: (year: EraKey) => void;
 }
 
 export const app: AppHandle = {
   scene,
-  camera,
-  renderer,
   hud,
-  setYear: (year: EraKey) => hud.setActiveYear(year),
+  setYear: (year: EraKey) => scene.setYear(year),
 };
