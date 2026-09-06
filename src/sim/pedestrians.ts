@@ -269,6 +269,10 @@ export function createSimulation(layout: EraLayout): Simulation {
   };
 
   const rebuild = (eraId: EraId): void => {
+    // Release the outgoing era's agent meshes before rebuilding, so switching
+    // profiles never leaks geometry into the shared scene.
+    disposeVehicleMeshes(vehicles, providers.vehicle);
+    disposePedestrianMeshes(pedestrians, providers.pedestrian);
     profile = getProfile(eraId);
     rng = createRng(parseInt(eraId, 10) || 1);
     pedestrians = createPedestrianAgents(

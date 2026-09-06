@@ -145,10 +145,11 @@ const NEWSPAPER_BOXES: Array<{ x: number; z: number }> = [
 ];
 
 /** Internal sim state: animated meshes so update() can mutate positions. */
-const simState: { vehicles: THREE.Group[]; pedestrians: THREE.Group[]; t: number } = {
+const simState: { vehicles: THREE.Group[]; pedestrians: THREE.Group[]; t: number; rootGroup: THREE.Group | null } = {
   vehicles: [],
   pedestrians: [],
   t: 0,
+  rootGroup: null,
 };
 
 /** The 2005 era content, satisfying the shared EraContent contract. */
@@ -190,6 +191,11 @@ export const era2005: EraContent = {
 
   build(context: EraContext) {
     const scene = context.scene;
+    // Own the whole era graph under a single root so dispose() can detach it
+    // from the shared scene on era switch (no leaks across transitions).
+    const rootGroup = new THREE.Group();
+    rootGroup.name = 'era-2005';
+    simState.rootGroup = rootGroup;
 
     // Ground plane (road + sidewalks + block).
     const ground = new THREE.Mesh(
@@ -197,7 +203,7 @@ export const era2005: EraContent = {
       new THREE.MeshBasicMaterial({ color: 0x3a3d40 }),
     );
     ground.position.y = -0.1;
-    scene.add(ground);
+    rootGroup.add(ground);
 
     // Sidewalk slabs lining the block.
     const sidewalkMat = new THREE.MeshBasicMaterial({ color: 0x8f8f8f });
@@ -215,22 +221,22 @@ export const era2005: EraContent = {
       );
       slab.rotation.set(0, rot, 0);
       slab.position.set(x, SIDEWALK.height / 2, z);
-      scene.add(slab);
+      rootGroup.add(slab);
     }
 
     // Buildings.
     for (const spec of BUILDINGS) {
-      scene.add(makeBuildingMesh(spec));
+      rootGroup.add(makeBuildingMesh(spec));
     }
 
     // Storefronts (corporate fascias + vinyl banners).
     for (const spec of STOREFRONTS) {
-      scene.add(makeStorefrontMesh(spec));
+      rootGroup.add(makeStorefrontMesh(spec));
     }
 
     // Billboards.
     for (const b of BILLBOARDS) {
-      scene.add(makeBillboardMesh(b.style, b.x, b.y, b.z, b.rotationY, b.pole));
+      rootGroup.add(makeBillboardMesh(b.style, b.x, b.y, b.z, b.rotationY, b.pole));
     }
 
     // Vehicles.
@@ -239,7 +245,7 @@ export const era2005: EraContent = {
       mesh.position.set(v.x, 0, v.z);
       mesh.rotation.set(0, v.rotationY, 0);
       simState.vehicles.push(mesh);
-      scene.add(mesh);
+      rootGroup.add(mesh);
     }
 
     // Pedestrians.
@@ -250,29 +256,30 @@ export const era2005: EraContent = {
       ped.position.set(slot.x, 0, slot.z);
       ped.rotation.set(0, slot.heading, 0);
       simState.pedestrians.push(ped);
-      scene.add(ped);
+      rootGroup.add(ped);
     }
 
     // Thermoplastic road markings.
     for (const marking of makeRoadMarkingMeshes()) {
-      scene.add(marking);
+      rootGroup.add(marking);
     }
 
     // Modern signals + traffic camera.
-    scene.add(makeTrafficSignalMesh(-58, -54));
-    scene.add(makeTrafficSignalMesh(58, -54));
-    scene.add(makeTrafficSignalMesh(-58, 54));
-    scene.add(makeTrafficSignalMesh(58, 54));
-    scene.add(makeTrafficCameraMesh(0, -66));
+    rootGroup.add(makeTrafficSignalMesh(-58, -54));
+    rootGroup.add(makeTrafficSignalMesh(58, -54));
+    rootGroup.add(makeTrafficSignalMesh(-58, 54));
+    rootGroup.add(makeTrafficSignalMesh(58, 54));
+    rootGroup.add(makeTrafficCameraMesh(0, -66));
 
     // Bus shelter with ad panel.
-    scene.add(makeBusShelterMesh(-60, -2));
+    rootGroup.add(makeBusShelterMesh(-60, -2));
 
     // Planters, bike racks, newspaper boxes.
-    for (const p of PLANTERS) scene.add(makePlanterMesh(p.x, p.z, p.rotationY));
-    for (const r of BIKE_RACKS) scene.add(makeBikeRackMesh(r.x, r.z));
-    for (const n of NEWSPAPER_BOXES) scene.add(makeNewspaperBoxMesh(n.x, n.z));
+    for (const p of PLANTERS) rootGroup.add(makePlanterMesh(p.x, p.z, p.rotationY));
+    for (const r of BIKE_RACKS) rootGroup.add(makeBikeRackMesh(r.x, r.z));
+    for (const n of NEWSPAPER_BOXES) rootGroup.add(makeNewspaperBoxMesh(n.x, n.z));
 
+    scene.add(rootGroup);
     simState.t = 0;
   },
 
@@ -290,8 +297,15 @@ export const era2005: EraContent = {
   },
 
   dispose() {
-    // Release animated mesh references so they are GC-eligible; the scene
-    // graph itself is owned and cleared by the main loop on era switch.
+    // Detach the whole era graph from the shared scene so switching away never
+    // leaks the 2005 scene into subsequent eras.
+    if (simState.rootGroup) {
+      if (simState.rootGroup.parent) {
+        simState.rootGroup.parent.remove(simState.rootGroup);
+      }
+      simState.rootGroup = null;
+    }
+    // Release animated mesh references so they are GC-eligible.
     simState.vehicles = [];
     simState.pedestrians = [];
     simState.t = 0;

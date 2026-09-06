@@ -87,11 +87,11 @@ export function createRenderer(canvas: HTMLCanvasElement, deps: RendererDeps = {
 
   // Physically-based default light rig. Intensities are tuned for the city
   // block scale; era scenes add their own mood lighting on top.
-  const ambient = new THREE.AmbientLight(0x445066, 1.4);
-  const sun = new THREE.DirectionalLight(0xfff3e0, 3.0);
+  const ambient = new THREE.AmbientLight(0x445066, 2.0);
+  const sun = new THREE.DirectionalLight(0xfff3e0, 7.0);
   sun.position.set(60, 120, 40);
   sun.castShadow = true;
-  const fill = new THREE.DirectionalLight(0x88b4ff, 0.6);
+  const fill = new THREE.DirectionalLight(0x88b4ff, 2.0);
   fill.position.set(-50, 80, -40);
 
   scene.add(ambient, sun, fill);
