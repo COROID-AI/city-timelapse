@@ -31,10 +31,26 @@ const hudHost: HTMLElement = hudHostRaw;
 
 // --- Composition root -----------------------------------------------------
 
+/**
+ * Resolve the initial era. Supports an `?era=YYYY` query parameter (used by
+ * visual verification e.g. `?era=1945`) so a specific era can be loaded
+ * directly; otherwise defaults to the earliest era.
+ */
+function initialEraFromQuery(): EraKey {
+  const raw = new URLSearchParams(window.location.search).get('era');
+  if (raw) {
+    const year = Number(raw);
+    if ((ERA_KEYS as readonly number[]).includes(year)) {
+      return year as EraKey;
+    }
+  }
+  return ERA_KEYS[0];
+}
+
 const scene = new CityScene({
   container,
   hudHost,
-  initialYear: ERA_KEYS[0],
+  initialYear: initialEraFromQuery(),
 });
 
 // --- Clock loop (CityScene owns the renderer + morph + navigation) --------
@@ -66,6 +82,7 @@ function handleResize(): void {
   scene.camera.aspect = width / height;
   scene.camera.updateProjectionMatrix();
   scene.renderer.setSize(width, height);
+  scene.postfx.setSize(width, height);
 }
 window.addEventListener('resize', handleResize);
 

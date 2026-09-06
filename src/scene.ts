@@ -28,6 +28,7 @@ import { advertisingFactory } from './eras/advertising';
 import { streetPropsFactory } from './eras/streetProps';
 import { atmosphereFactory } from './eras/atmosphere';
 import { AudioManager } from './audio/audioManager';
+import { PostPipeline } from './postfx/pipeline';
 
 /** Morph transition duration in seconds (deterministic across switches). */
 export const MORPH_DURATION_SECONDS = 0.8;
@@ -139,6 +140,8 @@ export class CityScene {
   readonly renderer: THREE.WebGLRenderer;
   readonly clock: THREE.Clock;
   readonly audio: AudioManager;
+  /** Post-processing pipeline (bloom + era grade/grain/vignette). */
+  readonly postfx: PostPipeline;
 
   private readonly container: HTMLElement;
   private readonly groundMesh: THREE.Mesh;
@@ -156,6 +159,8 @@ export class CityScene {
   private currentEra: EraKey;
   /** Active morph transition (null when idle). */
   private morph: MorphState | null = null;
+  /** Eased morph progress in [0,1] (drives the postfx grade blend). */
+  private morphProgress = 1;
   /** Content roots scaled during the morph settle (current era's content). */
   private contentRoots: THREE.Object3D[] = [];
 
@@ -210,6 +215,11 @@ export class CityScene {
     if (!this.renderer.domElement.parentElement) {
       this.container.appendChild(this.renderer.domElement);
     }
+
+    // --- Post-processing pipeline (bloom + era grade/grain/vignette) ----
+    this.postfx = new PostPipeline();
+    this.postfx.bootstrap(this.renderer, this.scene, this.camera);
+    this.postfx.setSize(this.container.clientWidth, this.container.clientHeight);
 
     // --- Ground plane (raycast collision target + visual base) ---------
     this.groundMesh = new THREE.Mesh(
@@ -330,6 +340,7 @@ export class CityScene {
 
     // Start the deterministic morph window.
     this.morph = { from, to: year, elapsed: 0, duration: MORPH_DURATION_SECONDS };
+    this.morphProgress = 0;
     this.contentRoots = this.collectContentRoots();
   }
 
@@ -360,7 +371,8 @@ export class CityScene {
     // Advance camera navigation (orbit / walk / dolly).
     this.updateNavigation(delta);
 
-    this.renderer.render(this.scene, this.camera);
+    // Render through the post-processing pipeline (bloom + era grade).
+    this.postfx.update(this.currentEra, this.morphProgress, delta);
   }
 
   /** Toggle between orbit and walk navigation modes. */
@@ -395,6 +407,7 @@ export class CityScene {
     this.streetProps.dispose();
     this.atmosphere.dispose();
     this.audio.dispose();
+    this.postfx.dispose();
 
     this.walkButton.remove();
     this.walkHint.remove();
@@ -417,6 +430,8 @@ export class CityScene {
     this.morph.elapsed += delta;
     const tRaw = Math.min(1, this.morph.elapsed / this.morph.duration);
     const eased = easeInOutCubic(tRaw);
+    // Expose eased progress to the postfx grade blend.
+    this.morphProgress = eased;
 
     // Content "settle": scale from 1.07 -> 1.0 across the eased window.
     const scale = 1 + 0.07 * (1 - eased);
@@ -439,6 +454,7 @@ export class CityScene {
     // additionally drops our retained references so stale groups are GC-able.
     this.contentRoots = this.collectContentRoots();
     this.morph = null;
+    this.morphProgress = 1;
   }
 
   /** Collect the current era's content root groups for morph scaling. */
