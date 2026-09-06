@@ -1,0 +1,127 @@
+:root {
+  color-scheme: dark;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #0b0e13;
+  color: #e8e8e8;
+}
+
+#app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Full-viewport Three.js render target. */
+#scene-container {
+  position: absolute;
+  inset: 0;
+}
+
+#scene-container canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ===== Timeline HUD (top of screen) ===== */
+.timeline-hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  padding: 14px 16px 10px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.timeline-track {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 10px 14px;
+  background: rgba(10, 14, 20, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+
+.timeline-tick {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 56px;
+  padding: 4px 6px 6px;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #cfd6e0;
+  transition: transform 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.timeline-tick::before {
+  content: '';
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #5b6472;
+  border: 2px solid #8892a0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.timeline-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.timeline-tick:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.timeline-tick:hover::before {
+  background: #9aa4b4;
+}
+
+.timeline-tick.active {
+  color: #ffffff;
+}
+
+.timeline-tick.active::before {
+  background: #00d1ff;
+  border-color: #7fe6ff;
+  box-shadow: 0 0 10px rgba(0, 209, 255, 0.8);
+}
+
+.timeline-tick:focus-visible {
+  outline: 2px solid #00d1ff;
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .timeline-track {
+    gap: 2px;
+  }
+  .timeline-tick {
+    min-width: 44px;
+  }
+}
