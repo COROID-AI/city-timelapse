@@ -1,0 +1,321 @@
+/* ==========================================================================
+   Top timeline slider + in-view transformation overlay styles.
+   Dark glassmorphism top bar with refined typography and WCAG AA contrast.
+   ========================================================================== */
+
+:root {
+  --ui-accent: #e8b84a;
+  --ui-accent-strong: #f0c45e;
+  --ui-text: #e6e6e6;
+  --ui-text-dim: #b9bfc7;
+  --ui-glass: rgba(15, 21, 28, 0.72);
+  --ui-glass-border: rgba(255, 255, 255, 0.14);
+  --ui-focus: #7fb7ff;
+}
+
+/* --- Top bar -------------------------------------------------------------- */
+.timeline {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: min(760px, calc(100vw - 32px));
+  margin: 12px auto 0;
+  padding: 12px 18px;
+  border-radius: 16px;
+  background: var(--ui-glass);
+  border: 1px solid var(--ui-glass-border);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.timeline-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ui-accent-strong);
+}
+
+.timeline-label {
+  min-width: 52px;
+  text-align: center;
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--ui-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-year {
+  min-width: 60px;
+  text-align: center;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--ui-accent-strong);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* --- Slider track --------------------------------------------------------- */
+.timeline-track {
+  position: relative;
+  flex: 1;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  outline: none;
+  border-radius: 6px;
+  touch-action: none;
+}
+
+.timeline-track:focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 3px;
+}
+
+.timeline-progress {
+  position: absolute;
+  left: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--ui-accent), var(--ui-accent-strong));
+  transition: width 0.18s ease-out;
+  pointer-events: none;
+}
+
+/* --- Stops ---------------------------------------------------------------- */
+.timeline-stops {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+}
+
+.timeline-stop {
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+  border: none;
+  background: transparent;
+  color: var(--ui-text-dim);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 6px 4px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: color 0.15s ease;
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-stop::before {
+  content: "";
+  display: block;
+  width: 10px;
+  height: 10px;
+  margin: 0 auto 6px;
+  border-radius: 50%;
+  background: rgba(230, 230, 230, 0.55);
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.timeline-stop:hover {
+  color: var(--ui-text);
+}
+
+.timeline-stop:hover::before {
+  background: var(--ui-accent);
+}
+
+.timeline-stop:focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 2px;
+}
+
+.timeline-stop.is-active {
+  color: var(--ui-accent-strong);
+}
+
+.timeline-stop.is-active::before {
+  background: var(--ui-accent-strong);
+  transform: scale(1.25);
+}
+
+/* --- Thumb ---------------------------------------------------------------- */
+.timeline-thumb {
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--ui-accent-strong);
+  border: 2px solid #0b0f14;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  transform: translate(-50%, -50%);
+  transition: left 0.18s ease-out;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* --- Help toggle + panel -------------------------------------------------- */
+.timeline-help-toggle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--ui-glass-border);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ui-text);
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.timeline-help-toggle:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--ui-accent-strong);
+}
+
+.timeline-help-toggle:focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 2px;
+}
+
+.timeline-help {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 260px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--ui-glass);
+  border: 1px solid var(--ui-glass-border);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  color: var(--ui-text);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.timeline-help-title {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ui-accent-strong);
+}
+
+.timeline-help-list {
+  margin: 0 0 10px;
+  padding-left: 16px;
+}
+
+.timeline-help-list li {
+  margin-bottom: 4px;
+}
+
+.timeline-help kbd {
+  display: inline-block;
+  padding: 0 5px;
+  border: 1px solid var(--ui-glass-border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 0.72rem;
+  color: var(--ui-text);
+}
+
+.timeline-help-about {
+  margin: 0;
+  color: var(--ui-text-dim);
+  font-size: 0.76rem;
+}
+
+/* --- Transformation overlay ---------------------------------------------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(5, 8, 12, 0.42) 0%,
+    rgba(5, 8, 12, 0.78) 100%
+  );
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.overlay[hidden] {
+  display: none;
+}
+
+.overlay--visible {
+  opacity: 1;
+}
+
+.overlay-year {
+  font-size: clamp(3rem, 9vw, 6rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--ui-accent-strong);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+  animation: overlay-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.overlay-subtitle {
+  max-width: 560px;
+  padding: 0 24px;
+  text-align: center;
+  font-size: 1.05rem;
+  font-weight: 400;
+  color: var(--ui-text);
+  letter-spacing: 0.02em;
+  animation: overlay-rise 0.7s 0.12s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes overlay-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- Narrow viewports ----------------------------------------------------- */
+@media (max-width: 640px) {
+  .timeline {
+    gap: 10px;
+    padding: 10px 12px;
+  }
+  .timeline-label {
+    display: none;
+  }
+  .timeline-year {
+    font-size: 1.2rem;
+    min-width: 48px;
+  }
+  .timeline-stop {
+    font-size: 0.62rem;
+  }
+}
