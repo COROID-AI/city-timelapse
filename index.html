@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>City Time Period Timelapse</title>
+  </head>
+  <body>
+    <div id="app">
+      <header id="timeline" class="timeline" aria-label="Time period selector">
+        <span class="timeline-title">Era</span>
+        <div class="timeline-slider" role="slider" aria-valuemin="0" aria-valuemax="4" aria-valuenow="0" aria-label="Timeline slider">
+          <input
+            id="era-slider"
+            class="era-slider"
+            type="range"
+            min="0"
+            max="4"
+            value="0"
+            step="1"
+            list="era-stops"
+            aria-label="Select time period"
+          />
+          <datalist id="era-stops">
+            <option value="0" label="1945"></option>
+            <option value="1" label="1965"></option>
+            <option value="2" label="1985"></option>
+            <option value="3" label="2005"></option>
+            <option value="4" label="2025"></option>
+          </datalist>
+        </div>
+        <div class="timeline-stops" aria-hidden="true">
+          <span>1945</span><span>1965</span><span>1985</span><span>2005</span><span>2025</span>
+        </div>
+      </header>
+      <div id="scene" class="scene">
+        <canvas id="view" class="view" aria-label="3D city block scene"></canvas>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
