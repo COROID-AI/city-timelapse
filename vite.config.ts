@@ -47,6 +47,10 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    environmentMatchGlobs: [
+      // UI tests need a DOM; run them under happy-dom.
+      ['tests/ui/**/*.test.ts', 'happy-dom'],
+    ],
     include: ['tests/**/*.test.ts'],
   },
   plugins: [healthzPlugin()],

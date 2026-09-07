@@ -56,26 +56,82 @@ body {
   pointer-events: none;
 }
 
-/* Top timeline slider. */
+/* ==========================================================================
+   Top timeline slider (polished).
+   Frosted-glass top bar with a prominent era title readout, five labeled
+   year stops with tick marks, an animated snap thumb, keyboard/ARIA access,
+   and an optional play/pause cycle button. The control is pointer-events:auto
+   so it never intercepts canvas input except on the control itself.
+   ========================================================================== */
 .timeline {
   position: absolute;
-  top: 12px;
+  top: 0;
   left: 0;
   right: 0;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  background: rgba(12, 15, 22, 0.68);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.45);
   pointer-events: auto;
+  z-index: 11;
+}
+
+/* Prominent era title readout: "1945 — Post-War" / "2025 — Smart City". */
+.era-title-readout {
+  color: #f5f7fa;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+  line-height: 1.1;
+}
+
+/* Wrapper holding the track and the play button. */
+.timeline-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .timeline-track {
+  position: relative;
   display: flex;
-  gap: 6px;
-  background: rgba(10, 12, 18, 0.72);
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 999px;
-  padding: 6px 14px;
+  padding: 8px 16px;
+  outline: none;
+}
+
+/* Visible keyboard focus ring on the slider track. */
+.timeline-track:focus-visible {
+  outline: 2px solid #f5c34a;
+  outline-offset: 2px;
+}
+
+/* Hairline tick mark under each stop. */
+.timeline-track .timeline-year::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 2px;
+  height: 5px;
+  background: rgba(245, 195, 74, 0.6);
+  border-radius: 1px;
+  transform: translateX(-50%);
 }
 
 .timeline-year {
+  position: relative;
   border: none;
   background: transparent;
   color: #cfd3d8;
@@ -91,9 +147,75 @@ body {
   background: rgba(255, 255, 255, 0.12);
 }
 
+.timeline-year:focus-visible {
+  outline: 2px solid #f5c34a;
+  outline-offset: 1px;
+}
+
 .timeline-year.active {
   background: #f5c34a;
   color: #1a1d24;
+}
+
+/* Animated snap thumb that glides between the active stop. */
+.timeline-thumb {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  margin-left: -1.5px;
+  background: #f5c34a;
+  border-radius: 2px;
+  transition: left 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
+  pointer-events: none;
+}
+
+/* Cycle-eras play / pause button. */
+.era-play {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: #e6e6e6;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.era-play:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.era-play:focus-visible {
+  outline: 2px solid #f5c34a;
+  outline-offset: 1px;
+}
+
+.era-play.active {
+  background: #f5c34a;
+  color: #1a1d24;
+}
+
+/* Compact layout for narrow / mobile viewports. */
+@media (max-width: 560px) {
+  .era-title-readout {
+    font-size: 18px;
+  }
+
+  .timeline-track {
+    gap: 6px;
+    padding: 6px 10px;
+  }
+
+  .timeline-year {
+    font-size: 12px;
+    padding: 5px 8px;
+  }
+
+  .timeline-controls {
+    gap: 8px;
+  }
 }
 
 /* Orbit toggle. */
