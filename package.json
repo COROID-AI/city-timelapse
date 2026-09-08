@@ -2,7 +2,7 @@
   "name": "city-time-period-timelapse",
   "version": "0.1.0",
   "private": true,
-  "description": "3D city block timelapse across eras. Shared era-invariant block layout anchors and the era-domain contracts, dataset, and interpolation engine.",
+  "description": "3D city block timelapse across eras. Shared era-invariant block layout anchors, the era-domain contracts/dataset/interpolation engine, and the top timeline slider UI owning era selection state.",
   "scripts": {
     "build": "tsc --noEmit && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
@@ -13,7 +13,12 @@
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/node": "^20.14.0",
+    "@types/react": "^19.2.18",
+    "@types/react-test-renderer": "^19.1.0",
     "jest": "^29.7.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-test-renderer": "^19.2.8",
     "ts-jest": "^29.1.5",
     "typescript": "^5.5.4",
     "vitest": "^2.1.1"
