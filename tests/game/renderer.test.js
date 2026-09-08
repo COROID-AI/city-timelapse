@@ -83,7 +83,7 @@ function makeDrawable(label, x, y, w = 16, h = 16) {
 }
 
 describe('camera follow and clamping', () => {
-  const level = makeLevel(); // 20 x 10 tiles -> 320 x 160 px world
+  const level = makeBigLevel(); // 60 x 30 tiles -> 960 x 480 px world
   const camera = createCamera(level, VIEW_WIDTH, VIEW_HEIGHT);
 
   test('starts at the top-left origin', () => {
@@ -101,10 +101,10 @@ describe('camera follow and clamping', () => {
   test('clamps to the level bounds and never scrolls past the edges', () => {
     // Push the target far past the right/bottom edge.
     camera.follow({ x: 10000, y: 10000, w: 16, h: 16 });
-    // World width 320 - viewport 256 = max scroll 64.
+    // World width 960 - viewport 256 = max scroll 704.
     expect(camera.x).toBe(level.width * TILE_SIZE - VIEW_WIDTH);
-    // World height 160 - viewport 224 < 0, so it pins to 0.
-    expect(camera.y).toBe(0);
+    // World height 480 - viewport 224 = max scroll 256.
+    expect(camera.y).toBe(level.height * TILE_SIZE - VIEW_HEIGHT);
 
     // Push the target before the origin; clamps to 0.
     camera.follow({ x: -1000, y: -1000, w: 16, h: 16 });
