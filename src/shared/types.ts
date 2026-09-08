@@ -80,12 +80,16 @@ export enum RacePhase {
 export interface StandingsEntry {
   /** Car id this entry refers to. */
   readonly carId: string;
+  /** Entrant display name (from the racer personality / player profile). */
+  readonly name: string;
   /** 1-based overall position. */
   readonly position: number;
-  /** Lap number the car is currently on. */
+  /** Lap number the car is currently on (1-based; `totalLaps` once finished). */
   readonly lap: number;
   /** Cumulative race time for this car in milliseconds. */
   readonly timeMs: number;
+  /** Milliseconds behind the leader (0 for the current leader). */
+  readonly gap: number;
 }
 
 /** Snapshot of the entire race at a given frame. */
@@ -98,4 +102,10 @@ export interface RaceState {
   readonly cars: Readonly<Record<string, CarState>>;
   /** Current ordered leaderboard. */
   readonly standings: readonly StandingsEntry[];
+  /** Seconds remaining in the 3-2-1 countdown (0 once Racing). */
+  readonly countdown: number;
+  /** Total laps required to complete the race. */
+  readonly totalLaps: number;
+  /** Per-entrant completed lap times in ms, indexed by car id. */
+  readonly lapTimes: Readonly<Record<string, readonly number[]>>;
 }
