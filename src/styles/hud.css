@@ -1,0 +1,311 @@
+/**
+ * Neon HUD overlay styles.
+ *
+ * Uses the neon night palette (near-black deep blue base, cyan / magenta /
+ * amber accents) shared with the rest of the scene. The overlay is
+ * pointer-transparent (`pointer-events: none`) so it never blocks the canvas
+ * or the keyboard, and it is fully responsive: panels flow and clamp on small
+ * viewports without horizontal overflow.
+ */
+
+:root {
+  --neon-hud-bg: rgba(5, 7, 15, 0.62);
+  --neon-hud-border: rgba(0, 229, 255, 0.55);
+  --neon-hud-cyan: #00e5ff;
+  --neon-hud-magenta: #ff2d78;
+  --neon-hud-amber: #ffd23f;
+  --neon-hud-text: #e8f6ff;
+  --neon-hud-muted: #9fc4d6;
+  --neon-hud-glow: 0 0 8px rgba(0, 229, 255, 0.65);
+}
+
+/* Root overlay: fixed full-screen, above the canvas, unclickable. */
+.neon-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-family: 'Segoe UI', 'Helvetica Neue', Roboto, system-ui, sans-serif;
+  color: var(--neon-hud-text);
+  overflow: hidden;
+  z-index: 40;
+}
+
+/* Dim translucent veil behind the translucent panels. */
+.neon-hud__backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* --- Top-left group: lap + clocks ------------------------------------------ */
+.neon-hud__lap,
+.neon-hud__clock {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  padding: 6px 12px;
+  background: var(--neon-hud-bg);
+  border: 1px solid var(--neon-hud-border);
+  border-radius: 6px;
+  box-shadow: var(--neon-hud-glow);
+  font-variant-numeric: tabular-nums;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.neon-hud__clock {
+  top: 60px;
+  font-size: 15px;
+  color: var(--neon-hud-cyan);
+}
+
+.neon-hud__clock--total {
+  top: 96px;
+  color: var(--neon-hud-amber);
+}
+
+/* --- Centre-top speed readout ---------------------------------------------- */
+.neon-hud__speed {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 18px;
+  background: var(--neon-hud-bg);
+  border: 1px solid var(--neon-hud-magenta);
+  border-radius: 8px;
+  box-shadow: 0 0 12px rgba(255, 45, 120, 0.5);
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--neon-hud-text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+  text-shadow: 0 0 8px var(--neon-hud-cyan);
+}
+
+.neon-hud__speed-unit {
+  font-size: 14px;
+  color: var(--neon-hud-muted);
+  margin-left: 6px;
+  letter-spacing: 1px;
+}
+
+/* --- Nitrous meter with boost hint ---------------------------------------- */
+.neon-hud__nitrous {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(46vw, 280px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--neon-hud-bg);
+  border: 1px solid var(--neon-hud-border);
+  border-radius: 8px;
+  box-shadow: var(--neon-hud-glow);
+}
+
+.neon-hud__nitrous-label {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--neon-hud-cyan);
+  font-weight: 700;
+}
+
+.neon-hud__bar {
+  flex: 1;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--neon-hud-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.neon-hud__bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--neon-hud-cyan), var(--neon-hud-magenta));
+  border-radius: 6px;
+  transition: width 80ms linear;
+}
+
+/* Boosting: brighter, hotter fill. */
+.neon-hud__bar-fill--boost {
+  background: linear-gradient(90deg, var(--neon-hud-magenta), var(--neon-hud-amber));
+  box-shadow: 0 0 10px var(--neon-hud-magenta);
+}
+
+.neon-hud__nitrous-pct {
+  min-width: 40px;
+  text-align: right;
+  font-size: 13px;
+  color: var(--neon-hud-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.neon-hud__hint {
+  font-size: 11px;
+  color: var(--neon-hud-muted);
+  white-space: nowrap;
+}
+
+/* --- Live standings --------------------------------------------------------- */
+.neon-hud__standings {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: min(46vw, 240px);
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  background: var(--neon-hud-bg);
+  border: 1px solid var(--neon-hud-border);
+  border-radius: 8px;
+  box-shadow: var(--neon-hud-glow);
+}
+
+.neon-hud__standings-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  font-size: 13px;
+  border-radius: 4px;
+}
+
+.neon-hud__standings-pos {
+  min-width: 20px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--neon-hud-cyan);
+  font-variant-numeric: tabular-nums;
+}
+
+.neon-hud__standings-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.neon-hud__standings-meta {
+  color: var(--neon-hud-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+
+/* --- Countdown overlay ------------------------------------------------------ */
+.neon-hud__countdown {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: none;
+  font-size: 128px;
+  font-weight: 800;
+  color: var(--neon-hud-cyan);
+  text-shadow:
+    0 0 20px var(--neon-hud-cyan),
+    0 0 60px rgba(0, 229, 255, 0.6);
+  letter-spacing: 6px;
+  animation: neon-pop 900ms ease-in-out infinite;
+}
+
+/* 3-2-1 pulse. */
+.neon-hud__countdown[data-tick='0'] {
+  color: var(--neon-hud-amber);
+  text-shadow:
+    0 0 20px var(--neon-hud-amber),
+    0 0 60px rgba(255, 210, 63, 0.7);
+}
+
+@keyframes neon-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+  40% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* --- Finish panel ------------------------------------------------------------ */
+.neon-hud__finish {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: none;
+  width: min(80vw, 360px);
+  padding: 18px 22px;
+  background: var(--neon-hud-bg);
+  border: 1px solid var(--neon-hud-amber);
+  border-radius: 10px;
+  box-shadow:
+    0 0 18px rgba(255, 210, 63, 0.4),
+    var(--neon-hud-glow);
+  text-align: center;
+}
+
+.neon-hud__finish-title {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 4px;
+  color: var(--neon-hud-amber);
+  margin-bottom: 10px;
+}
+
+.neon-hud__finish-place {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--neon-hud-text);
+  text-shadow: 0 0 10px var(--neon-hud-cyan);
+}
+
+.neon-hud__finish-time {
+  font-size: 16px;
+  color: var(--neon-hud-cyan);
+  margin: 6px 0 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.neon-hud__finish-grid {
+  text-align: left;
+  margin: 0 auto 12px;
+  padding-left: 20px;
+  color: var(--neon-hud-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.neon-hud__finish-restart {
+  font-size: 13px;
+  color: var(--neon-hud-amber);
+  letter-spacing: 1px;
+}
+
+/* --- Responsive: tighten on small viewports -------------------------------- */
+@media (max-width: 640px) {
+  .neon-hud__speed {
+    font-size: 28px;
+    top: 12px;
+  }
+  .neon-hud__lap,
+  .neon-hud__clock {
+    font-size: 16px;
+  }
+  .neon-hud__standings {
+    width: 44vw;
+  }
+  .neon-hud__countdown {
+    font-size: 88px;
+  }
+}
