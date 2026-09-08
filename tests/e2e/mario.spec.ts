@@ -7,6 +7,14 @@ async function waitForGame(page) {
   });
 }
 
+/** Wait until Mario has landed on solid ground. */
+async function waitGrounded(page) {
+  return page.waitForFunction(() => {
+    const g = window.__game;
+    return g && g.player.body.onGround;
+  });
+}
+
 async function getGameState(page) {
   return page.evaluate(() => {
     const g = window.__game;
@@ -44,7 +52,6 @@ async function sampleCanvas(page) {
 }
 
 async function hudTextPixels(page, x, y, w, h) {
- {
   return page.evaluate(([x, y, w, h]) => {
     const canvas = document.getElementById('game-canvas');
     const ctx = canvas.getContext('2d');
@@ -61,27 +68,28 @@ test('page loads a canvas that becomes non-blank and the game loop advances', as
   await page.goto('/');
   await waitForGame(page);
   const first = await sampleCanvas(page);
-  expect(first.nonBlank.toBeGreaterThan(0);
+  expect(first.nonBlank).toBeGreaterThan(0);
   const firstState = await getGameState(page);
 
-  await page.waitForTimeout(500);
+   await page.waitForTimeout(500);
   const second = await sampleCanvas(page);
   const secondState = await getGameState(page);
 
-   expect(secondState.tick.toBeGreaterThan(firstState.tick);
-  expect(second.sum.not.toBe(first.sum);
+   expect(secondState.tick).toBeGreaterThan(firstState.tick);
+  expect(second.sum).not.toBe(first.sum);
 });
 
 test('ArrowRight moves Mario right', async ({ page }) => {
   await page.goto('/');
   await waitForGame(page);
+  await waitGrounded(page);
   const before = await getGameState(page);
   await page.locator('#game-canvas').focus();
-  await page.keyboard.down('ArrowRight';
+  await page.keyboard.down('ArrowRight');
   await page.waitForTimeout(700);
-   await page.keyboard.up('ArrowRight';
+   await page.keyboard.up('ArrowRight');
   const after = await getGameState(page);
-  expect(after.x.toBeGreaterThan(before.x);
+  expect(after.x).toBeGreaterThan(before.x);
 });
 
 test('ArrowUp triggers an airborne state', async ({ page }) => {
@@ -89,37 +97,38 @@ test('ArrowUp triggers an airborne state', async ({ page }) => {
   await waitForGame(page);
    await page.waitForTimeout(400);
   const before = await getGameState(page);
-   expect(before.onGround.toBe(true);
+   expect(before.onGround).toBe(true);
   await page.locator('#game-canvas').focus();
-  await page.keyboard.down('ArrowUp';
+  await page.keyboard.down('ArrowUp');
   await page.waitForTimeout(80);
-   await page.keyboard.up('ArrowUp';
+   await page.keyboard.up('ArrowUp');
   const mid = await getGameState(page);
-   expect(mid.onGround.toBe(false);
+   expect(mid.onGround).toBe(false);
 });
 
 test('scripted stomp increments the score shown in the HUD', async ({ page }) => {
   await page.goto('/');
   await waitForGame(page);
-  const scoreBefore = await getGameState(page.then((s) => s.score);
+  await waitGrounded(page);
+  const scoreBefore = await getGameState(page).then((s) => s.score);
   await page.evaluate(() => {
     const g = window.__game;
-    const goomba = g.enemies.addGoomba({ x: g.player.body.x, y: g.player.body.y + g.player.body.h - 1, dir: 1 });
-    g.player.body.vy =  0.5;
+    const goomba = g.enemies.addGoomba({ x: g.player.body.x, y: g.player.body.y, dir: 1 });
+    g.player.body.y = goomba.y - g.player.body.h - 4;
+    g.player.body.vy = 2;
     g.player.body.onGround = false;
-    g.player.body.y = goomba.y - g.player.body.h + 0.5;
   });
-  await page.waitForTimeout(200);
-  const scoreAfter = await getGameState(page.then((s) => s.score);
-  expect(scoreAfter.toBeGreaterThanOrEqual(scoreBefore + 100);
-  const scorePixels = await hudTextPixels(page,4,4,56,8
-   expect(scorePixels.toBeGreaterThan(0);
+   await page.waitForTimeout(300);
+  const scoreAfter = await getGameState(page).then((s) => s.score);
+  expect(scoreAfter).toBeGreaterThanOrEqual(scoreBefore + 100);
+  const scorePixels = await hudTextPixels(page,4,4,56,8);
+   expect(scorePixels).toBeGreaterThan(0);
 });
 
 test('scripted coin pickup increments the coin count shown in the HUD', async ({ page }) => {
   await page.goto('/');
   await waitForGame(page);
-  const coinsBefore = await getGameState(page.then((s) => s.coins);
+  const coinsBefore = await getGameState(page).then((s) => s.coins);
   await page.evaluate(() => {
     const g = window.__game;
     const block = g.items.blocks.find((b) => !b.used);
@@ -130,9 +139,9 @@ test('scripted coin pickup increments the coin count shown in the HUD', async ({
     coin.x = g.player.body.x;
     coin.y = g.player.body.y;
   });
-  await page.waitForTimeout(200);
-  const coinsAfter = await getGameState(page.then((s) => s.coins);
-   expect(coinsAfter.toBeGreaterThanOrEqual(coinsBefore +  1);
-  const coinPixels = await hudTextPixels(page,84,4,26,8
-   expect(coinPixels.toBeGreaterThan(0);
+   await page.waitForTimeout(200);
+  const coinsAfter = await getGameState(page).then((s) => s.coins);
+   expect(coinsAfter).toBeGreaterThanOrEqual(coinsBefore +  1);
+  const coinPixels = await hudTextPixels(page,84,4,26,8);
+   expect(coinPixels).toBeGreaterThan(0);
 });

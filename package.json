@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",
+    "@babel/plugin-transform-typescript": "^8.0.1",
     "@babel/preset-env": "^7.24.0",
     "@playwright/test": "^1.63.0",
     "babel-jest": "^29.7.0",

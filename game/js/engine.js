@@ -108,7 +108,7 @@ export class Engine {
       this.lastTime = frameTime;
       // First frame only records the base timestamp; no simulation step yet.
       this.draw();
-      this.frameId = this.raf(this.frame);
+      this.frameId = this.raf(this.frame.bind(this));
       return;
     }
     const delta = Math.min(frameTime - this.lastTime, 250); // clamp long gaps
@@ -126,7 +126,7 @@ export class Engine {
     }
 
     this.draw();
-    this.frameId = this.raf(this.frame);
+    this.frameId = this.raf(this.frame.bind(this));
   }
 
   /** Start the game loop. No-op if already running. */
@@ -136,7 +136,7 @@ export class Engine {
     this.lastTime = null;
     this.accumulator = 0;
     this._bindInput();
-    this.frameId = this.raf(this.frame);
+    this.frameId = this.raf(this.frame.bind(this));
   }
 
   /** Stop the game loop and detach input listeners. */
