@@ -92,10 +92,10 @@ describe('camera follow and clamping', () => {
   });
 
   test('centers on the target when there is room to scroll', () => {
-    // Target at world (100, 40). Center of viewport should align.
-    camera.follow({ x: 100, y: 40, w: 16, h: 16 });
-    expect(camera.x).toBe(100 + 8 - VIEW_WIDTH / 2);
-    expect(camera.y).toBe(40 + 8 - VIEW_HEIGHT / 2);
+    // Target at world (200, 200). Center of viewport should align.
+    camera.follow({ x: 200, y: 200, w: 16, h: 16 });
+    expect(camera.x).toBe(200 + 8 - VIEW_WIDTH / 2);
+    expect(camera.y).toBe(200 + 8 - VIEW_HEIGHT / 2);
   });
 
   test('clamps to the level bounds and never scrolls past the edges', () => {
@@ -113,16 +113,16 @@ describe('camera follow and clamping', () => {
   });
 
   test('follows the target by centering on its middle', () => {
-    const target = { x: 50, y: 50, w: 32, h: 32 };
+    const target = { x: 300, y: 300, w: 32, h: 32 };
     camera.follow(target);
-    expect(camera.x).toBe(50 + 16 - VIEW_WIDTH / 2);
-    expect(camera.y).toBe(50 + 16 - VIEW_HEIGHT / 2);
+    expect(camera.x).toBe(300 + 16 - VIEW_WIDTH / 2);
+    expect(camera.y).toBe(300 + 16 - VIEW_HEIGHT / 2);
   });
 
   test('update(target) is an alias for follow(target)', () => {
-    camera.update({ x: 20, y: 20, w: 16, h: 16 });
-    expect(camera.x).toBe(20 + 8 - VIEW_WIDTH / 2);
-    expect(camera.y).toBe(20 + 8 - VIEW_HEIGHT / 2);
+    camera.update({ x: 200, y: 200, w: 16, h: 16 });
+    expect(camera.x).toBe(200 + 8 - VIEW_WIDTH / 2);
+    expect(camera.y).toBe(200 + 8 - VIEW_HEIGHT / 2);
   });
 });
 
