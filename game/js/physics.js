@@ -126,14 +126,20 @@ export function resolveCollisions(body, solids) {
     const absVx = Math.abs(body.vx);
     const absVy = Math.abs(body.vy);
 
+    // A body resting on top of a solid (small top penetration) should always
+    // resolve vertically so gravity sinking doesn't shove it sideways.
+    const restingOnTop = body.onGround && penTop < 1;
+
     // Choose the resolution axis: dominant velocity wins; otherwise the axis
     // with the least penetration.
     const resolveX =
-      absVx > absVy
-        ? true
-        : absVy > absVx
-          ? false
-          : Math.min(penLeft, penRight) < Math.min(penTop, penBottom);
+      restingOnTop
+        ? false
+        : absVx > absVy
+          ? true
+          : absVy > absVx
+            ? false
+            : Math.min(penLeft, penRight) < Math.min(penTop, penBottom);
 
     if (resolveX) {
       if (body.vx > 0 || (body.vx === 0 && penLeft < penRight)) {
