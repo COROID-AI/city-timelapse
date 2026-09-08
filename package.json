@@ -2,13 +2,13 @@
   "name": "city-time-period-timelapse",
   "version": "0.1.0",
   "private": true,
-  "description": "3D city block timelapse across eras. Shared era-invariant block layout anchors, the era-domain contracts/dataset/interpolation engine, and the top timeline slider UI owning era selection state.",
+  "description": "3D city block timelapse across eras. Shared era-invariant block layout anchors, the era-domain contracts/dataset/interpolation engine, the top timeline slider UI owning era selection state, and the era-authentic vehicle fleet & traffic subsystem.",
   "scripts": {
     "build": "tsc --noEmit && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "test": "jest && vitest run src/scenes/layout/__tests__ src/scenes/storefronts/__tests__ src/scenes/navigation/__tests__",
+    "test": "jest && vitest run src/scenes/layout/__tests__ src/scenes/storefronts/__tests__ src/scenes/navigation/__tests__ src/scenes/vehicles/__tests__",
     "test:jest": "jest",
-    "test:vitest": "vitest run src/scenes/layout/__tests__ src/scenes/storefronts/__tests__ src/scenes/navigation/__tests__"
+    "test:vitest": "vitest run src/scenes/layout/__tests__ src/scenes/storefronts/__tests__ src/scenes/navigation/__tests__ src/scenes/vehicles/__tests__"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
