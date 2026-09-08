@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "description": "Three.js nighttime neon street racing game — foundation scaffold with tooling and shared race-domain contracts",
   "private": true,
-  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -15,7 +14,7 @@
     "three": "0.185.1"
   },
   "devDependencies": {
-    "@types/jest": "30.5.2",
+    "@types/jest": "30.0.0",
     "@types/node": "22.15.34",
     "@types/three": "0.185.4",
     "jest": "30.5.1",
