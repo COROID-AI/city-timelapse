@@ -102,7 +102,7 @@ function seedRandom(seed) {
 export function createWetGround(width = 400, depth = 400) {
   const group = new THREE.Group();
 
-  const reflector = new Reflector(width, depth, {
+  const reflector = new Reflector(new THREE.PlaneGeometry(width, depth), {
     clipBias: 0.003,
     textureWidth: CONFIG.track.reflectTexture,
     textureHeight: CONFIG.track.reflectTexture,
