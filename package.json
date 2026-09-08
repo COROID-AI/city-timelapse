@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc --noEmit && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "dev": "node scripts/dev-server.mjs",
+    "dev": "vite --port 5173 --strictPort",
     "dev:qa": "vite --port 5173 --strictPort",
     "test": "jest && vitest run src/scenes",
     "test:jest": "jest",
