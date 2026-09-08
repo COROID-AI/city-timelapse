@@ -1,0 +1,44 @@
+/* Classic Super Mario game shell styles.
+   The game renders pixel-art directly to a 256x224 canvas; CSS scales it up
+   with crisp nearest-neighbor sampling for a retro look. */
+
+:root {
+  --game-bg: #000;
+  --game-shell-bg: #20242a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--game-shell-bg);
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: system-ui, sans-serif;
+}
+
+.game-shell {
+  background: var(--game-bg);
+  padding: 8px;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.game-canvas {
+  display: block;
+  width: 512px; /* 2x scale of the 256px internal resolution */
+  height: 448px; /* 2x scale of the 224px internal resolution */
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  background: var(--game-bg);
+}
