@@ -1,0 +1,13 @@
+# Dependency/build output
+node_modules/
+dist/
+dist-web/
+
+# Playwright ephemeral output (trace/artifacts). Committed screenshot evidence
+# lives in tests/screenshots/ and is intentionally NOT ignored.
+tests/e2e/.playwright-results/
+tests/e2e/test-results/
+playwright-report/
+
+# Local dev logs
+*.log

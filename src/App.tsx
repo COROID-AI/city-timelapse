@@ -2,6 +2,7 @@ import * as React from 'react';
 
 import { useEraStore } from './state/eraStore.js';
 import { CityScene } from './scenes/CityScene.js';
+import type { ComposedSceneHandle } from './scenes/CityScene.js';
 
 /**
  * App — the application root / composition entrypoint.
@@ -13,12 +14,20 @@ import { CityScene } from './scenes/CityScene.js';
  *
  * The scene owns every subsystem lifecycle and its cleanup contract, so the
  * app root only needs to own the store.
+ *
+ * `onComposedReady` is an optional browser-QA hook: when supplied it receives
+ * a live handle to the composed subsystem instances once the scene mounts,
+ * letting the E2E harness assert real integrated audio/era behaviour.
  */
-export function App(): React.ReactElement {
+export function App({
+  onComposedReady,
+}: {
+  onComposedReady?: (handle: ComposedSceneHandle) => void;
+} = {}): React.ReactElement {
   const store = useEraStore();
   return (
     <div className="app-root">
-      <CityScene store={store} />
+      <CityScene store={store} onComposedReady={onComposedReady} />
     </div>
   );
 }

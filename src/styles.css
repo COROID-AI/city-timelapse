@@ -1,0 +1,190 @@
+/* City Time Period Timelapse — browser stage styles.
+ * The composed CityView renders era-derived DOM geometry; these styles give it
+ * a distinct, polished look so screenshots differ visibly across the five eras
+ * (buildings, vehicles, storefronts, ads, outfits, atmosphere). */
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: system-ui, sans-serif;
+}
+
+.city-scene {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.city-scene-viewport {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* --- Atmosphere stage ---------------------------------------------------- */
+.city-view {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  padding: 48px 24px 20px;
+}
+
+.epoch-banner {
+  position: absolute;
+  top: 14px;
+  left: 24px;
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  letter-spacing: 1px;
+}
+
+.epoch-year {
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.epoch-style {
+  font-size: 13px;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+/* --- skyline -------------------------------------------------------------- */
+.skyline {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 52%;
+  margin: 0 0 -2px;
+}
+
+.skyline .block {
+  border-radius: 2px 2px 0 0;
+  flex: 0 0 auto;
+}
+
+/* --- street --------------------------------------------------------------- */
+.street {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 74px;
+  padding: 12px 16px;
+  background: linear-gradient(180deg, #3a3a3a 0%, #242424 8%, #2c2c2c 30%, #1a1a1a 100%);
+  border-top: 2px solid #777;
+  border-bottom: 2px solid #888;
+  box-sizing: border-box;
+}
+
+.street .vehicle {
+  width: 84px;
+  height: 26px;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+}
+
+/* --- storefronts ---------------------------------------------------------- */
+.storefronts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(20, 20, 22, 0.85);
+  border-top: 1px solid #555;
+}
+
+.storefronts .signs {
+  display: flex;
+  gap: 8px;
+}
+
+.storefronts .sign {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  border-radius: 2px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.storefronts .ads {
+  display: flex;
+  gap: 8px;
+}
+
+.storefronts .ad {
+  font-size: 9px;
+  color: #fff;
+  padding: 3px 8px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+/* --- crowd ----------------------------------------------------------------- */
+.crowd {
+  display: flex;
+  gap: 8px;
+  height: 40px;
+  padding: 6px 16px 0;
+  background: #4d4f55;
+  border-radius: 4px 4px 0 0;
+  align-items: flex-start;
+  position: relative;
+  bottom: 0;
+}
+
+.crowd .person {
+  width: 14px;
+  height: 30px;
+  border-radius: 6px 6px 3px 3px;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+}
+
+/* --- SFX label ------------------------------------------------------------ */
+.sfx-label {
+  position: relative;
+  top: -3px;
+  right: 0;
+  text-align: right;
+  font-size: 11px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 3px 10px;
+  border-radius: 3px;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* Hidden headless renderer stubs are positioned off-canvas (integration seam). */
+buildings-display,
+vehicles-display,
+storefronts-display,
+atmosphere-display,
+group-display,
+pedestrian-entry,
+camera-display {
+  display: none;
+}

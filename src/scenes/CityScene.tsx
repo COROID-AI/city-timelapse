@@ -18,6 +18,7 @@ import { NavigationRig } from './navigation/index.js';
 import type { CameraState } from './navigation/types.js';
 import type { EraStore } from '../state/eraStore.js';
 import { TimelineSlider } from '../components/TimelineSlider.js';
+import { CityView } from '../components/CityView.js';
 
 /**
  * CityScene — the composed city-block timelapse entrypoint.
@@ -91,18 +92,35 @@ export interface CitySceneState {
 }
 
 /**
+ * Composed handle to a live CityScene, exposed only for browser QA.
+ *
+ * Lets the E2E/regression harness assert real integrated behaviour — the
+ * AmbientAudio graph and the era store — against a running browser mount.
+ */
+export interface ComposedSceneHandle {
+  /** The live AmbientAudio engine (oscillators + AudioContext lifecycle). */
+  readonly audio: AmbientAudio;
+  /** The single era selection store driving the scene. */
+  readonly store: EraStore;
+}
+
+/**
  * The composed CityScene React component.
  *
  * @param store the era selection store (owns current year + tweened progress)
  * @param audioContextFactory optional WebAudio context factory for tests; when
  *   omitted the AmbientAudio module uses the environment's global AudioContext
+ * @param onComposedReady optional browser-QA hook invoked once mounted with a
+ *   live handle to the composed subsystem instances
  */
 export function CityScene({
   store,
   audioContextFactory,
+  onComposedReady,
 }: {
   store: EraStore;
   audioContextFactory?: AudioContextFactory | undefined;
+  onComposedReady?: ((handle: ComposedSceneHandle) => void) | undefined;
 }): React.ReactElement {
   // ---- Subsystem lifecycle instances (created once, owned here) ----------
   const buildings = useRef(Buildings.instantiate(store.current.year));
@@ -133,6 +151,15 @@ export function CityScene({
     return store.subscribe(() => setRevision((r) => r + 1));
   }, [store]);
 
+  // Browser-QA debug hook: expose the live composed handle once mounted.
+  const readyCalled = useRef(false);
+  useEffect(() => {
+    if (!readyCalled.current && onComposedReady !== undefined) {
+      readyCalled.current = true;
+      onComposedReady({ audio: audio.current, store });
+    }
+  }, [onComposedReady, store]);
+
   // ---- Mount the camera rig once (preserve the viewport across eras) -----
   const [camera, setCamera] = useState<CameraState>(() => rig.current.attach());
 
@@ -146,11 +173,19 @@ export function CityScene({
   // ---- Per-frame clock: advance progress, pause when off-screen ----------
   useEffect(() => {
     const timer = setInterval(() => {
-      store.advance(TICK_SECONDS / (TRANSITION_MS / 1000)); // notifies -> re-render
+      // QA-only pause: the E2E harness freezes the auto-tween so each selected
+      // era holds steady on screen (real year still driven by the slider) and
+      // per-era screenshots are deterministic. Undefined in the Node/jest env.
+      const paused =
+        typeof window !== 'undefined' &&
+        (window as { __CITY_QA_PAUSE__?: boolean }).__CITY_QA_PAUSE__ === true;
+      if (!paused) {
+        store.advance(TICK_SECONDS / (TRANSITION_MS / 1000)); // notifies -> re-render
+        setNow((n) => n + 1);
+      }
       // Advance the rig (no-op when no user input / focus lerp) without ever
       // resetting the pose during era transitions.
       setCamera(rig.current.update(TICK_SECONDS));
-      setNow((n) => n + 1);
     }, TICK_SECONDS * 1000);
     return () => clearInterval(timer);
   }, [store]);
@@ -178,8 +213,11 @@ export function CityScene({
   // year so the whole block transforms continuously during transitions.
   const buildingsBuf = Buildings.update(buildings.current, era.year);
   const vehiclesBuf = Vehicles.update(vehicles.current, era.year);
+  // Storefronts interpolate internally via getInterpolatedEra(year, t), so it
+  // expects the EXACT selected year + tweened progress (a blended year like
+  // 1946 would be rejected by getEra). Route the store's canonical year in.
   const storefrontsState = storefronts.current.update(
-    era.year,
+    store.current.year,
     store.current.progress,
   );
 
@@ -198,6 +236,7 @@ export function CityScene({
         <Pedestrians era={era} now={now} />
         <Atmosphere era={era} />
         <CameraDisplay camera={camera} />
+        <CityView era={era} buffers={buildingsBuf} vehicles={vehiclesBuf} storefronts={storefrontsState} />
       </div>
     </div>
   );
