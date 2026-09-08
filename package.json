@@ -1,0 +1,20 @@
+{
+  "name": "neon-street-racer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A Three.js nighttime neon street racing game with a third-person chase camera, wet reflective streets, nitrous drifting, AI opponents, live standings and a three-lap timer.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test tests/",
+    "check": "npm test && npm run build"
+  },
+  "dependencies": {
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}
