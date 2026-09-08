@@ -1,12 +1,64 @@
-# City Time Period Timelapse
+# Neon Street Racer
 
-Create a 3D scene of a city block. Emphasis on detail is very important.
+A Three.js nighttime neon street racing game with a third-person chase camera.
+Drive a neon car around a wet, reflective city circuit at night, drifting to
+charge nitrous, and race four AI opponents across a three-lap timed race.
 
-The scene must have a timeline slider in the top, with the following options:
-1945, 1965, 1985, 2005, 2025 and 2055
+## Overview
 
-The point of the scene is to be able to select any of the 5 different years, and the scene will transform in front of your eyes to the time period selected from the slider.
+- **Third-person chase camera** that smoothly follows behind the player car,
+  widening its field of view with speed and giving an extra wide-angle kick
+  while nitrous is active, plus subtle camera shake.
+- **Wet, reflective streets** built from a `three.js` `Reflector` mirror plane
+  beneath a translucent asphalt overlay so neon signs and street lights visibly
+  reflect off the road.
+- **Neon city at night**: dark sky + fog, emissive neon signs on buildings,
+  glowing barrier strips, street lights and emissive building windows (all
+  generated at runtime via canvas — no external assets or CDN dependency).
+- **Motion blur** (`AfterimagePass`) whose strength scales with your speed, and
+  an **UnrealBloomPass** pass for the neon glow, composed through an
+  `EffectComposer`.
 
-Time period should affect all aspects of the city block. The buildings, the vehicles, the storefronts, advertisements, outfits of the pedestrians, everything.
+## Controls
 
-This must be a polished high end scene with SFX, ability to navigate around and look at things, etc. Go all out.
+| Key            | Action                                   |
+| -------------- | ---------------------------------------- |
+| `↑ / ↓`        | Accelerate / brake or reverse            |
+| `← / →`        | Steer left / right                       |
+| `Space`        | Handbrake — drift (charges nitrous)      |
+| `Shift` or `X` | Activate nitrous (wide-angle boost)      |
+| `R`            | Restart the race (after finishing)       |
+
+## Mechanics
+
+- **Drifting** builds your nitrous meter. Slide with `Space` (or corner hard at
+  speed) to charge the gauge shown in the HUD.
+- **Nitrous** gives a big speed boost with a wide-angle camera kick and
+  blue-purple exhaust flames plus a particle trail. It consumes charge while
+  active and runs out if you don't drift again.
+- **Race format**: 3 laps. Live standings for all 5 racers (you + 4 AI) update
+  every frame, ordered by lap then track progress. A countdown precedes the
+  start; a finish overlay shows final standings and lap times.
+- AI opponents drive autonomously around the circuit, pace themselves into
+  corners, and rubber-band to keep the race close.
+- You collide softly with the road bounds instead of leaving the track.
+
+## Commands
+
+| Command               | Description                             |
+| --------------------- | --------------------------------------- |
+| `npm run dev`         | Start the Vite dev server               |
+| `npm test`            | Run headless unit tests (`node --test`) |
+| `npm run build`       | Build the production bundle to `dist/`  |
+| `npm run preview`     | Preview the production build locally    |
+| `npm run check`       | Run tests then build                    |
+
+Unit tests cover nitrous charge/consume/activation, checkpoint-guarded 3-lap
+race timing, live standings ordering, arrow-key input mapping, and AI pacing.
+
+## Tech
+
+- [three.js](https://threejs.org/) `^0.170.0` (bundled — no CDN runtime
+  dependency)
+- [Vite](https://vitejs.dev/) `^5.4.0`
+- ES modules, `node:test` runner

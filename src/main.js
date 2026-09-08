@@ -19,9 +19,11 @@ import {
   flickerNeon,
 } from './game/effects.js';
 
-function main() {
+// Fixed AI body colors.
+const AI_COLORS = [0xff3355, 0xffb020, 0x7cff5a, 0xd8e2ff];
+
+export function main() {
   const canvas = document.getElementById('view');
-  const app = document.getElementById('app');
 
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -39,17 +41,13 @@ function main() {
   scene.fog = new THREE.Fog(0x05060a, 60, 320);
 
   // Lights: night city ambience.
-  const hemi = new THREE.HemisphereLight(0x8899ff, 0x0a0a12, 0.55);
-  scene.add(hemi);
-  const ambient = new THREE.AmbientLight(0x1a22ff, 0.25);
-  scene.add(ambient);
+  scene.add(new THREE.HemisphereLight(0x8899ff, 0x0a0a12, 0.55));
+  scene.add(new THREE.AmbientLight(0x1a22ff, 0.25));
   const moon = new THREE.DirectionalLight(0xaaccff, 0.5);
   moon.position.set(-30, 60, 20);
   scene.add(moon);
 
-  // Wet reflective ground (ground plane, not the road strip itself — the road
-  // ribbon sits above it and the mirror peeks through at the asphalt overlay
-  // edges / gaps). We also render it so distant city glow reflects.
+  // Wet reflective ground (mirror plane under translucent asphalt).
   scene.add(createWetGround(900, 900));
 
   // Track.
@@ -73,37 +71,21 @@ function main() {
   playerCar.teleport(startP.x, startP.z, track.headingAt(0));
   syncCarMesh(playerMesh, playerCar);
 
-  // Nitrous.
+  // Nitrous + FX.
   const nitro = new NitrousSystem(CONFIG);
   const trail = createParticleTrail(80);
   scene.add(trail);
   const speedLines = createSpeedLines(scene, 44);
 
-  // AI.
+  // Race controller shared by player + AI.
+  const race = new RaceController(CONFIG);
+  race.registerRacer('player');
+
+  // AI drivers.
   const ai = [];
   for (let i = 0; i < CONFIG.race.aiCount; i++) {
-    const meshes = getAIColors();
     const car = new CarPhysics();
-    const mesh = createCarMesh(meshes[i % meshes.length]);
-    scene.add(mesh);
-    const pacer = new AiPacer(CONFIG, CONFIG.ai.skills[i]);
-    const driver = new AiDriver(pacer, track, car, raceRef(), {
-      lateralOffset: CONFIG.ai.lateralOffsets[i],
-      routeStartFrac: CONFIG.ai.routeStartFrac[i],
-      id: `ai${i}`,
-    });
-    driver.placeAtStart();
-    syncCarMesh(mesh, car);
-    ai.push({ car, mesh, driver, physics: car });
-  }
-  // raceRef placeholder replaced below with real controller after construction.
-
-  const race = new RaceController(CONFIG);
-  // Recreate drivers bound to the real race controller.
-  ai.length = 0;
-  for (let i = 0; i < CONFIG.race.aiCount; i++) {
-    const car = new CarPhysics();
-    const mesh = createCarMesh(getAIColors()[i]);
+    const mesh = createCarMesh(AI_COLORS[i % AI_COLORS.length]);
     scene.add(mesh);
     const pacer = new AiPacer(CONFIG, CONFIG.ai.skills[i]);
     const driver = new AiDriver(pacer, track, car, race, {
@@ -116,9 +98,8 @@ function main() {
     syncCarMesh(mesh, car);
     ai.push({ car, mesh, driver });
   }
-  race.registerRacer('player');
 
-  // Camera chase.
+  // Chase camera.
   const chase = new ChaseCamera(camera, playerCar);
   chase.teleport();
 
@@ -130,9 +111,8 @@ function main() {
   const keyboard = new KeyboardState().attach(window);
   window.__LAPS__ = CONFIG.race.laps;
 
-  // Speed lines geometry.
-  const lineGeo = speedLines.geo;
-  const linePos = lineGeo.attributes.position.array;
+  // Speed-line streak geometry (static, rotating group).
+  const linePos = speedLines.geo.attributes.position.array;
   for (let i = 0; i < 44; i++) {
     const a = (i / 44) * Math.PI * 2;
     const r1 = 30;
@@ -144,24 +124,22 @@ function main() {
     linePos[i * 6 + 4] = -2 - (i % 3);
     linePos[i * 6 + 5] = Math.sin(a) * r2;
   }
-  lineGeo.attributes.position.needsUpdate = true;
+  speedLines.geo.attributes.position.needsUpdate = true;
 
-  // State-machine timing.
+  // State timing.
   let countdown = CONFIG.race.countdown;
-  let phase = 'countdown'; // 'countdown' | 'racing' | 'finished'
-
-  // Fixed-delta accumulator.
-  const FIXED_DT = 1 / 120;
+  let phase = 'countdown';
   let last = performance.now();
   let acc = 0;
   let frame = 0;
-
+  let speedLinesT = 0;
   const clock = new THREE.Clock();
+  const FIXED_DT = 1 / 120;
 
   function restart() {
     race.reset();
     playerCar.teleport(startP.x, startP.z, track.headingAt(0));
-    playerMesh.position.copy(playerCar.position);
+    syncCarMesh(playerMesh, playerCar);
     nitro.reset();
     chase.teleport();
     postfx.setSpeedBlur(0);
@@ -171,8 +149,11 @@ function main() {
     }
     countdown = CONFIG.race.countdown;
     phase = 'countdown';
+    frame = 0;
+    speedLinesT = 0;
     hud.hideFinish();
   }
+
   window.addEventListener('keydown', (e) => {
     if (e.code === 'KeyR') restart();
   });
@@ -189,37 +170,33 @@ function main() {
 
     if (phase === 'countdown') {
       countdown -= dt;
-      const show = Math.ceil(countdown);
+      const show = Math.max(1, Math.ceil(countdown));
       hud.showCountdown(show);
       if (countdown <= 0) {
         phase = 'racing';
         hud.hideCountdown();
         race.reset();
-        race.tick(0);
         playerCar.teleport(startP.x, startP.z, track.headingAt(0));
       }
     }
+
+    const boosting = nitro.boosting;
 
     if (phase === 'racing' || phase === 'finished') {
       race.tick(dt);
 
       // Player physics.
-      const nitroActive = nitro.boosting;
-      const controlsDirect = {
+      playerCar.update(dt, {
         throttle: controls.throttle,
         brake: controls.brake,
         handbrake: controls.handbrake,
         steer: (controls.right ? 1 : 0) - (controls.left ? 1 : 0),
         nitroRequested: controls.nitro,
-      };
-      const boostMult = nitro.boosting ? CONFIG.nitrous.boostAccelMult : 1;
-      playerCar.update(dt, {
-        ...controlsDirect,
-        boostMult: nitroActive ? boostMult : 1,
+        boostMult: boosting ? CONFIG.nitrous.boostAccelMult : 1,
       });
       syncCarMesh(playerMesh, playerCar);
 
-      // Nitrous charge from drift slip.
+      // Nitrous charge from drift slip, then consume/decay.
       nitro.addSlip(dt, playerCar.lateralSlip);
       nitro.update(dt, controls.nitro);
       const playerFrac = track.routeFracFor(playerCar.position);
@@ -229,9 +206,13 @@ function main() {
         a.driver.update(dt, playerFrac, frame);
         syncCarMesh(a.mesh, a.car);
       }
+
+      // Soft bounds: clamp player to track width.
+      clampToTrack(playerCar, track);
+
       frame++;
 
-      // Race progress (throttled for player to reduce churn).
+      // Race progress (throttled to reduce churn).
       if ((frame & 3) === 0) {
         const res = race.updateProgress('player', playerFrac);
         if (res.finished) {
@@ -240,31 +221,22 @@ function main() {
         }
       }
 
-      // Soft bounds: clamp player to track width.
-      clampToTrack(playerCar, track);
-
-      // FX.
-      const speed01 = Math.max(0, Math.min(1, Math.abs(playerCar.speed) / playerCar.topSpeed));
-      postfx.setSpeedBlur(speed01 * (nitroActive ? 1.2 : 1));
-      updateSpeedLines(speedLines, speed01, nitroActive, dt);
-      updateTrail(trail, playerCar, nitroActive, dt);
+      // FX scaled by speed.
+      const speed01 = speedNorm();
+      postfx.setSpeedBlur(speed01 * (boosting ? 1.2 : 1));
+      updateSpeedLines(speed01, boosting, dt);
+      updateTrail(boosting, dt);
 
       // Exhaust flames.
       const flameGroup = playerMesh.getObjectByName('exhaust');
       if (flameGroup) {
-        flameGroup.visible = nitroActive;
-        if (nitroActive) {
-          flameGroup.scale.setScalar(0.85 + 0.3 * Math.random());
-        }
+        flameGroup.visible = boosting;
+        if (boosting) flameGroup.scale.setScalar(0.85 + 0.3 * Math.random());
       }
-      playerMesh.userData.bodyMat && (playerMesh.userData.bodyMat.emissive.setHex(nitroActive ? 0x33aaff : 0x001122));
-
-      // Camera set to always follow even before race begins (options set below each frame).
     }
 
     // Chase camera always active.
-    const speed01 = Math.max(0, Math.min(1, Math.abs(playerCar.speed) / playerCar.topSpeed));
-    chase.update(dt, { boosting: nitroActive, speed01 });
+    chase.update(dt, { boosting, speed01: speedNorm() });
 
     // Neon flicker.
     const time = clock.getElapsedTime();
@@ -272,22 +244,26 @@ function main() {
 
     // HUD.
     if (phase !== 'finished') {
-      const standing = race.standings();
       const playerRacer = race.racers.get('player');
       hud.update({
         speed: playerCar.speed,
         nitroFraction: nitro.fraction,
-        boosting: nitroActive,
+        boosting,
         drifting: playerCar.isDrifting,
         lap: playerRacer.laps,
         totalLaps: CONFIG.race.laps,
-        lapTime: playerRacer.laps > 0
-          ? (playerRacer.lapTimes[playerRacer.lapTimes.length - 1] ?? 0)
-          : race.totalElapsed,
+        lapTime:
+          playerRacer.laps > 0
+            ? playerRacer.lapTimes[playerRacer.lapTimes.length - 1] ?? 0
+            : race.totalElapsed,
         totalTime: race.totalElapsed,
-        standings: standing,
+        standings: race.standings(),
       });
     }
+  }
+
+  function speedNorm() {
+    return Math.max(0, Math.min(1, Math.abs(playerCar.speed) / playerCar.topSpeed));
   }
 
   function finish() {
@@ -297,7 +273,7 @@ function main() {
       finals[r.id] = r.totalTime || r.lapTimes[r.lapTimes.length - 1] || 0;
     }
     const p = race.racers.get('player');
-    hud.showFinish(standing, finals, p ? (p.totalTime || race.totalElapsed) : 0);
+    hud.showFinish(standing, finals, p ? p.totalTime || race.totalElapsed : 0);
   }
 
   function clampToTrack(car, tr) {
@@ -310,40 +286,32 @@ function main() {
       const sign = Math.sign(off);
       const targetX = c.x + dir.z * sign * maxOff;
       const targetZ = c.z - dir.x * sign * maxOff;
-      // Soft: pull toward bound, reduce speed so you don't skid out often.
       car.position.x += (targetX - car.position.x) * 0.35;
       car.position.z += (targetZ - car.position.z) * 0.35;
       car.speed *= 0.985;
     }
   }
 
-  let speedLinesT = 0;
-  function updateSpeedLines(sl, speed01, boosting, dt) {
+  function updateSpeedLines(speed01, boosting, dt) {
     speedLinesT += dt;
     const active = boosting || speed01 > 0.86;
-    sl.mat.opacity = active ? 0.4 * (boosting ? 0.5 : speed01) : 0;
-    sl.group.visible = active;
-    if (active) {
-      sl.group.rotation.y += dt * (0.5 + speed01 * 2);
-    }
+    speedLines.mat.opacity = active ? 0.4 * (boosting ? 0.5 : speed01) : 0;
+    speedLines.group.visible = active;
+    if (active) speedLines.group.rotation.y += dt * (0.5 + speed01 * 2);
   }
 
-  function updateTrail(tl, car, active, dt) {
-    tl.visible = active;
-    if (!active) return;
-    const attrs = tl.geometry.attributes;
-    const pos = attrs.position.array;
-    const cursor = tl.userData.cursor;
-    // Emit behind the car.
-    const bx = car.position.x - Math.sin(car.heading) * 2.6;
-    const bz = car.position.z - Math.cos(car.heading) * 2.6;
+  function updateTrail(active, dt) {
+    trail.visible = active;
+    if (!active || !frame) return;
+    const pos = trail.geometry.attributes.position.array;
+    const cursor = trail.userData.cursor;
+    const bx = playerCar.position.x - Math.sin(playerCar.heading) * 2.6;
+    const bz = playerCar.position.z - Math.cos(playerCar.heading) * 2.6;
     pos[cursor * 3] = bx;
     pos[cursor * 3 + 1] = 0.4;
     pos[cursor * 3 + 2] = bz;
-    tl.userData.cursor = (cursor + 1) % tl.userData.count;
-    attrs.position.needsUpdate = true;
-    // Fade by scaling size per particle approximated via opacity pulse.
-    void pos;
+    trail.userData.cursor = (cursor + 1) % trail.userData.count;
+    trail.geometry.attributes.position.needsUpdate = true;
     void dt;
   }
 
@@ -364,22 +332,6 @@ function main() {
   loop();
 }
 
-// AI car colors fixed palette.
-function getAIColors() {
-  return [0xff3355, 0xffb020, 0x7cff5a, 0xffffff];
-}
-
-// The first AI loop above used a placeholder race controller; we re-create the
-// AI drivers cleanly after the real RaceController exists. To avoid dead code,
-// the helper below is defined but invoked once in the actual built list only.
-void main;
-void createWetGround;
-void createParticleTrail;
-void createSpeedLines;
-void flickerNeon;
-
 if (typeof window !== 'undefined' && document.getElementById('view')) {
   main();
 }
-
-export { main, getAIColors };
