@@ -1,0 +1,26 @@
+{
+  "name": "neon-racer-foundation",
+  "version": "0.1.0",
+  "description": "Three.js nighttime neon street racing game — foundation scaffold with tooling and shared race-domain contracts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "jest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "0.185.1"
+  },
+  "devDependencies": {
+    "@types/jest": "30.5.2",
+    "@types/node": "22.15.34",
+    "@types/three": "0.185.4",
+    "jest": "30.5.1",
+    "ts-jest": "29.4.12",
+    "typescript": "5.9.3",
+    "vite": "8.2.2"
+  }
+}
