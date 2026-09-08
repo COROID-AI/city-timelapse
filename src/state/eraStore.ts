@@ -56,6 +56,12 @@ export interface EraStore {
    * current year is the final era, progress stays at 1.
    */
   advance(delta: number): void;
+  /**
+   * Subscribe to selection changes. The listener is invoked (with no args)
+   * whenever `select` or `advance` mutates the store, so scene composition can
+   * re-render the block in place. Returns an unsubscribe function.
+   */
+  subscribe(listener: () => void): () => void;
 }
 
 /**
@@ -70,6 +76,13 @@ export function useEraStore(initialYear?: number): EraStore {
 
   let year: number = startYear;
   let progress: number = 0;
+  const listeners = new Set<() => void>();
+
+  const notify = (): void => {
+    for (const listener of listeners) {
+      listener();
+    }
+  };
 
   return {
     get current(): Readonly<EraSelection> {
@@ -82,13 +95,25 @@ export function useEraStore(initialYear?: number): EraStore {
       assertKnownYear(nextYear);
       year = nextYear;
       progress = 0;
+      notify();
     },
     advance(delta: number): void {
       if (year === ERA_YEARS[ERA_YEARS.length - 1]) {
         progress = 1;
         return;
       }
-      progress = Math.min(1, Math.max(0, progress + delta));
+      const next = Math.min(1, Math.max(0, progress + delta));
+      if (next === progress) {
+        return;
+      }
+      progress = next;
+      notify();
+    },
+    subscribe(listener: () => void): () => void {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
     },
   };
 }
