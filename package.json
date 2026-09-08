@@ -1,0 +1,21 @@
+{
+  "name": "classic-super-mario-browser-game",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Classic Super Mario browser game scaffold — vanilla JS + native Canvas only.",
+  "scripts": {
+    "game:serve": "node scripts/serve.mjs",
+    "game:test": "jest tests/game",
+    "game:e2e": "playwright test -c playwright.game.config.ts",
+    "game:verify": "node scripts/verify-game.mjs",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@babel/plugin-transform-typescript": "^8.0.1",
+    "@babel/preset-env": "^7.24.0",
+    "@playwright/test": "^1.63.0",
+    "babel-jest": "^29.7.0",
+    "jest": "^29.7.0"
+  }
+}

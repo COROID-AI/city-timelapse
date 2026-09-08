@@ -1,0 +1,9 @@
+# Node
+node_modules/
+
+# Playwright disposable test output (regenerated on every run)
+test-results/
+playwright-report/
+
+# Runtime logs
+*.log
