@@ -30,6 +30,12 @@ export function bootstrap() {
     caf: (id) => cancelAnimationFrame(id),
     getContext: () => ctx,
   });
+  // Expose the live instance for deterministic browser E2E scenarios
+  // (movement/jump still use real keyboard; stomp/coin setup scripts the
+  // real game state and HUD assertions sample real canvas pixels).
+  if (typeof window !== 'undefined') {
+    window.__game = game;
+  }
   game.start();
   return game;
 }
