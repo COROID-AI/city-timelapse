@@ -6,13 +6,19 @@
   "scripts": {
     "build": "tsc --noEmit && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "test": "jest && vitest run src/scenes/layout/__tests__",
+    "test": "jest && vitest run src/scenes",
     "test:jest": "jest",
     "test:vitest": "vitest run src/scenes/layout/__tests__"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/node": "^20.14.0",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
     "jest": "^29.7.0",
     "ts-jest": "^29.1.5",
     "typescript": "^5.5.4",
