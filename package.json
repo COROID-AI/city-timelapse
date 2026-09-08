@@ -6,9 +6,9 @@
   "scripts": {
     "build": "tsc --noEmit && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "test": "jest && vitest run src/scenes/layout/__tests__",
+    "test": "jest && vitest run src/scenes/layout/__tests__ src/scenes/navigation/__tests__",
     "test:jest": "jest",
-    "test:vitest": "vitest run src/scenes/layout/__tests__"
+    "test:vitest": "vitest run src/scenes/layout/__tests__ src/scenes/navigation/__tests__"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
