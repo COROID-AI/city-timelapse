@@ -160,9 +160,21 @@ export function createNeonSigns(track: TrackCurve, seed: number = 1): NeonCorrid
     }
   }
 
-  // Building silhouettes: dark boxes flanking the corridor.
-  const buildingMat = new THREE.MeshStandardMaterial({ color: 0x232a3d, roughness: 0.9 });
-  const windowMat = new THREE.MeshBasicMaterial({ color: 0x2a3a55 });
+  // Building silhouettes: dark-but-visible PBR boxes flanking the corridor.
+  // They stay late-night dark, but the stronger ambient/hemisphere fill keeps
+  // them readable against the sky instead of pitch black.
+  const buildingMat = new THREE.MeshStandardMaterial({
+    color: 0x2c3550,
+    roughness: 0.85,
+    metalness: 0.25,
+    emissive: 0x0a0e1c,
+    emissiveIntensity: 0.35,
+  });
+  // Windows glow warmly so lit towers read clearly in the dark.
+  const windowMat = new THREE.MeshBasicMaterial({
+    color: 0xffd9a0,
+    toneMapped: false,
+  });
   for (let i = 0; i < 26; i++) {
     const t = (i + 0.25) / 26;
     const point = track.getPoint(t);
@@ -183,11 +195,19 @@ export function createNeonSigns(track: TrackCurve, seed: number = 1): NeonCorrid
     group.add(building);
     buildings.push(building);
 
-    // A couple of lit windows give the silhouettes depth.
-    if (rand() < 0.5) {
-      const winGeo = new THREE.PlaneGeometry(2.5, 1.6);
+    // A few lit windows per tower give the silhouettes depth and make the
+    // buildings unmistakably "lit" against the night sky.
+    const winCount = 2 + Math.floor(rand() * 3);
+    for (let w = 0; w < winCount; w++) {
+      const winGeo = new THREE.PlaneGeometry(2.6 + rand() * 2, 1.8 + rand() * 1.4);
       const win = new THREE.Mesh(winGeo, windowMat);
-      win.position.copy(building.position).add(new THREE.Vector3(side * (bw / 2 + 0.1), rand() * bh * 0.6, 0));
+      win.position.copy(building.position).add(
+        new THREE.Vector3(
+          side * (bw / 2 + 0.15),
+          (0.15 + rand() * 0.7) * bh,
+          (rand() - 0.5) * bd * 0.5,
+        ),
+      );
       win.rotation.y = Math.atan2(tangent.x, tangent.z) + (side > 0 ? Math.PI : 0);
       group.add(win);
     }
