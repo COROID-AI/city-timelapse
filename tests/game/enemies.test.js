@@ -144,8 +144,9 @@ describe('stomp / squash', () => {
       goombas: [{ x: 80, y: 48 - 12 }],
     });
 
-    // Player falls onto the Goomba's top with downward velocity.
-    const player = makePlayer(80, 48 - 12 - 16);
+    // Player falls onto the Goomba's top with downward velocity. The player's
+    // feet (bottom) penetrate the Goomba's top but stay above its mid-height.
+    const player = makePlayer(80, 48 - 12 - 16 + 4);
     player.vy = 2;
 
     enemies.update(1, player);
@@ -174,7 +175,7 @@ describe('stomp / squash', () => {
       goombas: [{ x: 80, y: 48 - 12 }],
     });
 
-    const player = makePlayer(80, 48 - 12 - 16);
+    const player = makePlayer(80, 48 - 12 - 16 + 4);
     player.vy = 2;
     enemies.update(1, player);
     expect(enemies.getContacts()).toHaveLength(1);
@@ -244,7 +245,7 @@ describe('enemy manager API', () => {
       physics,
       goombas: [{ x: 80, y: 48 - 12 }],
     });
-    const player = makePlayer(80, 48 - 12 - 16);
+    const player = makePlayer(80, 48 - 12 - 16 + 4);
     player.vy = 2;
     enemies.update(1, player);
 
