@@ -1,0 +1,22 @@
+{
+  "name": "neon-street-racer",
+  "version": "0.1.0",
+  "description": "Three.js neon street racer — shared race contracts, fixed-timestep game loop, and arrow-key input foundation.",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "test": "jest"
+  },
+  "dependencies": {
+    "three": "^0.186.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/three": "^0.185.4",
+    "jest": "^30.5.1",
+    "ts-jest": "^29.4.12",
+    "typescript": "^5.9.3",
+    "vite": "^8.2.2"
+  }
+}
