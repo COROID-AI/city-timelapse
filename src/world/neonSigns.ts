@@ -161,7 +161,7 @@ export function createNeonSigns(track: TrackCurve, seed: number = 1): NeonCorrid
   }
 
   // Building silhouettes: dark boxes flanking the corridor.
-  const buildingMat = new THREE.MeshStandardMaterial({ color: 0x0b0e1a, roughness: 0.9 });
+  const buildingMat = new THREE.MeshStandardMaterial({ color: 0x232a3d, roughness: 0.9 });
   const windowMat = new THREE.MeshBasicMaterial({ color: 0x2a3a55 });
   for (let i = 0; i < 26; i++) {
     const t = (i + 0.25) / 26;

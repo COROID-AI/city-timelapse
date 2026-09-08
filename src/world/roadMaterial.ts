@@ -18,7 +18,7 @@ import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 import { ROAD_HALF_WIDTH } from './track';
 
 /** Road surface PBR parameters (wet asphalt). */
-const ASPHALT_COLOR = 0x0c1016;
+const ASPHALT_COLOR = 0x232934;
 const ASPHALT_ROUGHNESS = 0.28;
 const ASPHALT_METALNESS = 0.35;
 

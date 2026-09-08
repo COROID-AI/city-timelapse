@@ -12,8 +12,15 @@
  * Key mapping (JSON-safe, documented for the HUD):
  *   - ArrowUp                -> throttle +1    (drive forward)
  *   - ArrowDown              -> throttle -1    (reverse)
- *   - ArrowLeft              -> steer -1       (full left)
- *   - ArrowRight             -> steer +1       (full right)
+ *   - ArrowLeft              -> steer +1       (turn left)
+ *   - ArrowRight             -> steer -1       (turn right)
+ *
+ * Steering sign: the physics convention ascending `yaw` (via a positive steer
+ * value) swings the car's forward vector from +Z toward +X. Viewed from the
+ * chase camera (which looks down the car's forward axis) a positive `steer`
+ * therefore turns the car toward the player's **left** (screen-left = +X when
+ * looking down +Z with +Y up). So ArrowLeft maps to `steer +1` and ArrowRight
+ * to `steer -1` to keep the on-screen direction intuitive.
  *   - Space / ShiftLeft/Right-> nitrous boost trigger
  *
  * BOOST TRIGGER CHOICE (recorded): **Space (Shift as documented alternative)**.
@@ -170,7 +177,7 @@ export function attachKeyboardInput(target: Window = window): KeyboardInput {
       return {
         // No throttle while reversing and vice-versa (a single axis).
         throttle: held.throttle ? 1 : held.reverse ? -1 : 0,
-        steer: held.left ? -1 : held.right ? 1 : 0,
+        steer: held.left ? 1 : held.right ? -1 : 0,
         brake: held.reverse,
         nitrous: held.boost,
       };

@@ -65,14 +65,14 @@ describe('attachKeyboardInput — arrow-key mapping', () => {
     kb.dispose();
   });
 
-  it('maps ArrowLeft / ArrowRight to steer -1 / +1', () => {
+  it('maps ArrowLeft / ArrowRight to steer +1 / -1 (left turns landward)', () => {
     const target = makeTarget();
     const kb = attachKeyboardInput(target as unknown as Window);
     target.fire('keydown', { code: 'ArrowLeft', key: 'ArrowLeft', preventDefault() {} });
-    expect(kb.input().steer).toBe(-1);
+    expect(kb.input().steer).toBe(1);
     target.fire('keyup', { code: 'ArrowLeft', key: 'ArrowLeft', preventDefault() {} });
     target.fire('keydown', { code: 'ArrowRight', key: 'ArrowRight', preventDefault() {} });
-    expect(kb.input().steer).toBe(1);
+    expect(kb.input().steer).toBe(-1);
     kb.dispose();
   });
 
@@ -110,7 +110,7 @@ describe('held-key lifecycle', () => {
     target.fire('keydown', { code: 'ArrowUp', key: 'ArrowUp', preventDefault() {} });
     target.fire('keydown', { code: 'ArrowRight', key: 'ArrowRight', preventDefault() {} });
     expect(kb.input().throttle).toBe(1);
-    expect(kb.input().steer).toBe(1);
+    expect(kb.input().steer).toBe(-1);
     target.fire('blur', {});
     expect(kb.input().throttle).toBe(0);
     expect(kb.input().steer).toBe(0);

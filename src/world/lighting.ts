@@ -9,11 +9,11 @@
 import * as THREE from 'three';
 
 /** Clear-sky color (dark blue-purple night). */
-export const NIGHT_SKY = 0x0a0a2a;
+export const NIGHT_SKY = 0x141638;
 /** Fog color — slightly warmer than the sky so it reads as city haze. */
-export const FOG_COLOR = 0x12102e;
+export const FOG_COLOR = 0x1c1a3c;
 /** Fog start distance (world units). */
-export const FOG_NEAR = 180;
+export const FOG_NEAR = 60;
 /** Fog end distance (world units). */
 export const FOG_FAR = 640;
 
@@ -39,10 +39,10 @@ export function createNightLighting(scene: THREE.Scene): NightLighting {
 
   const group = new THREE.Group();
 
-  const ambient = new THREE.AmbientLight(0x4455aa, 0.55);
+  const ambient = new THREE.AmbientLight(0x6677cc, 0.95);
   group.add(ambient);
 
-  const moon = new THREE.DirectionalLight(0xaac4ff, 1.1);
+  const moon = new THREE.DirectionalLight(0xaac4ff, 1.9);
   moon.position.set(30, 60, 20);
   group.add(moon);
 
