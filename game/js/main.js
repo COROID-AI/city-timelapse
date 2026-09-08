@@ -1,46 +1,50 @@
 /**
- * Minimal bootstrap: grab the canvas, clear it, and run the engine loop.
+ * Final game entrypoint.
  *
- * This is intentionally thin — the full game composition (state machine,
- * player, enemies, HUD) is wired in later phases. Here we only prove the
- * scaffold runs: canvas cleared and a registered demo object drawing each frame.
+ * Boots the canvas element from index.html and starts the fully composed game
+ * (game.js createGame()}). It is intentionally thin: all composition lives
+ * in game.js. This module only supplies the browser dependencies (the real
+ * requestAnimationFrame/cancelAnimationFrame and the 2D canvas context) and
+ * starts/stops the game loop.
  */
 
-import { Engine } from './engine.js';
-import { clearCanvas, drawPlayer } from './draw.js';
-import { VIEW_WIDTH, VIEW_HEIGHT } from './constants.js';
+import { createGame } from './game.js';
 
-function bootstrap() {
+/** @type {import('./game.js').Game|null} The live game instance. */
+let game = null;
+
+/**
+ * Grab the canvas from the DOM and boot the composed game..
+ *
+ * @returns {object} The started game instance..
+ */
+export function bootstrap() {
   const canvas = document.getElementById('game-canvas');
   if (!canvas) {
     throw new Error('game-canvas element not found');
   }
   const ctx = canvas.getContext('2d');
 
-  // Initial clear so the page never flashes uninitialized.
-  clearCanvas(ctx);
-
-  const engine = new Engine({
+  game = createGame({
     raf: (cb) => requestAnimationFrame(cb),
     caf: (id) => cancelAnimationFrame(id),
     getContext: () => ctx,
   });
-
-  // Demo object: clears the canvas each frame and draws a placeholder player.
-  engine.add({
-    update(_engine, _dt) {
-      // No simulation logic yet in the scaffold.
-    },
-    draw(context) {
-      clearCanvas(context);
-      drawPlayer(context, Math.round(VIEW_WIDTH / 2) - 8, Math.round(VIEW_HEIGHT / 2) - 8);
-    },
-  });
-
-  engine.start();
+  game.start();
+  return game;
 }
 
-// Wait for the module to be parsed after the DOM is available.
+/**
+ * Stop the running game (used by tests / page teardown)..
+ */
+export function shutdown() {
+  if (game) {
+    game.stop();
+    game = null;
+  }
+}
+
+// Wait for the module to be parsed after the DOM is available..
 if (typeof document !== 'undefined') {
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', bootstrap);
@@ -49,4 +53,4 @@ if (typeof document !== 'undefined') {
   }
 }
 
-export { bootstrap };
+export default { bootstrap, shutdown };
