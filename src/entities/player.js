@@ -128,6 +128,15 @@ export function createPlayer({ x = 0, y = 0, hooks = {} } = {}) {
   }
 
   /**
+   * Clears the flagpole lock, returning to normal state.
+   */
+  function clearFlagSlide() {
+    if (state === 'flagSlide') {
+      state = 'idle';
+      flagSlideLocked = false;
+    }
+  }
+  /**
    * Locks the player to the flagpole for the finish sequence.
    *
    * @param {number} poleX Center X position of the flagpole.
@@ -353,6 +362,7 @@ export function createPlayer({ x = 0, y = 0, hooks = {} } = {}) {
     bounce,
     die,
     setFlagSlide,
+    clearFlagSlide,
     isInvincible,
   };
 }

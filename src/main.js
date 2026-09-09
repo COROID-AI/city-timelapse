@@ -1,27 +1,60 @@
 /**
  * Entry point for the game page (type="module").
  *
- * This is a replaceable stub owned by the foundation task: it wires the
- * logical canvas, clears it to the sky color, and renders each frame.
- * The composition task (game-states-composition) rewrites this module later
- * to start the real game loop.
+ * Bootstraps the full classic Super Mario game on #game-canvas, wires the
+ * browser's native requestAnimationFrame into the game loop, and starts the game.
+ *
+ * Consumed by index.html in the browser and headless tests via bootstrapGame().
+ *
+ * @module main
  */
+
 import { CONSTANTS } from './core/constants.js';
+import { createGame } from './game/game.js';
 
-const canvas = document.getElementById('game-canvas');
-const context = canvas.getContext('2d');
+/**
+ * Bootstraps the game on a canvas element.
+ *
+ * @param {HTMLCanvasElement|object} [canvas] Target canvas element
+ * @param {object} [options] Optional createGame configuration overrides
+ * @returns {object|null} GameHandle
+ */
+export function bootstrapGame(canvas, options = {}) {
+  const targetCanvas =
+    canvas || (typeof document !== 'undefined' ? document.getElementById('game-canvas') : null);
 
-// The canvas is scaled to its CSS size by the stylesheet; the internal
-// drawing surface stays at the logical 256x240 resolution.
-canvas.width = CONSTANTS.VIEWPORT_WIDTH;
-canvas.height = CONSTANTS.VIEWPORT_HEIGHT;
+  if (!targetCanvas) {
+    return null;
+  }
 
-function frame() {
-  context.fillStyle = CONSTANTS.COLORS.sky;
-  context.fillRect(0, 0, CONSTANTS.VIEWPORT_WIDTH, CONSTANTS.VIEWPORT_HEIGHT);
+  // Set logical canvas resolution
+  targetCanvas.width = CONSTANTS.VIEWPORT_WIDTH;
+  targetCanvas.height = CONSTANTS.VIEWPORT_HEIGHT;
+
+  const game = createGame({
+    canvas: targetCanvas,
+    requestFrame:
+      typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
+        ? window.requestAnimationFrame.bind(window)
+        : undefined,
+    cancelFrame:
+      typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function'
+        ? window.cancelAnimationFrame.bind(window)
+        : undefined,
+    target: typeof window !== 'undefined' ? window : undefined,
+    ...options,
+  });
+
+  game.start();
+  return game;
 }
 
-frame();
+// Auto-start in browser environment when the document is ready
+if (typeof document !== 'undefined') {
+  const canvasElement = document.getElementById('game-canvas');
+  if (canvasElement) {
+    bootstrapGame(canvasElement);
+  }
+}
 
-// Keep the page alive and idle-ready for the composition task's game loop.
-window.addEventListener('resize', frame);
+export default bootstrapGame;
