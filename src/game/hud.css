@@ -1,0 +1,274 @@
+/*
+ * Neon Street Racer — HUD overlay stylesheet.
+ *
+ * Dark glass panels with neon accents matching the night theme of the
+ * street racer. The overlay is a DOM layer independent of the WebGL
+ * pipeline, so all typography, glow, and gauge states live here.
+ */
+
+#neon-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: #e8f6ff;
+  font-family: 'Segoe UI', 'Arial', sans-serif;
+  user-select: none;
+}
+
+/* --- Dark glass panel skin ------------------------------------------------- */
+
+.neon-panel {
+  background: rgba(8, 12, 26, 0.72);
+  border: 1px solid rgba(0, 229, 255, 0.42);
+  border-radius: 10px;
+  box-shadow:
+    0 0 12px rgba(0, 229, 255, 0.22),
+    0 0 1px rgba(255, 43, 214, 0.35);
+  backdrop-filter: blur(4px);
+}
+
+.neon-title {
+  font-size: 9px;
+  letter-spacing: 2.4px;
+  text-transform: uppercase;
+  color: rgba(0, 229, 255, 0.8);
+}
+
+/* --- Top-left: speed -------------------------------------------------------- */
+
+#neon-hud-speed {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  min-width: 148px;
+}
+
+#neon-hud-speed-value {
+  display: block;
+  font-size: 34px;
+  font-weight: 700;
+  color: #aefcff;
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.85);
+}
+
+#neon-hud-speed-units {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: rgba(232, 246, 255, 0.62);
+}
+
+/* --- Top-right: lap + timer ------------------------------------------------- */
+
+#neon-hud-lap {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  min-width: 120px;
+}
+
+#neon-hud-lap-text {
+  display: block;
+  font-size: 22px;
+  font-weight: 700;
+  color: #ff2bd6;
+  text-shadow: 0 0 10px rgba(255, 43, 214, 0.8);
+}
+
+#neon-hud-timer {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  color: #e8f6ff;
+}
+
+/* --- Bottom-left: nitrous gauge ---------------------------------------------- */
+
+#neon-hud-nitrous {
+  position: absolute;
+  bottom: 18px;
+  left: 14px;
+  min-width: 240px;
+}
+
+#neon-hud-nitrous-track {
+  position: relative;
+  width: 220px;
+  height: 14px;
+  margin-top: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(160, 82, 255, 0.5);
+  border-radius: 7px;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.8);
+}
+
+#neon-hud-nitrous-fill {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  left: 1px;
+  width: 0%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #7a5cff, #b06bff);
+  box-shadow: 0 0 10px rgba(122, 92, 255, 0.95);
+  transition: width 90ms linear;
+}
+
+/* Flashing state while the nitrous boost is active. */
+#neon-hud-nitrous-fill.neon-boost {
+  background: linear-gradient(90deg, #ffffff, #5ee8ff, #ff2bd6);
+  box-shadow:
+    0 0 16px rgba(94, 232, 255, 0.95),
+    0 0 24px rgba(255, 43, 214, 0.6);
+  animation: neon-hud-boost-flash 140ms steps(2, end) infinite;
+}
+
+@keyframes neon-hud-boost-flash {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.25;
+  }
+}
+
+/* --- Bottom-left: live standings --------------------------------------------- */
+
+#neon-hud-standings {
+  position: absolute;
+  bottom: 18px;
+  right: 14px;
+  width: 230px;
+}
+
+#neon-hud-standings-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+
+.neon-standings-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 8px;
+}
+
+.neon-standings-position {
+  width: 16px;
+  font-size: 11px;
+  color: rgba(232, 246, 255, 0.75);
+}
+
+.neon-standings-chip {
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 50%;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.neon-standings-id {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.neon-standings-time {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(232, 246, 255, 0.7);
+}
+
+/* --- Center: countdown / results ---------------------------------------------- */
+
+#neon-hud-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: none;
+}
+
+#neon-hud-countdown {
+  font-size: 96px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+}
+
+#neon-hud-countdown.neon-go {
+  color: #3dffb0;
+  text-shadow: 0 0 22px rgba(61, 255, 176, 0.9);
+}
+
+#neon-hud-countdown:not(.neon-go) {
+  color: #ffd52e;
+  text-shadow: 0 0 18px rgba(255, 213, 46, 0.8);
+}
+
+#neon-hud-results {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 340px;
+  max-width: 480px;
+  display: none;
+}
+
+.neon-results-title {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-align: center;
+  color: #ffd52e;
+  text-shadow: 0 0 18px rgba(255, 213, 46, 0.9);
+  display: block;
+}
+
+#neon-hud-results-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+.neon-results-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-bottom: 1px solid rgba(0, 229, 255, 0.14);
+}
+
+.neon-results-position {
+  width: 22px;
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(232, 246, 255, 0.85);
+}
+
+.neon-results-chip {
+  width: 12px;
+  height: 12px;
+  margin-right: 8px;
+  border-radius: 50%;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.neon-results-id {
+  flex: 1 1 auto;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.neon-results-lap {
+  font-size: 12px;
+  color: rgba(232, 246, 255, 0.62);
+}
+
+.neon-results-time {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: #7fd7ff;
+}
