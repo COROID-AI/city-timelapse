@@ -84,6 +84,8 @@ export interface RacerDiagnostics {
     appliedFov: number;
     blurDamp: number;
   };
+  /** Renderer strategy the software-GL gate chose for this session. */
+  rendererStrategy: 'software' | 'hardware' | 'mock';
   counts: {
     rivals: number;
     signs: number;
@@ -115,6 +117,15 @@ export interface NeonRacerHandle {
 export interface WebGLRendererLike {
   setPixelRatio?: (ratio: number) => void;
   setSize?: (width: number, height: number, updateStyle?: boolean) => void;
+  getSize?: (target: THREE.Vector2) => THREE.Vector2;
+  getPixelRatio?: () => number;
+  getRenderTarget?: () => unknown;
+  // `any` (not `unknown`) keeps the surface assignable from both directions:
+  // a real THREE.WebGLRenderer (whose setRenderTarget takes a narrower
+  // WebGLRenderTarget type) and hermetic test mocks (no-arg stubs) both
+  // satisfy `(target: any) => void`.
+  setRenderTarget?: (target: any) => void;
+  setEffects?: (effects: any[]) => void;
   render: (scene: THREE.Object3D, camera: THREE.Camera) => void;
   dispose?: () => void;
 }
@@ -148,6 +159,17 @@ export function steerPlayerTowardTrack(
   player.state.heading += Math.max(-maxTurn, Math.min(maxTurn, diff)) * deltaSeconds;
 }
 
+/** True when the renderer-name string reports a CPU/software WebGL driver. */
+function isSoftwareRendererName(rendererName: string): boolean {
+  const name = rendererName.toLowerCase();
+  return (
+    name.includes('software') ||
+    name.includes('swiftshader') ||
+    name.includes('llvmpipe') ||
+    name.includes('angle')
+  );
+}
+
 /**
  * True when the canvas's WebGL context reports a software renderer
  * (SwiftShader / ANGLE "software" / "llvmpipe"), which stalls on the
@@ -159,14 +181,10 @@ export function isSoftwareGL(canvas: HTMLCanvasElement): boolean {
     if (!gl) return false;
     const attrs =
       typeof gl.getContextAttributes === 'function' ? gl.getContextAttributes() : null;
-    if (!attrs || typeof attrs.rendererName !== 'string') return false;
-    const name = attrs.rendererName.toLowerCase();
-    return (
-      name.includes('software') ||
-      name.includes('swiftshader') ||
-      name.includes('llvmpipe') ||
-      name.includes('angle')
-    );
+    if (!attrs) return false;
+    const { rendererName } = attrs as { rendererName?: unknown };
+    if (typeof rendererName !== 'string') return false;
+    return isSoftwareRendererName(rendererName);
   } catch {
     // Hermetic hosts / non-browser: default to hardware (full chain).
     return false;
@@ -205,7 +223,9 @@ export function composerRendererSurface(renderer: THREE.WebGLRenderer): WebGLRen
     },
     setRenderTarget: (target: unknown) => {
       try {
-        renderer.setRenderTarget(target);
+        renderer.setRenderTarget(
+          target as Parameters<typeof renderer.setRenderTarget>[0],
+        );
       } catch {
         // Best effort.
       }
@@ -246,12 +266,26 @@ export function startGame(
   mockGL?: WebGLRendererLike,
   restartButton?: HTMLElement | null,
 ): NeonRacerHandle {
+  // --- Software-GL probe (before the renderer exists) -------------------------
+  //
+  // Native post-processing (`renderer.setEffects` → bloom + afterimage passes +
+  // tone-mapped fullscreen readback) is GPU-expensive and SwiftShader / ANGLE
+  // software renderers (the managed browser harness) stall on the synchronous
+  // GPU→CPU pixel readback, freezing the page. Probe the GL context first so a
+  // software renderer gets the *plain* UnsignedByte output path (no HalfFloat
+  // WebGLOutput compositing at all) — the strongest guarantee that the harness
+  // stays interactive — while capable GPUs keep the full effects chain.
+  const softwareGL = isSoftwareGL(canvas);
+
   // --- Renderer + scene -----------------------------------------------------
   const renderer: WebGLRendererLike =
     mockGL ??
     new THREE.WebGLRenderer({
       canvas,
-      outputBufferType: THREE.HalfFloatType,
+      // Software GL (harness): direct-to-canvas UnsignedByte output — no
+      // HalfFloat compositing path to stall on. Hardware GL: HalfFloat so the
+      // effects pipeline can register its bloom + afterimage post-processing.
+      outputBufferType: softwareGL ? THREE.UnsignedByteType : THREE.HalfFloatType,
       antialias: true,
     });
 
@@ -270,18 +304,6 @@ export function startGame(
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x05060f);
   scene.name = 'neon-street-racer-scene';
-
-  // --- Renderer capability gate (software-GL safety) --------------------------
-  //
-  // Native post-processing (`renderer.setEffects` → bloom + afterimage passes
-  // + tone-mapped fullscreen readback) is GPU-expensive; three's own output
-  // path engages whenever passes are registered. SwiftShader / ANGLE software
-  // renderers (the managed browser harness) stall on the readback and freeze
-  // the page. When the GL context reports a software renderer, the effects
-  // pipeline still constructs with the full composer + owned blur/FOV/flame
-  // state but does NOT register the native pass chain, so rendering goes
-  // direct-to-canvas and stays interactive. Capable GPUs get the full chain.
-  const softwareGL = isSoftwareGL(canvas);
 
   // --- Input (the loop's shared live snapshot) ---------------------------------
   const inputManager = createInputManager();
@@ -485,6 +507,11 @@ export function startGame(
         appliedFov: effects.appliedFov,
         blurDamp: effects.blurDamp,
       },
+      rendererStrategy: mockGL
+        ? 'mock'
+        : softwareGL
+          ? 'software'
+          : 'hardware',
       counts: {
         rivals: ai.rivals.length,
         signs: track.signs.length,

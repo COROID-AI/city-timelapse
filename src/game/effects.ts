@@ -645,7 +645,8 @@ export function createEffectsPipeline(
       return shakeOffset;
     },
     get shakeAmplitude(): number {
-      const speedT = clamp01(car?.state?.speed ?? 0 / opts.maxSpeed);
+      const speed = car?.state?.speed;
+      const speedT = clamp01((Number.isFinite(speed) ? speed : 0) / opts.maxSpeed);
       const boostFactor = boostActive ? 1.8 : 0.35;
       return opts.shakeAmplitude * (0.6 + 0.4 * speedT) * boostFactor;
     },

@@ -18,7 +18,7 @@
  */
 import * as THREE from 'three';
 
-import { startGame } from '../src/game/main';
+import { isSoftwareGL, startGame } from '../src/game/main';
 import type { InputState } from '../src/game/contracts';
 
 /** Hermetic renderer satisfying the composer surface (no WebGL context). */
@@ -41,6 +41,13 @@ function makeMockGL() {
 const GO: InputState = { up: true, left: false, right: false, down: false, nitrous: false };
 const IDLE: InputState = { up: false, left: false, right: false, down: false, nitrous: false };
 
+/** jsdom has no WebGL; force the canvas GL probe to return a fake context. */
+function stubCanvasGL(canvas: HTMLCanvasElement, rendererName: string): void {
+  const gl = { getContextAttributes: () => ({ rendererName }) };
+  const target = canvas as unknown as { getContext?: () => unknown };
+  target.getContext = () => gl;
+}
+
 /** Run `seconds` of simulation through the loop's deterministic stepFrame. */
 function runSeconds(game: ReturnType<typeof startGame>, seconds: number, input: InputState): void {
   Object.assign(game.input, input);
@@ -59,6 +66,9 @@ describe('startGame composition (wired street racer)', () => {
   let restartButton: HTMLButtonElement;
 
   beforeEach(() => {
+    // jsdom does not implement canvas.getContext() (it throws). Silence the
+    // "Not implemented" console noise the GL probe intentionally swallows.
+    jest.spyOn(console, 'error').mockImplementation(() => {});
     document.body.innerHTML = `
       <div id="game-root">
         <canvas id="game-canvas" width="800" height="600"></canvas>
@@ -73,7 +83,52 @@ describe('startGame composition (wired street racer)', () => {
   });
 
   afterEach(() => {
+    jest.restoreAllMocks();
     document.body.innerHTML = '';
+  });
+
+  describe('software-GL engine probe (isSoftwareGL)', () => {
+    it('reports true for SwiftShader / ANGLE software renderers (managed harness)', () => {
+      const canvas = document.createElement('canvas');
+      stubCanvasGL(
+        canvas,
+        'ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 16.0.0) (0x0000C0DE)), SwiftShader driver)',
+      );
+      expect(isSoftwareGL(canvas)).toBe(true);
+    });
+
+    it('reports false for a hardware GPU renderer name', () => {
+      const canvas = document.createElement('canvas');
+      stubCanvasGL(canvas, 'Mozilla Vulkan 1.3.0 (AMD Radeon RX 7900 XTX)');
+      expect(isSoftwareGL(canvas)).toBe(false);
+    });
+
+    it('returns false (hardware chain) when the GL context is absent or non-probing', () => {
+      const canvas = document.createElement('canvas');
+      canvas.getContext = () => null;
+      expect(isSoftwareGL(canvas)).toBe(false);
+    });
+  });
+
+  describe('software-GL gate + renderer injection are decoupled', () => {
+    it('reports the mock strategy when a mocked renderer is injected, even on a software-GL canvas', () => {
+      // The GL probe sees SwiftShader; the caller still supplies a hermetic
+      // mock so no real renderer is constructed. The gate must not force a
+      // real renderer and must cleanly report the chosen strategy.
+      stubCanvasGL(canvas, 'ANGLE (SwiftShader Device), SwiftShader driver');
+      const game = startGame(canvas, host, makeMockGL(), restartButton);
+      expect(game.diagnostics.rendererStrategy).toBe('mock');
+      expect(() => game.dispose()).not.toThrow();
+    });
+
+    it('produces a functioning race even when no WebGL context exists (hermetic)', () => {
+      // No getContext override → jsdom throws "Not implemented" inside the
+      // probe; isSoftwareGL() swallows it and startGame proceeds with the mock.
+      const game = startGame(canvas, host, makeMockGL(), restartButton);
+      runSeconds(game, 3.5, IDLE);
+      expect(game.diagnostics.phase).toBe('racing');
+      expect(() => game.dispose()).not.toThrow();
+    });
   });
 
   it('instantiates the fully wired game and exposes diagnostics + clean dispose', () => {
@@ -84,6 +139,8 @@ describe('startGame composition (wired street racer)', () => {
     expect(game.restartRace).toBeInstanceOf(Function);
 
     const diag = game.diagnostics;
+    // A mocked renderer (hermetic) reports the mock strategy.
+    expect(diag.rendererStrategy).toBe('mock');
     // All seven systems + loop + input are wired into the comPOSITION.
     expect(diag.counts.rivals).toBe(3);
     expect(diag.counts.signs).toBeGreaterThanOrEqual(8);
