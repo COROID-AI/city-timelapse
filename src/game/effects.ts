@@ -228,6 +228,10 @@ export interface EffectsPipeline extends EffectsPipelineHandle {
   readonly boostActive: boolean;
   /** Current effective FOV written to the rig camera (baseline + surge). */
   readonly appliedFov: number;
+  /** Primary blue exhaust-flame color (hex) anchored by the plume cone. */
+  readonly flameColor: number;
+  /** Secondary purple exhaust-particle color (hex) trailing the plume. */
+  readonly flameAccentColor: number;
   /** Subtle screen-shake offset applied to the camera, in world units. */
   readonly shake: THREE.Vector3;
   /** Current peak screen-shake amplitude (speed × boost scaled). */
@@ -640,6 +644,12 @@ export function createEffectsPipeline(
     },
     get appliedFov() {
       return appliedFov;
+    },
+    get flameColor() {
+      return opts.flameColor;
+    },
+    get flameAccentColor() {
+      return opts.flameAccentColor;
     },
     get shake() {
       return shakeOffset;

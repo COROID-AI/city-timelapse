@@ -53,6 +53,15 @@ const FIXED_TICK = 1 / 60;
 /** Total laps for the composed race. */
 const TOTAL_LAPS = 3;
 
+/**
+ * Pursuit-steering authority: full 3.0 rad/s while the player is not
+ * steering (keeps the lag-lite arcade car on the racing line so the full
+ * three-lap race is reachable), fading to a gentle shove while the player
+ * actively steers so the car's own steering can build drift (AC-6).
+ */
+const PURSUIT_MAX_TURN = 3.0;
+const PURSUIT_YIELD_TURN = 1.0;
+
 /** Player racer identity for the race director standings row. */
 const PLAYER_RACER = { id: 'player', name: 'Player', color: '#00ffff', isPlayer: true } as const;
 
@@ -79,10 +88,49 @@ export interface RacerDiagnostics {
     bestLapSeconds: number | null;
     totalSeconds: number;
   }>;
+  /** Live player-car snapshot (arrow-key driving, drift, nitrous). */
+  player: {
+    x: number;
+    z: number;
+    heading: number;
+    speed: number;
+    driftFactor: number;
+    nitrousCharge: number;
+    boostActive: boolean;
+    lap: number;
+    trackProgress: number;
+  };
+  /** Live chase-camera framing (follow distance, FOV, roll, position). */
+  camera: {
+    distance: number;
+    height: number;
+    pitch: number;
+    fov: number;
+    roll: number;
+    x: number;
+    y: number;
+    z: number;
+  };
   effects: {
     boostActive: boolean;
     appliedFov: number;
     blurDamp: number;
+    flameVisible: boolean;
+    flameColor: number;
+    flameAccentColor: number;
+    bloomActive: boolean;
+  };
+  /** Track composition facts (wet reflective asphalt, neon sign count). */
+  track: {
+    wetReflective: boolean;
+    signs: number;
+  };
+  /** Real frame-cadence telemetry measured in the render path. */
+  fps: {
+    samples: number;
+    average: number;
+    min: number;
+    max: number;
   };
   /** Renderer strategy the software-GL gate chose for this session. */
   rendererStrategy: 'software' | 'hardware' | 'mock';
@@ -136,11 +184,20 @@ export interface WebGLRendererLike {
  * Points the player's heading at a waypoint ~40 nodes ahead of the current
  * progress with a bounded turn rate (±3.0 rad/s), leaving the car's real
  * physics module to integrate throttle/slip/drift/nitrous and lap progress.
+ *
+ * The pursuer is a line-keeping safety net for the lag-lite arcade car. When
+ * the player actively steers (holds an arrow key) the pursuer yields, so the
+ * car's own steering authority carves the corner and the heading can rotate
+ * ahead of the velocity vector — building the lateral slip that registers as
+ * a drift and charges nitrous. Without the yield, the 3.0 rad/s pursuer would
+ * cancel the player's ~1.84 rad/s steering at top speed and drift could never
+ * register in the composed game (AC-6 drift-builds-nitrous).
  */
 export function steerPlayerTowardTrack(
   player: ReturnType<typeof createPlayerCar>,
   track: ReturnType<typeof buildTrack>,
   deltaSeconds: number,
+  input?: InputState,
 ): void {
   const progress = player.state.trackProgress;
   const count = track.data.waypoints.length;
@@ -155,7 +212,8 @@ export function steerPlayerTowardTrack(
     Math.sin(bearing - player.state.heading),
     Math.cos(bearing - player.state.heading),
   );
-  const maxTurn = 3.0;
+  const steeringIntent = (input?.left ?? false) || (input?.right ?? false);
+  const maxTurn = steeringIntent ? PURSUIT_YIELD_TURN : PURSUIT_MAX_TURN;
   player.state.heading += Math.max(-maxTurn, Math.min(maxTurn, diff)) * deltaSeconds;
 }
 
@@ -387,6 +445,48 @@ export function startGame(
     };
   })();
 
+  // --- Frame-cadence telemetry (render path) ----------------------------------
+  // The render callback runs once per animation frame (or once per
+  // deterministic `stepFrame` in tests/tooling). The wall-clock intervals
+  // between renders measure the real frame rate the harness experiences,
+  // including while the effects pipeline is active — this is the AC-17
+  // "stable frame rate with all effects active" evidence that does not depend
+  // on SwiftShader pixel sampling.
+  const FPS_WINDOW = 240;
+  const fpsIntervalsMs: number[] = [];
+  let lastFrameWallMs: number | null = null;
+
+  const nowWallMillis = (): number =>
+    typeof performance !== 'undefined' && typeof performance.now === 'function'
+      ? performance.now()
+      : Date.now();
+
+  /** Rolling min/avg/max of the render-cadence intervals, as fps. */
+  const frameStats = (): { samples: number; average: number; min: number; max: number } => {
+    if (fpsIntervalsMs.length === 0) {
+      return { samples: 0, average: 0, min: 0, max: 0 };
+    }
+    let total = 0;
+    let shortest = Infinity;
+    let longest = 0;
+    for (const interval of fpsIntervalsMs) {
+      // Deterministic loops back-fill many frames in one wall-clock
+      // millisecond; clamp so derived fps stays finite and sane while a real
+      // rAF cadence (~16 ms) reports its true value.
+      const clamped = Math.max(interval, 0.5);
+      total += clamped;
+      if (clamped < shortest) shortest = clamped;
+      if (clamped > longest) longest = clamped;
+    }
+    const toFps = (ms: number): number => Math.round(1000 / ms);
+    return {
+      samples: fpsIntervalsMs.length,
+      average: toFps(total / fpsIntervalsMs.length),
+      min: toFps(longest), // longest interval => lowest frame rate
+      max: toFps(shortest), // shortest interval => highest frame rate
+    };
+  };
+
   // --- Game loop: canonical fixed update order -----------------------------------
   const gameLoop = createGameLoop(
     FIXED_TICK,
@@ -413,7 +513,7 @@ export function startGame(
           raceDirector.update(deltaSeconds, IDLE_INPUT);
         } else {
           // 2. Player update (arrow-key input + line-follow steering).
-          steerPlayerTowardTrack(player, track, deltaSeconds);
+          steerPlayerTowardTrack(player, track, deltaSeconds, input);
           player.update(deltaSeconds, input, track.data);
 
           // 3. AI opponents update against the same tick.
@@ -455,6 +555,14 @@ export function startGame(
       },
       render: (): void => {
         if (shutdown) return;
+        const frameWallMs = nowWallMillis();
+        if (lastFrameWallMs !== null) {
+          fpsIntervalsMs.push(frameWallMs - lastFrameWallMs);
+          if (fpsIntervalsMs.length > FPS_WINDOW) {
+            fpsIntervalsMs.splice(0, fpsIntervalsMs.length - FPS_WINDOW);
+          }
+        }
+        lastFrameWallMs = frameWallMs;
         try {
           renderer.render(scene, cameraRig.camera);
         } catch {
@@ -502,11 +610,45 @@ export function startGame(
         bestLapSeconds: entry.bestLapSeconds,
         totalSeconds: entry.totalSeconds,
       })),
+      player: {
+        x: player.state.position.x,
+        z: player.state.position.z,
+        heading: player.state.heading,
+        speed: player.state.speed,
+        driftFactor: player.state.driftFactor,
+        nitrousCharge: player.state.nitrousCharge,
+        boostActive: player.state.boostActive,
+        lap: player.state.lap,
+        trackProgress: player.state.trackProgress,
+      },
+      camera: {
+        distance: cameraRig.distance,
+        height: cameraRig.height,
+        pitch: cameraRig.pitch,
+        fov: cameraRig.fov,
+        roll: cameraRig.roll,
+        x: cameraRig.camera.position.x,
+        y: cameraRig.camera.position.y,
+        z: cameraRig.camera.position.z,
+      },
       effects: {
         boostActive: effects.boostActive,
         appliedFov: effects.appliedFov,
         blurDamp: effects.blurDamp,
+        flameVisible: effects.plume.visible,
+        flameColor: effects.flameColor,
+        flameAccentColor: effects.flameAccentColor,
+        bloomActive: effects.bloomPass !== null,
       },
+      track: {
+        wetReflective:
+          track.asphaltMaterial !== null &&
+          track.asphaltMaterial.envMap != null &&
+          track.asphaltMaterial.envMapIntensity !== undefined &&
+          track.asphaltMaterial.envMapIntensity > 1,
+        signs: track.signs.length,
+      },
+      fps: frameStats(),
       rendererStrategy: mockGL
         ? 'mock'
         : softwareGL
