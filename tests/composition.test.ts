@@ -18,8 +18,10 @@
  */
 import * as THREE from 'three';
 
-import { isSoftwareGL, startGame } from '../src/game/main';
+import { isSoftwareGL, startGame, steerPlayerTowardTrack } from '../src/game/main';
 import type { InputState } from '../src/game/contracts';
+import { buildTrack } from '../src/game/track';
+import { createPlayerCar } from '../src/game/car';
 
 /** Hermetic renderer satisfying the composer surface (no WebGL context). */
 function makeMockGL() {
@@ -128,6 +130,53 @@ describe('startGame composition (wired street racer)', () => {
       runSeconds(game, 3.5, IDLE);
       expect(game.diagnostics.phase).toBe('racing');
       expect(() => game.dispose()).not.toThrow();
+    });
+  });
+
+  describe('steerPlayerTowardTrack yields to active steering (AC-6 drift)', () => {
+    it('lets the player heading diverge enough to register slip when steering', () => {
+      const track = buildTrack();
+      const player = createPlayerCar({ track: track.data });
+      // Accelerate to racing speed straight down the main straight.
+      const go: InputState = { up: true, left: false, right: false, down: false, nitrous: false };
+      for (let i = 0; i < 120; i++) player.update(1 / 60, go, track.data);
+      expect(player.state.speed).toBeGreaterThan(25);
+      const headingBefore = player.state.heading;
+
+      // Player hard-steers right for ~4s. The pursuer must yield so the
+      // heading rotates ahead of the velocity vector and slip builds.
+      const steer: InputState = { up: true, left: false, right: true, down: false, nitrous: false };
+      for (let i = 0; i < 240; i++) {
+        steerPlayerTowardTrack(player, track, 1 / 60, steer);
+        player.update(1 / 60, steer, track.data);
+      }
+      const headingDelta = Math.abs(player.state.heading - headingBefore);
+      // The player's own steering dominates while the pursuer yields.
+      expect(headingDelta).toBeGreaterThan(1.0);
+      // Sustained lateral slip built a real drift (the AC-6 prerequisite).
+      expect(player.state.driftFactor).toBeGreaterThan(0.1);
+      expect(player.state.nitrousCharge).toBeGreaterThan(0.01);
+      player.dispose();
+      track.dispose();
+    });
+
+    it('keeps the racing line when the player is not steering', () => {
+      const track = buildTrack();
+      const player = createPlayerCar({ track: track.data });
+      const go: InputState = { up: true, left: false, right: false, down: false, nitrous: false };
+      for (let i = 0; i < 120; i++) player.update(1 / 60, go, track.data);
+      const startProgress = player.state.trackProgress;
+
+      // No steering intent: the pursuer holds full 3.0 rad/s authority and
+      // pulls the car toward the racing line ahead.
+      for (let i = 0; i < 600; i++) {
+        steerPlayerTowardTrack(player, track, 1 / 60, undefined);
+        player.update(1 / 60, go, track.data);
+      }
+      expect(player.state.trackProgress).toBeGreaterThan(startProgress);
+      expect(player.state.driftFactor).toBeLessThan(0.05);
+      player.dispose();
+      track.dispose();
     });
   });
 

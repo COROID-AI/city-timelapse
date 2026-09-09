@@ -160,7 +160,6 @@ describe('AC-16 playthrough receipt: every named scenario', () => {
 
     // Sample DURING boost (~0.8s in) so charge is still present.
     Object.assign(GAME.input, BOOST);
-    const baseNow = FRAME_BASE;
     for (let i = 0; i < 48; i++) {
       FRAME_BASE += MILLIS_PER_FRAME;
       GAME.loop.stepFrame(FRAME_BASE);
