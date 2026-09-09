@@ -1,126 +1,134 @@
 /**
- * Application bootstrap for the City Time Period Timelapse scaffold.
+ * Application entrypoint for City Time Period Timelapse.
  *
- * Named export `bootstrap` is the entrypoint contract consumed and rewritten
- * by the compose-scene-app task. It currently builds the placeholder era
- * scene: a ground grid, a block outline, and a gentle orbiting camera driven
- * by the shared render loop.
+ * Rewritten composition root wiring the full scene application:
+ * - Boots sceneApp (instantiates, attaches, updates, and disposes all 6 subsystems)
+ * - Handles WebGL unavailability fallback
+ * - Displays a loading overlay until the first frame is rendered
+ * - Sets up responsive window & container resize observers
  */
-import {
-  BoxGeometry,
-  Color,
-  EdgesGeometry,
-  GridHelper,
-  LineBasicMaterial,
-  LineSegments,
-  PerspectiveCamera,
-  Scene,
-  Vector3,
-  WebGLRenderer,
-} from 'three';
-import { startRenderLoop, type RenderLoopHandle } from './app/renderLoop';
+
+import type { WebGLRenderer } from 'three';
+import { type RenderLoopHandle } from './app/renderLoop';
+import { createSceneApp, type SceneApp } from './app/sceneApp';
 import './styles/base.css';
 
-const UP_AXIS = new Vector3(0, 1, 0);
-const GROUND_EXTENT = 24;
-const BLOCK_SIZE = 2.4;
-const ORBIT_SPEED = 0.25; // radians per second
-
 export interface BootstrapHandle {
+  readonly app: SceneApp | null;
   readonly renderer: WebGLRenderer | null;
   readonly loop: RenderLoopHandle;
-  /** Releases the renderer, resize observers, and the render loop. */
+  /** Releases all 3D subsystems, audio nodes, UI listeners, and resize observers. */
   dispose(): void;
 }
 
-function createBlockOutline(size: number): LineSegments {
-  const geometry = new EdgesGeometry(new BoxGeometry(size, size, size));
-  const material = new LineBasicMaterial({ color: 0x60a5fa });
-  return new LineSegments(geometry, material);
+/**
+ * Creates the loading overlay element.
+ */
+function createLoadingOverlay(): HTMLElement {
+  const overlay = document.createElement('div');
+  overlay.className = 'timelapse-loading-overlay';
+  overlay.setAttribute('role', 'status');
+  overlay.setAttribute('aria-label', 'Loading city timelapse scene');
+
+  const spinner = document.createElement('div');
+  spinner.className = 'timelapse-loading-spinner';
+
+  const label = document.createElement('div');
+  label.className = 'timelapse-loading-text';
+  label.textContent = 'Loading City Timelapse...';
+
+  overlay.appendChild(spinner);
+  overlay.appendChild(label);
+  return overlay;
 }
 
+/**
+ * Boots the City Time Period Timelapse scene within `mount`.
+ */
 export function bootstrap(mount: HTMLElement): BootstrapHandle {
   if (!(mount instanceof HTMLElement)) {
     throw new TypeError('bootstrap requires an HTMLElement mount point');
   }
 
-  const width = Math.max(1, mount.clientWidth);
-  const height = Math.max(1, mount.clientHeight);
+  // Clear existing content
+  mount.replaceChildren();
 
-  const scene = new Scene();
-  scene.background = new Color(0x0b1020);
+  // 1. Create Canvas Element
+  const canvas = document.createElement('canvas');
+  canvas.style.display = 'block';
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
+  mount.appendChild(canvas);
 
-  const camera = new PerspectiveCamera(50, width / height, 0.1, 200);
-  camera.position.set(10, 7, 10);
-  camera.lookAt(0, 1, 0);
+  // 2. Create and append Loading Overlay
+  const loadingOverlay = createLoadingOverlay();
+  mount.appendChild(loadingOverlay);
 
-  let renderer: WebGLRenderer;
+  // 3. Attempt SceneApp Instantiation (with WebGL fallback guard)
+  let app: SceneApp;
   try {
-    renderer = new WebGLRenderer({ antialias: true });
-  } catch {
-    // Headless/software environments without WebGL still get a clean page.
+    app = createSceneApp(canvas, {
+      uiContainer: mount,
+      onFirstFrame: () => {
+        loadingOverlay.classList.add('fade-out');
+        setTimeout(() => {
+          if (loadingOverlay.parentNode) {
+            loadingOverlay.parentNode.removeChild(loadingOverlay);
+          }
+        }, 400);
+      },
+    });
+  } catch (err) {
+    // Graceful WebGL-unavailable fallback
     const notice = document.createElement('div');
     notice.className = 'fallback';
     notice.textContent = 'This scene needs WebGL, which is unavailable in this browser.';
     mount.replaceChildren(notice);
+
     return {
+      app: null,
       renderer: null,
       loop: { running: false, dispose: () => {} },
-      dispose: () => {},
+      dispose: () => {
+        mount.replaceChildren();
+      },
     };
   }
 
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.setSize(width, height);
-  mount.replaceChildren(renderer.domElement);
-
-  const grid = new GridHelper(GROUND_EXTENT, GROUND_EXTENT / 2, 0x60a5fa, 0x1e293b);
-  scene.add(grid);
-
-  const blockOutline = createBlockOutline(BLOCK_SIZE);
-  blockOutline.position.y = BLOCK_SIZE / 2;
-  scene.add(blockOutline);
-
-  function resize(): void {
-    const w = Math.max(1, mount.clientWidth);
-    const h = Math.max(1, mount.clientHeight);
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-    renderer.setSize(w, h);
+  // 4. Resize Handling
+  function handleResize(): void {
+    const w = mount.clientWidth;
+    const h = mount.clientHeight;
+    app.resize(w, h);
   }
 
-  const resizeObserver = new ResizeObserver(resize);
-  resizeObserver.observe(mount);
-  window.addEventListener('resize', resize);
-
-  const loop = startRenderLoop(renderer.domElement, {
-    update: (deltaSeconds) => {
-      // Gentle orbit so the loop's delta time visibly drives the scene.
-      camera.position.applyAxisAngle(UP_AXIS, deltaSeconds * ORBIT_SPEED);
-      camera.lookAt(0, 1, 0);
-      renderer.render(scene, camera);
-    },
+  const resizeObserver = new ResizeObserver(() => {
+    handleResize();
   });
+  resizeObserver.observe(mount);
+  window.addEventListener('resize', handleResize);
 
   let disposed = false;
 
   return {
-    renderer,
-    loop,
+    app,
+    renderer: app.renderer,
+    loop: app.loop,
     dispose() {
       if (disposed) return;
       disposed = true;
-      loop.dispose();
       resizeObserver.disconnect();
-      window.removeEventListener('resize', resize);
-      renderer.dispose();
+      window.removeEventListener('resize', handleResize);
+      app.dispose();
       mount.replaceChildren();
     },
   };
 }
 
-const root = document.querySelector<HTMLElement>('#app');
-if (!root) {
-  throw new Error('City Time Period Timelapse: missing #app mount element');
+// Auto-boot if the #app root element is present in the document
+if (typeof document !== 'undefined') {
+  const root = document.querySelector<HTMLElement>('#app');
+  if (root) {
+    bootstrap(root);
+  }
 }
-bootstrap(root);

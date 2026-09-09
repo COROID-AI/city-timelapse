@@ -179,7 +179,7 @@ describe('CrowdSim dynamics, density bounds, spacing and pauses', () => {
 
   it('advances agent movement along segments on update', () => {
     const layout = createCityBlockLayout('seed-movement');
-    const sim = new CrowdSim(layout);
+    const sim = new CrowdSim(layout, { pauseProbability: 0 });
 
     sim.syncToEra({ fromEra: '1965', toEra: '1965', t: 0 });
     const agents = sim.getActiveAgents();
