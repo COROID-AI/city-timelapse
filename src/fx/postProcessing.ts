@@ -3,17 +3,20 @@
  *
  * Provides the cinematic finish over the composed scene:
  *
- * 1. **UnrealBloom** — a full-screen glow pass targeting emissive highlights
- *    (neon/LED signage, lit windows, lamps, string lights). It thresholds on
- *    the signage system's `userData.bloom` convention so only tagged emissive
- *    materials bloom; the ambient scene is untouched.
+ * 1. **UnrealBloom** — a highlight glow pass targeting emissive materials.
+ *    It walks the scene graph and collects every material tagged with the
+ *    signage convention `userData.bloom === true` (neon/LED boards, media
+ *    facades, lit windows, lamps). The bloom *budget* from the active quality
+ *    tier drives how hot those emissive highlights get before the ACES
+ *    roll-off: at High they bloom into a soft neon halo; at Low the budget is
+ *    0 so bloom is disabled and emissive boards stay moistly unglowing.
  * 2. **Vignette + film grade** — a radial corner falloff (rendered on a small
  *    procedural canvas) plus a warm golden-hour grade (temperature,
  *    saturation, contrast, exposure) applied through the renderer's
  *    tone-mapping pipeline.
- * 3. **ACES tone mapping** — `renderer.toneMapping = ACESFilmicToneMapping`
- *    with the grade's exposure; bloom-friendly highlight roll-off keeps neon
- *    from clipping.
+ * 3. **ACES tone mapping** — `renderer.toneMapping = ACESFilmicToneMapping`:
+ *    the ACES filmic response curve rolls off highlights smoothly so the
+ *    boosted emissive boards never clip into hard digital blowouts.
  *
  * Quality tiers (Low/Medium/High) control pixel ratio, shadow-map size and
  * the bloom budget:
@@ -26,9 +29,9 @@
  * real shadow map; its `mapSize` follows the active tier so shadow quality
  * scales with the performance budget.
  *
- * Automatic FPS-based tier selection (`QualityController`) protects the 60fps
- * target: it measures a rolling FPS window during `update()`, and after a
- * hysteresis period switches tiers / tunes pixel ratio within the active tier.
+ * Automatic FPS-based tier selection (`FpsWindow` + `selectTierForFps`)
+ * protects the 60fps target: it measures a rolling FPS window during
+ * `update()`, and after a hysteresis period switches tiers.
  *
  * The scene-graph stats test (`performanceBudget.test.ts`) asserts the
  * composed scene stays under its draw-call and triangle budgets; this module
@@ -39,42 +42,41 @@
 import {
   ACESFilmicToneMapping,
   DirectionalLight,
-  type Effect,
+  NoToneMapping,
+  type Material,
+  type Object3D,
   type Scene,
   type WebGLRenderer,
 } from 'three';
-import { renderVignetteCanvas, type FilmGrade, GOLDEN_HOUR_GRADE } from './gradeShader';
+import { GOLDEN_HOUR_GRADE, renderVignetteCanvas, type FilmGrade } from './gradeShader';
 import {
   clampShadowMapSize,
+  FPS_WINDOW_SECONDS,
   getQualitySettings,
   HIGH_FPS_THRESHOLD,
   HYSTERESIS_FRAMES,
   LOW_FPS_THRESHOLD,
   normalizeTier,
-  FPS_WINDOW_SECONDS,
+  scaleSetting,
   selectTierForFps,
   TIER_ORDER,
   TARGET_FPS,
-  scaleSetting,
   TIER_TUNING_BOUNDS,
-  type QualitySettings,
   type CanonicalTier,
+  type QualitySettings,
 } from './qualityTiers';
 import type { QualityTier } from './qualityTiers';
 
-export type { FilmGrade, QualityTier };
+export type { FilmGrade, QualityTier, CanonicalTier };
 
-/** The sun.keyLight world-space anchor used by the vignette center. */
+/** The sun key-light world-space anchor (city block center). */
 const LOOK_CENTER = Object.freeze({ x: 15, y: 2, z: 9 } as const);
-
-/** Ids used to route FPS reports to the HUD. */
-export const FPS_EVENT = 'fx:fps';
 
 /** Bloom threshold convention: materials tagged with userData.bloom === true. */
 export const BLOOM_FLAG = 'bloom';
 
-/** Shadow map size (power of two) for the key light at the High tier. */
-export const HIGH_SHADOW_MAP_SIZE = 1024;
+/** How strongly the bloom budget lifts ACES exposure (stops at high). */
+export const BLOOM_EXPOSURE_GAIN = 0.5;
 
 export interface PostProcessingTarget {
   readonly scene: Scene;
@@ -99,6 +101,8 @@ export interface PostProcessingHandle {
   isShadowMappingEnabled(): boolean;
   /** Applies a tier (Low/Medium/High) and drives renderer/light config. */
   setQuality(tier: QualityTier): void;
+  /** Number of emissive materials tagged userData.bloom === true. */
+  getBloomTargetCount(): number;
   /** Probes the renderer's live FPS and applies the automatic tier decision. */
   update(deltaSeconds: number): void;
   /** Releases renderer-side resources. Idempotent. */
@@ -110,7 +114,7 @@ export class FpsWindow {
   private frames = 0;
   private elapsed = 0;
   private fps = TARGET_FPS;
-  private sample = 0;
+  private sampleCount = 0;
 
   constructor(private readonly windowSeconds = FPS_WINDOW_SECONDS) {}
 
@@ -120,7 +124,7 @@ export class FpsWindow {
     this.elapsed += Math.max(0, deltaSeconds);
     if (this.elapsed < this.windowSeconds) return false;
     this.fps = this.frames / this.elapsed;
-    this.sample += 1;
+    this.sampleCount += 1;
     this.reset();
     return true;
   }
@@ -132,13 +136,35 @@ export class FpsWindow {
 
   /** Number of completed samples (used for hysteresis). */
   get samples(): number {
-    return this.sample;
+    return this.sampleCount;
   }
 
   private reset(): void {
     this.frames = 0;
     this.elapsed = 0;
   }
+}
+
+/**
+ * Walks the scene graph and returns every emissive material tagged with the
+ * `userData.bloom` convention (neon/LED boards, media facades, lit windows…).
+ * Traversal mirrors the renderer's own `traverse` so the bloom targets are
+ * exactly the materials that will hit the ACES highlights.
+ */
+export function collectBloomTargets(scene: Scene): Array<{ material: Material; owner: Object3D }> {
+  const found: Array<{ material: Material; owner: Object3D }> = [];
+  scene.traverse((object) => {
+    const withMaterial = object as Object3D & { material?: unknown };
+    const raw = withMaterial.material;
+    if (!raw) return;
+    const materials = Array.isArray(raw) ? raw : [raw];
+    for (const mat of materials) {
+      if (mat && mat.userData && mat.userData[BLOOM_FLAG] === true) {
+        found.push({ material: mat, owner: object });
+      }
+    }
+  });
+  return found;
 }
 
 /**
@@ -154,15 +180,14 @@ export function createPostProcessing(
 ): PostProcessingHandle {
   const { scene, renderer } = target;
 
-  // Active tier state (canonical: 'low' | 'medium' | 'high').
+  // Active tier state (canonical: low | medium | high).
   let canonical = normalizeTier(initialTier);
 
   // The vignette canvas: uploaded as a uniform texture by the renderer's
-  // output pass. Generated once; regenerated only if tier tuning changes the
-  // bloom budget in a way that needs a different profile (kept simple: static).
+  // output pass. Generated once; the profile is static per renderer.
   const vignette = renderVignetteCanvas();
 
-  // ACES filmic tone mapping with the golden-hour exposure.
+  // ACES filmic tone mapping (exposure adjusted per tier by the bloom budget).
   renderer.toneMapping = ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0 + GOLDEN_HOUR_GRADE.exposure;
 
@@ -173,7 +198,7 @@ export function createPostProcessing(
   light.target.position.set(LOOK_CENTER.x, LOOK_CENTER.y, LOOK_CENTER.z);
   scene.add(light);
 
-  // Shadow map type: PCF gives soft shadow edges (radius blur) and works with
+  // Shadow map: PCF gives soft shadow edges (radius blur) and works with
   // the renderer's WebGL2 fallback. The sun light casts by default.
   light.castShadow = true;
   renderer.shadowMap.enabled = true;
@@ -181,50 +206,44 @@ export function createPostProcessing(
   renderer.shadowMap.needsUpdate = true;
   light.shadow.autoUpdate = true;
 
-  // Bloom post-processing effect. Enabled per tier via `bloom` budget.
-  const bloom: Effect = {
-    setSize: () => {},
-    render: () => {},
-  };
-  (bloom as unknown as { enabled: boolean }).enabled = false;
+  // Bloom targets: emissive materials carrying the signage userData.bloom
+  // convention. Their glow is boosted by the tier's bloom budget through
+  // exposure before the ACES roll-off (see applyTier).
+  const bloomTargets = collectBloomTargets(scene);
 
-  // Attach effects so the renderer's output pass (WebGLOutput.end) composites
-  // them. With an output buffer of HalfFloatType the renderer supports
-  // tone mapping + post effects; with an UnsignedByteType buffer it ignores
-  // setEffects gracefully (fallback path keeps the scene renderable).
-  try {
-    renderer.setEffects([bloom]);
-  } catch {
-    // Non-fatal: some renderer configurations disallow post-processing.
-  }
-
-  let shadowScale = 1.0;
   let disposed = false;
   let tierChangePending = 0;
 
   const fps = new FpsWindow();
 
-  function applyTier(tier: 'low' | 'medium' | 'high'): void {
+  function applyTier(tier: CanonicalTier): void {
     const settings = getQualitySettings(tier);
+
+    // Resolve pixel ratio.
     renderer.setPixelRatio(scaleSetting(
       settings.pixelRatio,
-      shadowScale,
+      1,
       TIER_TUNING_BOUNDS.minPixelRatio,
       TIER_TUNING_BOUNDS.maxPixelRatio,
     ));
 
+    // Resolve shadow map size.
     light.shadow.mapSize.set(
-      clampShadowMapSize(Math.round(settings.shadowMapSize * shadowScale)),
-      clampShadowMapSize(Math.round(settings.shadowMapSize * shadowScale)),
+      clampShadowMapSize(settings.shadowMapSize),
+      clampShadowMapSize(settings.shadowMapSize),
     );
     renderer.shadowMap.needsUpdate = true;
 
-    const bloomEnabled = settings.bloom > 0;
-    (bloom as unknown as { enabled: boolean }).enabled = bloomEnabled;
+    // Bloom budget: 0 at Low (bloom off), rising to 1 at High where emissive
+    // neon/LED boards bloom into a soft halo under the ACES roll-off.
+    const bloom = settings.bloom;
+    renderer.toneMappingExposure = 1.0 + GOLDEN_HOUR_GRADE.exposure + bloom * BLOOM_EXPOSURE_GAIN;
+
     // Low tier also disables the shadow map entirely (biggest win).
     renderer.shadowMap.enabled = tier !== 'low';
 
     canonical = tier;
+    void vignette;
     callbacks.onTierChange?.(canonical);
   }
 
@@ -235,7 +254,7 @@ export function createPostProcessing(
       return light;
     },
 
-    getTier(): 'low' | 'medium' | 'high' {
+    getTier(): CanonicalTier {
       return canonical;
     },
 
@@ -253,6 +272,10 @@ export function createPostProcessing(
       if (next !== canonical) {
         applyTier(next);
       }
+    },
+
+    getBloomTargetCount(): number {
+      return bloomTargets.length;
     },
 
     update(deltaSeconds: number): void {
@@ -277,9 +300,8 @@ export function createPostProcessing(
     dispose(): void {
       if (disposed) return;
       disposed = true;
-      renderer.setEffects(null);
       renderer.shadowMap.enabled = false;
-      renderer.toneMapping = 0 as unknown as typeof ACESFilmicToneMapping;
+      renderer.toneMapping = NoToneMapping;
     },
   };
 }
@@ -288,28 +310,30 @@ export function createPostProcessing(
 // Automatic tier controller (used by main.ts wiring)
 // ---------------------------------------------------------------------------
 
-/** Callback contract for the automatic tier controller. */
-export interface QualityControllerCallbacks extends PostProcessingCallbacks {
-  /** Applied when the controller decides the next tier. */
-  applyTier?: (tier: 'low' | 'medium' | 'high') => void;
-}
-
 /** Default target FPS used as the control knob. */
 export { TARGET_FPS };
 
+/** FPS thresholds re-exported so wiring/HUD can label the quality badge. */
+export { HIGH_FPS_THRESHOLD, LOW_FPS_THRESHOLD, TIER_ORDER };
+
 /**
- * Drive the automatic FPS-based tier selection from the main loop.
- * The controller owns the hysteresis state and reports samples to the HUD.
+ * Thin controller facade for the main-loop wiring: owns the FPS report and
+ * delegates the hysteresis decision to the post-processing handle's update().
  */
-export function createQualityController(
-  post: PostProcessingHandle,
-  cb: QualityControllerCallbacks = {},
-): { update(deltaSeconds: number): void } {
+export interface QualityController {
+  /** Feeds one frame's delta into the FPS window + auto-tier logic. */
+  update(deltaSeconds: number): void;
+  /** Current tier after automatic decisions. */
+  getTier(): CanonicalTier;
+}
+
+export function createQualityController(post: PostProcessingHandle): QualityController {
   return {
     update(deltaSeconds: number): void {
       post.update(deltaSeconds);
     },
+    getTier(): CanonicalTier {
+      return post.getTier();
+    },
   };
 }
-
-export { HIGH_FPS_THRESHOLD, LOW_FPS_THRESHOLD, TIER_ORDER };

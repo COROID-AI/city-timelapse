@@ -40,7 +40,7 @@ describe('quality tiers', () => {
     expect(high.bloom).toBeGreaterThan(medium.bloom);
 
     // Shadow-map sizes are powers of two (renderer requirement).
-    for (const tier of TIER_ORDER) {
+    for (const tier of ['low', 'medium', 'high'] as const) {
       const size = QUALITY_TIERS[tier].shadowMapSize;
       expect(size).toBeGreaterThan(0);
       expect(size & (size - 1)).toBe(0);
@@ -69,9 +69,10 @@ describe('quality tiers', () => {
     const mid = (LOW_FPS_THRESHOLD + HIGH_FPS_THRESHOLD) / 2;
     expect(selectTierForFps('high', mid)).toBe('high');
 
-    // Non-finite input keeps the current tier.
+    // Non-finite input keeps the current tier (no data yet).
     expect(selectTierForFps('high', Number.NaN)).toBe('high');
-    expect(selectTierForFps('medium', Number.POSITIVE_INFINITY)).toBe('high');
+    expect(selectTierForFps('medium', Number.POSITIVE_INFINITY)).toBe('medium');
+    expect(selectTierForFps('low', Number.NEGATIVE_INFINITY)).toBe('low');
   });
 
   it('clamps shadow-map sizes to powers of two within engine bounds', () => {

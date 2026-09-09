@@ -21,7 +21,7 @@
 export type QualityTier = 'low' | 'medium' | 'high' | 'ultra';
 
 /** Stable vertical order used by FPS-based automatic selection. */
-export const TIER_ORDER: readonly QualityTier[] = ['low', 'medium', 'high'];
+export const TIER_ORDER: readonly ['low', 'medium', 'high'] = ['low', 'medium', 'high'];
 
 /** Target FPS used by the automatic tier controller. */
 export const TARGET_FPS = 60;

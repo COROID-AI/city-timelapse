@@ -17,25 +17,17 @@
  *   so they are effectively disabled while the era transform itself still
  *   completes.
  */
-import { describe, expect, it, beforeAll, afterAll } from 'vitest';
-import { ACESFilmicToneMapping, DirectionalLight, type WebGLRenderer } from 'three';
-import { createSceneApp, type SceneApp } from '../../app/sceneApp';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ACESFilmicToneMapping } from 'three';
 import { createFakeAudioContext } from '../../audio/audioEngine';
 import {
   createStubRenderer,
   installCanvas2DStub,
   restoreCanvas2DStub,
 } from '../../app/headlessStubs';
-import { createPostProcessing, type PostProcessingHandle } from '../postProcessing';
+import { createSceneApp, type SceneApp } from '../../app/sceneApp';
+import { collectBloomTargets, createPostProcessing } from '../postProcessing';
 import { QUALITY_TIERS } from '../qualityTiers';
-
-/** Minimal scene object compatible with createPostProcessing's target. */
-function makeSceneTarget(renderer: WebGLRenderer) {
-  return {
-    scene: new (require('three').Scene)(),
-    renderer,
-  };
-}
 
 describe('polish composition', () => {
   beforeAll(() => {
@@ -63,7 +55,7 @@ describe('polish composition', () => {
     // Wire post-processing over the composed app's scene + renderer.
     const fx = createPostProcessing(
       { scene: app.scene, renderer: app.renderer },
-      { onTierChange: () => {} },
+      {},
       'high',
     );
 
@@ -71,6 +63,22 @@ describe('polish composition', () => {
     expect(fx.getSettings()).toBe(QUALITY_TIERS.high);
     expect(fx.isShadowMappingEnabled()).toBe(true);
     expect(app.renderer.toneMapping).toBe(ACESFilmicToneMapping);
+    expect(app.scene.children).toContain(fx.light);
+
+    // Bloom targets come from the signage convention userData.bloom === true.
+    expect(fx.getBloomTargetCount()).toBeGreaterThan(0);
+    const skiffTargets = collectBloomTargets(app.scene);
+    expect(skiffTargets.length).toBeGreaterThan(0);
+    for (const target of skiffTargets) {
+      expect(target.material.userData.bloom).toBe(true);
+    }
+
+    // The shared contract exposes setQuality(tier) on the composed app too:
+    // sceneApp.setQuality drives the renderer pixel ratio.
+    app.setQuality('low');
+    expect(app.renderer.getPixelRatio()).toBe(1);
+    app.setQuality('high');
+    expect(app.renderer.getPixelRatio()).toBeGreaterThanOrEqual(1);
 
     // Tier switch changes pixel ratio + shadow map size.
     fx.setQuality('low');
@@ -98,7 +106,6 @@ describe('polish composition', () => {
 
     // Clean teardown: fx then app, both idempotent.
     fx.dispose();
-    expect(fx.light.shadow.mapSize.x).toBeGreaterThan(0); // light survives scene dispose
     app.dispose();
     expect(app.isDisposed()).toBe(true);
     fx.dispose();
