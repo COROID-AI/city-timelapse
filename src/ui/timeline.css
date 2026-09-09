@@ -1,0 +1,521 @@
+/* ==========================================================================
+   Timeline UI & HUD Styles for City Time Period Timelapse
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Top Centered Timeline Slider
+   -------------------------------------------------------------------------- */
+
+.timelapse-timeline-top {
+  position: absolute;
+  top: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(92vw, 580px);
+  user-select: none;
+}
+
+.timeline-card {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9999px;
+  padding: 0.65rem 1.5rem 0.55rem;
+  box-shadow:
+    0 10px 30px -5px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.timeline-track-wrapper {
+  position: relative;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.timeline-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.timeline-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #38bdf8 0%, #818cf8 100%);
+  border-radius: 9999px;
+  transition: width 0.05s linear;
+}
+
+/* Shimmer animation active while transitions are running */
+.timeline-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0) 25%,
+    rgba(255, 255, 255, 0.75) 50%,
+    rgba(255, 255, 255, 0) 75%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.timelapse-timeline-top.is-transitioning .timeline-shimmer,
+.timeline-card.is-transitioning .timeline-shimmer,
+.timeline-track.is-transitioning .timeline-shimmer {
+  opacity: 1;
+  animation: timeline-shimmer-sweep 1.2s infinite linear;
+}
+
+@keyframes timeline-shimmer-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Tick marks across the track */
+.timeline-ticks {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 6px;
+  pointer-events: none;
+}
+
+.timeline-tick {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 2px;
+  transition: background 0.15s ease;
+}
+
+.timeline-tick.is-active {
+  background: #38bdf8;
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.8);
+}
+
+/* Slider Thumb Handle */
+.timeline-thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2.5px solid #38bdf8;
+  box-shadow:
+    0 0 12px rgba(56, 189, 248, 0.7),
+    0 2px 6px rgba(0, 0, 0, 0.4);
+  cursor: grab;
+  z-index: 10;
+  outline: none;
+  transition: transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.timeline-thumb:active,
+.timeline-thumb.is-dragging {
+  cursor: grabbing;
+  transform: translate(-50%, -50%) scale(1.2);
+  box-shadow:
+    0 0 18px rgba(56, 189, 248, 0.9),
+    0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.timeline-thumb:focus-visible {
+  outline: 3px solid #38bdf8;
+  outline-offset: 3px;
+  box-shadow:
+    0 0 16px #38bdf8,
+    0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Labeled Stops Row */
+.timeline-stops {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 2px;
+}
+
+.timeline-stop {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: color 0.15s ease, transform 0.15s ease, text-shadow 0.15s ease;
+  user-select: none;
+  outline: none;
+}
+
+.timeline-stop:hover {
+  color: #f1f5f9;
+}
+
+.timeline-stop.is-active {
+  color: #38bdf8;
+  font-weight: 700;
+  text-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+  transform: scale(1.06);
+}
+
+.timeline-stop:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   HUD: Bottom Bar with Descriptors, Hints & Controls
+   -------------------------------------------------------------------------- */
+
+.timelapse-hud {
+  position: absolute;
+  bottom: 1.25rem;
+  left: 1.5rem;
+  right: 1.5rem;
+  z-index: 40;
+  pointer-events: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+/* Left: Era descriptor card */
+.hud-descriptor-card {
+  pointer-events: auto;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  padding: 0.625rem 1rem;
+  max-width: 440px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #f8fafc;
+}
+
+.hud-era-badge {
+  background: #0284c7;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px rgba(2, 132, 199, 0.5);
+}
+
+.hud-descriptor-text {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: #e2e8f0;
+  font-weight: 500;
+}
+
+/* Center: POI chips & Navigation hints */
+.hud-center-panel {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.hud-poi-chips {
+  display: flex;
+  gap: 0.35rem;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 4px;
+  border-radius: 9999px;
+  box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.5);
+}
+
+.poi-chip {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.poi-chip:hover {
+  color: #ffffff;
+}
+
+.poi-chip.is-active {
+  background: #38bdf8;
+  color: #0f172a;
+  font-weight: 700;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+}
+
+.poi-chip:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+.hud-nav-hints {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: #94a3b8;
+  font-size: 0.6875rem;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+.hud-hint-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.hud-hint-item kbd {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: #f1f5f9;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.625rem;
+  font-weight: 600;
+}
+
+/* Right: Mute & Sound controls */
+.hud-controls-panel {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hud-mute-button {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #f8fafc;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.5);
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.hud-mute-button:hover {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.hud-mute-button.is-muted {
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.hud-mute-button:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   Start Overlay ('Enter the scene')
+   -------------------------------------------------------------------------- */
+
+.timelapse-start-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  background: radial-gradient(circle at center, rgba(15, 23, 42, 0.88) 0%, rgba(2, 6, 23, 0.97) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.35s ease, visibility 0.35s ease;
+}
+
+.timelapse-start-overlay.fade-out {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.start-card {
+  max-width: 480px;
+  width: 100%;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  padding: 2.25rem 2rem;
+  text-align: center;
+  box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.75);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.15rem;
+}
+
+.start-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  padding: 4px 12px;
+  border-radius: 9999px;
+}
+
+.start-title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.start-description {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.start-button {
+  background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
+  border: none;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 1.05rem;
+  font-weight: 700;
+  padding: 0.85rem 2.25rem;
+  border-radius: 9999px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(56, 189, 248, 0.4);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  outline: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.start-button:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 6px 26px rgba(56, 189, 248, 0.6);
+}
+
+.start-button:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.start-button:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 3px;
+}
+
+.start-hint {
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive Adaptations
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .timelapse-timeline-top {
+    top: 0.75rem;
+    width: 95vw;
+  }
+
+  .timeline-card {
+    padding: 0.5rem 1rem 0.4rem;
+  }
+
+  .timelapse-hud {
+    bottom: 0.75rem;
+    left: 0.75rem;
+    right: 0.75rem;
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .hud-descriptor-card {
+    max-width: 100%;
+  }
+
+  .hud-nav-hints {
+    display: none;
+  }
+
+  .hud-center-panel {
+    align-items: center;
+  }
+
+  .hud-controls-panel {
+    justify-content: flex-end;
+  }
+}
