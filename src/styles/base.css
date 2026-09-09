@@ -1,0 +1,50 @@
+/* Global styles for the City Time Period Timelapse scaffold. */
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0b1020;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+}
+
+/* Full-viewport mount point for the Three.js canvas (index.html #app). */
+#app {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#app canvas {
+  display: block;
+}
+
+/* Shown only when WebGL is unavailable. */
+#app .fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  color: #94a3b8;
+  font-size: 1rem;
+  text-align: center;
+}
