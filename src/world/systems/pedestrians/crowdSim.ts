@@ -160,7 +160,6 @@ export class CrowdSim {
   private readonly minPauseDuration: number;
   private readonly maxPauseDuration: number;
 
-  private currentTargetCount = 0;
   private nextAgentId = 1;
 
   constructor(layout: BlockLayout, options: CrowdSimOptions = {}) {
@@ -199,7 +198,6 @@ export class CrowdSim {
   public syncToEra(channel: TimelineChannel): void {
     const targetDensity = interpolateCrowdDensity(channel);
     const targetSpeed = interpolateWalkSpeed(channel);
-    this.currentTargetCount = targetDensity;
 
     // Reclothe / update era for existing active agents
     const effectiveEra = channel.t >= 0.5 ? channel.toEra : channel.fromEra;
@@ -331,8 +329,8 @@ export class CrowdSim {
         if (!seg) continue;
 
         // Check window-shopping pause opportunity
-        this.checkWindowShoppingTrigger(agent, dt);
-        if (agent.state === 'window_shopping') {
+        const paused = this.checkWindowShoppingTrigger(agent, dt);
+        if (paused) {
           continue;
         }
 
@@ -401,8 +399,8 @@ export class CrowdSim {
   /**
    * Checks if an agent is near a storefront shopping spot and rolls chance to pause and browse.
    */
-  private checkWindowShoppingTrigger(agent: PedestrianAgent, dt: number): void {
-    if (this.shoppingPoints.length === 0) return;
+  private checkWindowShoppingTrigger(agent: PedestrianAgent, dt: number): boolean {
+    if (this.shoppingPoints.length === 0) return false;
 
     for (const spot of this.shoppingPoints) {
       const dx = spot.position.x - agent.position.x;
@@ -419,10 +417,11 @@ export class CrowdSim {
             Math.random() * (this.maxPauseDuration - this.minPauseDuration);
           agent.shoppingSpot = spot;
           agent.heading = spot.facingAngle;
-          break;
+          return true;
         }
       }
     }
+    return false;
   }
 
   /**

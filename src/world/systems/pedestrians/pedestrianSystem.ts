@@ -9,7 +9,7 @@
 import { Group, Scene } from 'three';
 import type { EraSystem, TimelineChannel } from '../../../era/types';
 import type { BlockLayout } from '../../layout/types';
-import { CrowdSim, type PedestrianAgent } from './crowdSim';
+import { CrowdSim } from './crowdSim';
 import { createPedestrianRig, type PedestrianRig } from './pedestrianFactory';
 
 export interface PedestriansSystemInstance extends EraSystem<Scene | Group> {

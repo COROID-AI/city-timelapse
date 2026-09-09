@@ -11,8 +11,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { ERAS, type EraId } from '../../../era/years';
-import { createCityBlockLayout } from '../../layout/cityBlockLayout';
+import { ERAS, type EraId } from '../../../../era/years';
+import { createCityBlockLayout } from '../../../layout/cityBlockLayout';
 import {
   CrowdSim,
   extractPathSegments,
