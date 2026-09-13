@@ -1,0 +1,25 @@
+{
+  "name": "city-time-period-timelapse",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "3D city-block timelapse across eras (1945-2055). Vite + TypeScript + Three.js + Vitest foundation.",
+  "license": "UNLICENSED",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.180.0",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8",
+    "vitest": "^2.1.8"
+  }
+}
