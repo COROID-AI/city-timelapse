@@ -1,0 +1,438 @@
+/* ============================================================================
+ * hud.css — Top timeline slider HUD styles.
+ *
+ * Dark translucent bar pinned to the top of the viewport over the scene
+ * canvas, with legible year typography, hover / active stop states, an
+ * animated transition progress indicator and a centered help dialog.
+ * Responsive to narrow viewports. No icon fonts or network assets — glyphs
+ * are inline SVG drawn by the HUD modules.
+ * ========================================================================== */
+
+.hud-root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  --hud-font: ui-sans-serif, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --hud-accent: #f5c542;
+  font-family: var(--hud-font);
+}
+
+/* Hidden children (help overlay, transition status, icon states) never render. */
+.hud-root [hidden] {
+  display: none !important;
+}
+
+.hud-root * {
+  box-sizing: border-box;
+}
+
+/* --- Top bar ---------------------------------------------------------------- */
+
+.hud-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 20px;
+  background: linear-gradient(180deg, rgba(12, 14, 22, 0.82), rgba(12, 14, 22, 0.72));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06),
+    0 12px 28px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(10px);
+  color: #e9ecf2;
+}
+
+.hud-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(233, 236, 242, 0.82);
+  white-space: nowrap;
+}
+
+.hud-brand-mark {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--hud-accent);
+  box-shadow: 0 0 8px rgba(245, 197, 66, 0.35);
+}
+
+/* --- Slider ------------------------------------------------------------------ */
+
+.hud-slider {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 220px;
+  height: 56px;
+}
+
+.hud-track {
+  position: absolute;
+  inset: 0;
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.hud-rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 18px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.hud-progress-fill {
+  position: absolute;
+  top: 18px;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--hud-accent), #ffd97a);
+  box-shadow: 0 0 10px rgba(245, 197, 66, 0.3);
+  transition:
+    left 0.16s ease-out,
+    width 0.16s ease-out;
+  will-change: left, width;
+}
+
+.hud-thumb {
+  position: absolute;
+  top: 12px;
+  width: 16px;
+  height: 16px;
+  margin-left: -8px;
+  border-radius: 50%;
+  background: #f7efe0;
+  border: 2px solid #232838;
+  box-shadow:
+    0 0 0 4px rgba(245, 197, 66, 0.12),
+    0 3px 8px rgba(0, 0, 0, 0.45);
+  transition: left 0.16s ease-out;
+}
+
+.hud-stop {
+  position: absolute;
+  top: 22px;
+  bottom: 2px;
+  transform: translateX(-50%);
+  min-width: 42px;
+  padding: 0;
+  border: 0;
+  background: none;
+  appearance: none;
+  color: rgba(205, 213, 224, 0.92);
+  font-size: 11.5px;
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.hud-stop::before {
+  content: '';
+  width: 2px;
+  height: 8px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.hud-stop:hover {
+  color: #fff;
+}
+
+.hud-stop:hover::before {
+  background: #ffd97a;
+}
+
+.hud-stop:active {
+  transform: translateX(-50%) scale(0.96);
+  color: #fff;
+}
+
+.hud-stop.is-current {
+  color: #fff;
+  font-weight: 700;
+}
+
+.hud-stop.is-current::before {
+  background: var(--hud-accent);
+  box-shadow: 0 0 8px rgba(245, 197, 66, 0.55);
+}
+
+/* --- Right cluster: readout + transition status -------------------------------- */
+
+.hud-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-readout {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 56px;
+  line-height: 1;
+}
+
+.hud-readout-label {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(233, 236, 242, 0.62);
+}
+
+.hud-readout-year {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+}
+
+.hud-transition-status {
+  font-size: 11px;
+  color: #ffd97a;
+  background: rgba(245, 197, 66, 0.12);
+  border: 1px solid rgba(245, 197, 66, 0.35);
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+/* --- Icon buttons (mute, help) -------------------------------------------------- */
+
+.hud-icon-button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 9px;
+  color: #dfe4ec;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.hud-icon-button:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.hud-mute[data-muted='true'] {
+  color: #ff9d87;
+  background: rgba(255, 110, 90, 0.14);
+  border-color: rgba(255, 110, 90, 0.4);
+}
+
+.hud-help {
+  width: 30px;
+  height: 30px;
+  font-size: 15px;
+}
+
+/* --- Transition animation --------------------------------------------------------- */
+
+.hud-bar.is-transitioning .hud-progress-fill {
+  animation: hud-progress-pulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes hud-progress-pulse {
+  from {
+    opacity: 0.75;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* --- Help overlay ------------------------------------------------------------------- */
+
+.hud-help-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(7, 9, 15, 0.62);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hud-help-card {
+  position: relative;
+  width: min(460px, calc(100vw - 36px));
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  background: linear-gradient(180deg, #141827, #0f131e);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 20px 46px rgba(0, 0, 0, 0.65);
+  color: #e9ecf2;
+  padding: 18px 22px 16px;
+  animation: hud-help-pop 0.16s ease-out;
+}
+
+@keyframes hud-help-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.hud-help-title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #ffd97a;
+}
+
+.hud-help-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #dfe4ec;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.hud-help-close:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.hud-help-intro {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  color: rgba(233, 236, 242, 0.82);
+}
+
+.hud-help-keys {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.hud-help-keys li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.hud-help-keycaps {
+  display: inline-flex;
+  gap: 5px;
+}
+
+.hud-help-kbd {
+  display: inline-block;
+  min-width: 22px;
+  padding: 2px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f2f4f7;
+  font: 600 11.5px/1 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  text-align: center;
+}
+
+.hud-help-desc {
+  color: rgba(233, 236, 242, 0.9);
+}
+
+.hud-help-years {
+  margin: 0;
+  font-size: 12.5px;
+  color: rgba(233, 236, 242, 0.78);
+}
+
+/* --- Focus visibility (accessibility) --------------------------------------------------- */
+
+.hud-track:focus-visible,
+.hud-icon-button:focus-visible,
+.hud-help-close:focus-visible {
+  outline: 2px solid #ffd97a;
+  outline-offset: 2px;
+}
+
+.hud-stop:focus-visible {
+  outline: 2px solid #ffd97a;
+  outline-offset: 1px;
+}
+
+/* --- Responsive / reduced motion ---------------------------------------------------------- */
+
+@media (max-width: 720px) {
+  .hud-bar {
+    gap: 10px;
+    padding: 8px 12px;
+  }
+  .hud-brand-text {
+    display: none;
+  }
+  .hud-slider {
+    min-width: 170px;
+  }
+  .hud-readout-year {
+    font-size: 18px;
+  }
+  .hud-icon-button {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hud-bar {
+    gap: 8px;
+    padding: 6px 10px;
+  }
+  .hud-slider {
+    min-width: 120px;
+  }
+  .hud-readout-year {
+    font-size: 16px;
+  }
+  .hud-stop {
+    font-size: 10.5px;
+    min-width: 34px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-help-card,
+  .hud-progress-fill,
+  .hud-thumb {
+    animation: none;
+  }
+}
