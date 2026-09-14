@@ -38,6 +38,7 @@ import {
   EraSceneRegistry,
   type EraSwapWiring,
 } from './integration/eraSceneRegistry';
+import { applyPolishToApp } from './polish/index';
 
 /** Options accepted by `boot` (everything is injectable for tests). */
 export interface BootOptions {
@@ -266,5 +267,9 @@ function shouldAutoBoot(): boolean {
 // Auto-boot when loaded as the Vite page entry (real browser). Headless
 // integration tests set the opt-out flag and drive `boot()` explicitly.
 if (shouldAutoBoot()) {
-  boot();
+  // The polish pass is the final additive layer: detail enrichment (night
+  // window glows, instanced props, surface wear) on every era scene plus the
+  // perf overlay (`?perf=1`) and pixel-ratio / draw-call guardrails, applied
+  // after the integrated scene boots (see src/polish).
+  applyPolishToApp(boot());
 }
