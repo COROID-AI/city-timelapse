@@ -1,92 +1,41 @@
 import './styles.css';
 
-import {
-  AmbientLight,
-  BoxGeometry,
-  DirectionalLight,
-  Group,
-  Mesh,
-  MeshStandardMaterial,
-  WebGLRenderer,
-} from 'three';
-import { BLOCK_BOUNDS, LOT_EXTENTS, ROAD, SIDEWALK } from './core/blockLayout';
-import { SceneRuntime, type RendererLike, type SceneLayer } from './core/sceneRuntime';
+import { WebGLRenderer } from 'three';
+import { AppComposition, type CompositionOptions } from './app/composition';
+import type { RendererLike } from './core/sceneRuntime';
+import { ERAS } from './eras/eraSystem';
 
 /**
- * Minimal boot for the city block timelapse shell.
+ * main.ts — browser entrypoint for the composed city-block timelapse.
  *
- * Owned by t11-app-integration: this file is replaced during final
- * composition. It wires the HUD canvas to the headless SceneRuntime and
- * registers one placeholder layer so the dev server renders an actual scene
- * inside the HUD shell with the top bar reserved for the era timeline slider.
+ * Owned by the app-composition task. This entry defers the WebGL renderer and
+ * canvas creation (src/app/composition.ts stays headless and DOM-free), mounts
+ * the composed TimelineUI into the HUD top bar, starts the runtime frame loop
+ * and wires resize/dispose/audio-unlock lifecycle. The era slider, SFX and
+ * navigation are all registered and driven by AppComposition.
  */
 
-const ERA_MARKER_COLORS = [0x6b4a3a, 0x4c5f3a, 0x39506b, 0x5d3a6b];
-
-function showFatalError(message: string): void {
+function setHudState(message: string, isError = false): void {
   const overlay = document.querySelector<HTMLElement>('#hud-overlay');
   const messageEl = document.querySelector<HTMLElement>('#hud-message');
-  overlay?.classList.add('is-error');
-  if (messageEl) messageEl.textContent = `WebGL unavailable — ${message}`;
-}
-
-function createPlaceholderLayer(): SceneLayer {
-  return {
-    id: 'placeholder',
-    createRoot() {
-      const root = new Group();
-
-      // Building-lot slab.
-      const lotSlab = new Mesh(
-        new BoxGeometry(BLOCK_BOUNDS.width, 0.5, BLOCK_BOUNDS.depth),
-        new MeshStandardMaterial({ color: 0x232e38, roughness: 0.95 }),
-      );
-      lotSlab.position.y = -0.25;
-      root.add(lotSlab);
-
-      // Sidewalk ring, using the shared layout contract.
-      const sidewalkMaterial = new MeshStandardMaterial({ color: 0x57616b, roughness: 0.85 });
-      for (const side of [SIDEWALK.north, SIDEWALK.east, SIDEWALK.south, SIDEWALK.west]) {
-        const slab = new Mesh(new BoxGeometry(side.width, 0.4, side.depth), sidewalkMaterial);
-        slab.position.set((side.minX + side.maxX) / 2, 0.2, (side.minZ + side.maxZ) / 2);
-        root.add(slab);
-      }
-
-      // Road ring with one band per side.
-      const roadMaterial = new MeshStandardMaterial({ color: 0x2a3038, roughness: 0.9 });
-      for (const band of [ROAD.north, ROAD.east, ROAD.south, ROAD.west]) {
-        const slab = new Mesh(new BoxGeometry(band.width, 0.3, band.depth), roadMaterial);
-        slab.position.set((band.minX + band.maxX) / 2, 0.02, (band.minZ + band.maxZ) / 2);
-        root.add(slab);
-      }
-
-      // One box per lot so era layers have an obvious anchor.
-      Object.values(LOT_EXTENTS).forEach((lot, index) => {
-        const marker = new Mesh(
-          new BoxGeometry(lot.width * 0.7, 6 + index * 2, lot.depth * 0.7),
-          new MeshStandardMaterial({
-            color: ERA_MARKER_COLORS[index % ERA_MARKER_COLORS.length],
-            roughness: 0.8,
-          }),
-        );
-        marker.position.set(lot.centerX, 3 + index, lot.centerZ);
-        root.add(marker);
-      });
-
-      return root;
-    },
-  };
+  overlay?.classList.toggle('is-error', isError);
+  if (messageEl) messageEl.textContent = message;
 }
 
 function boot(): void {
   const canvas = document.querySelector<HTMLCanvasElement>('#scene-canvas');
   if (!canvas) throw new Error('Missing #scene-canvas element in the HUD shell.');
 
+  setHudState('Initializing WebGL…');
+
   let webgl: WebGLRenderer;
   try {
     webgl = new WebGLRenderer({ canvas, antialias: true });
   } catch (error) {
-    showFatalError(error instanceof Error ? error.message : String(error));
+    setHudState(
+      `WebGL unavailable — ${error instanceof Error ? error.message : String(error)}`,
+      true,
+    );
     return;
   }
 
@@ -99,21 +48,46 @@ function boot(): void {
     dispose: () => webgl.dispose(),
   };
 
-  const runtime = new SceneRuntime({ renderer: adapter });
+  // Audio is optional: only attach when the browser actually provides Web
+  // Audio so environments without it boot with a silent (still functional)
+  // scene. Construction is allowed pre-gesture; resume() unlocks it below.
+  const audioOptions: Pick<CompositionOptions, 'audioContextFactory'> =
+    typeof AudioContext === 'function' ? { audioContextFactory: () => new AudioContext() } : {};
 
-  const lights = new Group();
-  lights.add(new AmbientLight(0xffffff, 0.6));
-  const sun = new DirectionalLight(0xfff2df, 2.4);
-  sun.position.set(80, 140, 70);
-  lights.add(sun);
-  runtime.scene.add(lights);
+  const composition = new AppComposition({
+    renderer: adapter,
+    ...audioOptions,
+  });
 
-  runtime.attachLayer(createPlaceholderLayer());
-  runtime.resize(canvas.clientWidth || 960, canvas.clientHeight || 640);
-  runtime.start();
+  // Replace the scaffold placeholder slider with the real five-stop
+  // TimelineUI (1945, 1965, 1985, 2005, 2025) mounted into the HUD top bar.
+  const timelineSlot = document.querySelector<HTMLElement>('.timeline');
+  if (!timelineSlot) {
+    setHudState('Timeline slot missing in the HUD shell.', true);
+    return;
+  }
+  timelineSlot.replaceChildren();
+  composition.timeline.mount(timelineSlot);
+  composition.timeline.update(composition.eraSystem.getState());
 
-  window.addEventListener('resize', () => runtime.resize());
-  window.addEventListener('beforeunload', () => runtime.dispose());
+  // HUD shell is ready; the loading message becomes the live era title.
+  document.querySelector<HTMLElement>('.hud-badge')?.replaceChildren('1945–2025');
+  setHudState(
+    `${ERAS[composition.eraSystem.getState().current].title} — drag the timeline`,
+  );
+
+  composition.runtime.resize(canvas.clientWidth || 960, canvas.clientHeight || 640);
+  composition.runtime.start();
+
+  window.addEventListener('resize', () => composition.resize());
+  window.addEventListener('beforeunload', () => composition.dispose());
+
+  // Browsers gate audio on a user gesture: unlock on the first interaction.
+  const unlockAudio = (): void => {
+    void composition.unlockAudio().catch(() => undefined);
+    window.removeEventListener('pointerdown', unlockAudio);
+  };
+  window.addEventListener('pointerdown', unlockAudio);
 }
 
 boot();
