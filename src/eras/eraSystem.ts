@@ -669,7 +669,7 @@ export class EraSystem {
 
   constructor(initialEra: EraId = 1945, transitionDurationSeconds = TRANSITION_DURATION_SECONDS) {
     if (!isEraId(initialEra)) {
-      throw new Error(`EraSystem: unknown initial era ${String(initialEra)}; known eras: ${ERA_IDS.join(', ')}`);
+      throw new Error(`EraSystem: unknown era ${String(initialEra)}; known eras: ${ERA_IDS.join(', ')}`);
     }
     if (!Number.isFinite(transitionDurationSeconds) || transitionDurationSeconds <= 0) {
       throw new Error(

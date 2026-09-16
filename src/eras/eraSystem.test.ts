@@ -226,7 +226,11 @@ describe('EraSystem transition state machine', () => {
     // exactly half the duration -> eased progress 0.5
     system.update(TRANSITION_DURATION_SECONDS / 2);
     expect(system.getState().progress).toBeCloseTo(0.5, 5);
-    // early ticks are damped by the easing curve
+  });
+
+  it('damps early clock ticks with the easing curve', () => {
+    const system = new EraSystem();
+    system.selectEra(1965);
     system.update(0.1); // raw fraction 0.05 -> eased ~0.0005
     const early = system.getState();
     expect(early.progress).toBeGreaterThan(0);
