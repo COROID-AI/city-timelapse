@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>City Block Timelapse · 1945–2055</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="hud-top">
+        <span class="hud-brand">CITY BLOCK · TIMELAPSE</span>
+        <div class="timeline">
+          <span class="timeline-year" id="timeline-year">1945</span>
+          <div class="timeline-track">
+            <input
+              id="timeline-slider"
+              class="timeline-slider"
+              type="range"
+              min="0"
+              max="5"
+              step="1"
+              value="0"
+              aria-label="Era timeline"
+            />
+            <div class="timeline-marks" aria-hidden="true">
+              <span>1945</span><span>1965</span><span>1985</span><span>2005</span><span>2025</span><span>2055</span>
+            </div>
+          </div>
+        </div>
+        <span class="hud-badge">scaffold</span>
+      </header>
+      <main class="viewport">
+        <canvas id="scene-canvas" aria-label="3D city block viewport"></canvas>
+        <div class="hud-overlay" id="hud-overlay">
+          <span class="hud-dot" aria-hidden="true"></span>
+          <span id="hud-message">Placeholder scene — era layers attach on integration</span>
+        </div>
+      </main>
+    </div>
+    <noscript>This experience requires JavaScript.</noscript>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

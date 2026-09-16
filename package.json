@@ -1,0 +1,26 @@
+{
+  "name": "city-era-timelapse",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "City time period timelapse 1945-2025 - era registry, transition state machine and event bus, running on a Vite + TypeScript + three.js scaffold with a headless SceneRuntime and shared block layout contract.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:era": "vitest run src/eras/eraSystem.test.ts",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "three": "^0.172.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.172.0",
+    "jsdom": "^26.0.0",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0",
+    "vitest": "^3.0.5"
+  }
+}
