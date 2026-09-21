@@ -65,9 +65,12 @@ export const ADJACENT_ERA_DIFFERING_FRACTION_THRESHOLD = 0.5
  * This is the control: it proves the suite is measuring the block's re-dressing
  * rather than animation, particles or noise. It must stay below
  * {@link ADJACENT_ERA_MEAN_DIFF_THRESHOLD}, otherwise the era measurement would
- * be indistinguishable from ordinary motion.
+ * be indistinguishable from ordinary motion. Calibrated at 0.62 on the reference
+ * viewport: the two captures sit a couple of frames apart, so the only movement
+ * between them is traffic and particles. 4 leaves a 6x margin over that floor
+ * while staying far under the weakest adjacent-era measurement (28.7).
  */
-export const SAME_ERA_MEAN_DIFF_CEILING = 12
+export const SAME_ERA_MEAN_DIFF_CEILING = 4
 
 /** Per-channel difference counted as "this pixel changed". */
 export const DIFFERING_CHANNEL_DELTA = 8

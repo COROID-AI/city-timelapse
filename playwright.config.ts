@@ -47,7 +47,13 @@ export default defineConfig({
   webServer: {
     command: `npm run dev -- --host 127.0.0.1 --port ${DEV_SERVER_PORT} --strictPort`,
     url: DEV_SERVER_URL,
-    reuseExistingServer: !process.env['CI'],
+    // The dev server on this fixed port may already be running: the workflow's
+    // own `qa-app-health` check boots `npm run dev` and probes `/` before the
+    // browser commands run, and this config's premise is that browser checks
+    // never manage their own server. Reusing whatever is serving the port (and
+    // starting one when nothing is) is what keeps a busy port from failing the
+    // suite, with or without `CI` set.
+    reuseExistingServer: true,
     timeout: 120_000,
     stdout: 'pipe',
     stderr: 'pipe',

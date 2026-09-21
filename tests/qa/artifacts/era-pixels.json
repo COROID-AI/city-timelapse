@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-09-21T05:49:46.406Z",
+  "generatedAt": "2026-09-21T07:55:57.929Z",
   "qualityTier": "low",
   "camera": "{\"mode\":\"orbit\",\"target\":[0,4,0],\"orbit\":{\"azimuth\":0.7853981633974483,\"polar\":1.05,\"radius\":46},\"street\":{\"position\":[0,1.75,26],\"heading\":0,\"pitch\":0},\"fov\":46,\"near\":0.1,\"far\":180}",
   "thresholds": {
     "adjacentMeanDifference": 12,
     "adjacentDifferingFraction": 0.5,
-    "sameEraMeanDifferenceCeiling": 12
+    "sameEraMeanDifferenceCeiling": 4
   },
   "captures": [
     {
@@ -48,8 +48,8 @@
     {
       "from": "1945",
       "to": "1965",
-      "meanDifference": 28.651604515001992,
-      "differingFraction": 0.9341626544331395,
+      "meanDifference": 28.63307783743426,
+      "differingFraction": 0.9341842296511628,
       "comparedPixels": 880640,
       "width": 1280,
       "height": 688,
@@ -58,8 +58,8 @@
     {
       "from": "1965",
       "to": "1985",
-      "meanDifference": 49.0527093933339,
-      "differingFraction": 0.9945846202761628,
+      "meanDifference": 49.04622547254682,
+      "differingFraction": 0.9947038517441861,
       "comparedPixels": 880640,
       "width": 1280,
       "height": 688,
@@ -68,8 +68,8 @@
     {
       "from": "1985",
       "to": "2005",
-      "meanDifference": 50.382791303267226,
-      "differingFraction": 0.9955850290697674,
+      "meanDifference": 50.31624348955412,
+      "differingFraction": 0.9955123546511628,
       "comparedPixels": 880640,
       "width": 1280,
       "height": 688,
@@ -78,8 +78,8 @@
     {
       "from": "2005",
       "to": "2025",
-      "meanDifference": 35.13456652733638,
-      "differingFraction": 0.9930936591569768,
+      "meanDifference": 35.17196584298579,
+      "differingFraction": 0.9927586755087209,
       "comparedPixels": 880640,
       "width": 1280,
       "height": 688,
@@ -87,11 +87,11 @@
     }
   ],
   "sameEraControl": {
-    "meanDifference": 0.624818692466068,
-    "differingFraction": 0.013389126090116278,
+    "meanDifference": 0.565152616279093,
+    "differingFraction": 0.0046670603197674415,
     "comparedPixels": 880640,
     "width": 1280,
     "height": 688,
-    "maxDifference": 112.66666666666667
+    "maxDifference": 109.66666666666667
   }
 }

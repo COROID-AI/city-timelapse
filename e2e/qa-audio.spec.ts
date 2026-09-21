@@ -234,8 +234,9 @@ test('audio stays suspended until a canvas gesture, follows the era and releases
   /* ---------------------------------------------------------------------- */
 
   const beds: string[] = []
-  let previousCrossfades = unlocked?.crossfades ?? 0
+  let previousEraId = (await readDebug(page))?.eraId ?? null
   for (const eraId of ERA_IDS) {
+    const crossfadesBefore = (await audioOf(page))?.crossfades ?? 0
     await selectYear(page, eraId)
     await waitForEra(page, eraId)
     // Give the soundscape stage's crossfade a chance to be observed.
@@ -244,8 +245,12 @@ test('audio stays suspended until a canvas gesture, follows the era and releases
       .toBe(getSoundscape(eraId).descriptor)
     const audio = await audioOf(page)
     expect(audio?.bedEraId, `${eraId} bed era`).toBe(eraId)
-    expect(audio?.crossfades ?? 0, `${eraId} issued a crossfade`).toBeGreaterThan(previousCrossfades)
-    previousCrossfades = audio?.crossfades ?? previousCrossfades
+    if (eraId !== previousEraId) {
+      // A real switch asks for a new bed; re-selecting the year already playing
+      // (the walk opens on the year the page loaded with) must not.
+      expect(audio?.crossfades ?? 0, `${eraId} issued a crossfade`).toBeGreaterThan(crossfadesBefore)
+    }
+    previousEraId = eraId
     beds.push(audio?.bedId ?? '')
   }
   expect(new Set(beds).size, 'five distinct soundscapes were selected').toBe(ERA_IDS.length)

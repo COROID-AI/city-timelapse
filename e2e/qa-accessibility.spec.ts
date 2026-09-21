@@ -278,7 +278,10 @@ test('the timeline and overlay are fully keyboard operable with correct ARIA sem
 
   const describedBy = await slider.getAttribute('aria-describedby')
   expect(describedBy, 'the slider is described by its own summary copy').toBeTruthy()
-  await expect(page.locator(`#${describedBy ?? 'missing'}`)).not.toHaveCount(0)
+  // The id is generated with React's `useId` (colons included), so it is resolved
+  // by id rather than through a CSS selector.
+  const summaryExists = await page.evaluate((id: string) => document.getElementById(id) !== null, describedBy ?? '')
+  expect(summaryExists, 'the element named by aria-describedby exists').toBe(true)
 
   const progressbar = page.getByTestId('timeline-progressbar')
   await expect(progressbar).toHaveAttribute('role', 'progressbar')
