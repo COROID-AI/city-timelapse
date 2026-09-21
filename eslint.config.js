@@ -38,7 +38,7 @@ export default tseslint.config(
   {
     // These files deliberately co-locate capability probes and harness helpers
     // with components, so the fast-refresh export rule does not apply.
-    files: ['src/App.tsx', 'src/scene/CameraRig.tsx', 'src/scene/SceneCanvas.tsx', 'tests/**/*.{ts,tsx}'],
+    files: ['src/App.tsx', 'src/scene/CameraRig.tsx', 'src/scene/SceneCanvas.tsx', 'src/city/props/PropsLayer.tsx', 'tests/**/*.{ts,tsx}'],
     rules: {
       'react-refresh/only-export-components': 'off',
     },

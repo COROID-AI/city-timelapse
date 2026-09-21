@@ -27,7 +27,9 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['tests/setup.ts'],
-    include: ['tests/**/*.test.{ts,tsx}'],
+    // Unit suites use `*.test.*`; composition suites use `*.spec.*` so a task can
+    // keep pure catalogue maths and cross-module integration visibly separate.
+    include: ['tests/**/*.test.{ts,tsx}', 'tests/**/*.spec.{ts,tsx}'],
     exclude: ['node_modules/**', 'dist/**', 'e2e/**'],
     restoreMocks: true,
     clearMocks: true,
