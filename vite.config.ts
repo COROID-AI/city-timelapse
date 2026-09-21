@@ -27,10 +27,12 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['tests/setup.ts'],
-    // `.test.*` is the default suite (unit suites); `.spec.*` carries the
-    // cross-module composition suites (real layout + real era registry + real
-    // content layer) that later phases add next to their unit tests. Both tiers
-    // are run by `npm test`, and each can also be run on its own.
+    // Unit suites use `*.test.*` (the default suite); composition suites use
+    // `*.spec.*` so a task can keep pure catalogue maths and cross-module
+    // integration visibly separate. `.spec.*` carries the cross-module
+    // composition suites (real layout + real era registry + real content layer)
+    // that later phases add next to their unit tests. Both tiers are run by
+    // `npm test`, and each can also be run on its own.
     include: ['tests/**/*.test.{ts,tsx}', 'tests/**/*.spec.{ts,tsx}'],
     exclude: ['node_modules/**', 'dist/**', 'e2e/**'],
     restoreMocks: true,

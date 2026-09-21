@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Era street furniture harness</title>
+    <!--
+      Self-contained verification page for the era props layer.
+
+      It imports this layer (`./index`), the two contracts the layer consumes —
+      the canonical block layout (`../layout`) and the era registry (`../../era`)
+      — and the rendering libraries (three.js, React and a minimal
+      react-three-fiber canvas). It deliberately imports *no* other task's files:
+      no composed application, no scene pipeline, no storefront or vehicle layer,
+      and nothing remote. A period change is driven here by the page's own era
+      selector so per-era browser verification never depends on the composed app.
+
+      Everything the browser suite asserts is published on
+      `window.__propsHarness` and echoed into `data-props-*` attributes on the
+      document body.
+    -->
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0e1116;
+        color: #e7e6e1;
+      }
+      body {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem 1.1rem;
+        align-items: center;
+        padding: 0.7rem 1rem;
+        border-bottom: 1px solid #242a34;
+        background: #141a22;
+      }
+      h1 {
+        font-size: 0.9rem;
+        margin: 0;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      p {
+        margin: 0;
+        font-size: 0.78rem;
+        color: #b6bcc8;
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem 0.9rem;
+        align-items: center;
+      }
+      .group {
+        display: flex;
+        gap: 0.3rem;
+        align-items: center;
+      }
+      button,
+      select {
+        font: inherit;
+        font-size: 0.74rem;
+        padding: 0.32rem 0.55rem;
+        color: #e7e6e1;
+        background: #1d2531;
+        border: 1px solid #313b4a;
+        border-radius: 0.3rem;
+        cursor: pointer;
+      }
+      button[data-active='true'] {
+        background: #2c4a68;
+        border-color: #4c7ba8;
+      }
+      button:hover,
+      select:hover {
+        background: #263040;
+      }
+      label {
+        font-size: 0.72rem;
+        color: #b6bcc8;
+        display: flex;
+        gap: 0.3rem;
+        align-items: center;
+      }
+      .viewport {
+        position: relative;
+        min-height: 0;
+      }
+      .viewport canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .viewport[data-webgl='false']::after {
+        content: 'WebGL unavailable: plans and statistics are still published for assertions.';
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: #8b93a1;
+        font-size: 0.8rem;
+      }
+      .report {
+        margin: 0;
+        max-height: 26vh;
+        overflow: auto;
+        padding: 0.7rem 1rem;
+        border-top: 1px solid #242a34;
+        background: #141a22;
+        font-size: 0.7rem;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        color: #b6bcc8;
+      }
+    </style>
+  </head>
+  <body
+    data-props-status="booting"
+    data-props-webgl="unknown"
+    data-props-era=""
+    data-props-props="0"
+    data-props-lamps="0"
+    data-props-lamp-tech=""
+    data-props-emissive="0"
+    data-props-triangles="0"
+    data-props-drawcalls="0"
+    data-props-issues="0"
+    data-props-frames="0"
+  >
+    <header>
+      <h1>Era street furniture harness</h1>
+      <p data-testid="props-summary">Booting the props layer…</p>
+      <div class="controls" id="controls"></div>
+    </header>
+    <div class="viewport" id="viewport" data-testid="props-viewport"></div>
+    <pre class="report" id="report" data-testid="props-report"></pre>
+
+    <script type="module">
+      import { createElement as h, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+      import { createRoot } from 'react-dom/client'
+      import { Canvas, useFrame, useThree } from '@react-three/fiber'
+      import * as THREE from 'three'
+      import { CANONICAL_LAYOUT_SEED, buildLayoutObject, createCityLayout, disposeLayoutObject } from '../layout'
+      import { ERA_IDS, getEra } from '../../era'
+      import { DEFAULT_QUALITY_TIER } from '../../lib/quality'
+      import {
+        PROPS_DRAW_CALL_BUDGETS,
+        PROPS_TRIANGLE_BUDGETS,
+        describePlan,
+        planEraProps,
+        planTransition,
+        PropsLayer,
+      } from './index'
+
+      const body = document.body
+      const viewport = document.getElementById('viewport')
+      const summaryNode = document.querySelector('[data-testid="props-summary"]')
+      const reportNode = document.getElementById('report')
+
+      const harness = {
+        errors: [],
+        webgl: 'unknown',
+        frames: 0,
+        renderTriangles: 0,
+        renderCalls: 0,
+        /** Filled in by the mounted app. */
+        controller: null,
+      }
+
+      function supportsWebGL() {
+        try {
+          const canvas = document.createElement('canvas')
+          return canvas.getContext('webgl2') !== null || canvas.getContext('webgl') !== null
+        } catch (error) {
+          harness.errors.push(`webgl probe: ${error && error.message ? error.message : String(error)}`)
+          return false
+        }
+      }
+
+      const webglAvailable = supportsWebGL()
+      harness.webgl = webglAvailable
+      body.dataset['propsWebgl'] = String(webglAvailable)
+      viewport.dataset['webgl'] = String(webglAvailable)
+
+      /* ------------------------------------------------------------------ *
+       * Scene helpers
+       * ------------------------------------------------------------------ */
+
+      /** Mounts the real canonical block shell so props read against the block. */
+      function LayoutShell({ layout }) {
+        const scene = useThree((state) => state.scene)
+        useEffect(() => {
+          const built = buildLayoutObject(layout)
+          built.root.name = 'harness-block'
+          scene.add(built.root)
+          return () => {
+            scene.remove(built.root)
+            disposeLayoutObject(built)
+          }
+        }, [layout, scene])
+        return null
+      }
+
+      /** Publishes renderer counters each frame (draw calls, triangles, frames). */
+      function RenderProbe() {
+        const gl = useThree((state) => state.gl)
+        useFrame(() => {
+          harness.frames = gl.info.render.frame
+          harness.renderTriangles = gl.info.render.triangles
+          harness.renderCalls = gl.info.render.calls
+          body.dataset['propsFrames'] = String(harness.frames)
+        })
+        return null
+      }
+
+      /* ------------------------------------------------------------------ *
+       * The harness application
+       * ------------------------------------------------------------------ */
+
+      function HarnessApp({ layout }) {
+        const [eraId, setEraId] = useState('1945')
+        const [lightingMode, setLightingMode] = useState('auto')
+        const [reducedMotion, setReducedMotion] = useState(false)
+        const [qualityTier, setQualityTier] = useState(DEFAULT_QUALITY_TIER)
+        const [transition, setTransition] = useState(null)
+        const [stats, setStats] = useState(null)
+        const frameRef = useRef(null)
+
+        // `undefined` means "use the era's own lighting data"; the page can also
+        // force night or day to prove the night flag drives the lamps.
+        const night = lightingMode === 'auto' ? undefined : lightingMode === 'night'
+        // While a staged switch runs, the era on screen is the destination.
+        const activeEra = transition === null ? eraId : transition.to
+
+        const onStats = useCallback((next) => {
+          setStats(next)
+        }, [])
+
+        const applyEraFromWindow = useCallback((nextEraId) => {
+          setTransition(null)
+          setEraId(nextEraId)
+        }, [])
+
+        const applyTransitionFromWindow = useCallback((from, to, t) => {
+          setTransition({ from, to, t })
+        }, [])
+
+        const snapshot = useCallback(() => {
+          const plan = planEraProps(layout, { eraId: activeEra, night, qualityTier })
+          const base = {
+            eraId: activeEra,
+            night: plan.night,
+            nightMode: lightingMode,
+            reducedMotion,
+            qualityTier,
+            transition,
+            webgl: webglAvailable,
+            frames: harness.frames,
+            renderTriangles: harness.renderTriangles,
+            renderCalls: harness.renderCalls,
+            plan: {
+              props: plan.props.length,
+              triangles: plan.triangles,
+              issues: plan.issues,
+              lamp: plan.lamp,
+              byCategory: plan.census.byCategory,
+              bySlot: plan.census.bySlot,
+              detail: plan.census.detail,
+              activeProps: plan.activeProps,
+              retiredProps: plan.retiredProps,
+              uniqueToEra: plan.census.uniqueToEra,
+              coverage: plan.coverage,
+            },
+            stats,
+            budgets: { triangles: PROPS_TRIANGLE_BUDGETS[qualityTier], drawCalls: PROPS_DRAW_CALL_BUDGETS[qualityTier] },
+              props: plan.props.map((prop) => ({
+              anchorName: prop.anchorName,
+              propId: prop.propId,
+              slot: prop.anchorSlot,
+              category: prop.category,
+              band: prop.band,
+              mount: prop.mount,
+              scale: prop.scale,
+              contact: prop.contact,
+              lamp:
+                prop.lamp === null
+                  ? null
+                  : {
+                      technology: prop.lamp.technology,
+                      colour: prop.lamp.colour,
+                      emissiveIntensity: prop.lamp.emissiveIntensity,
+                      glowRadius: prop.lamp.glowRadius,
+                      light: prop.lamp.light,
+                      lightIntensity: prop.lamp.lightIntensity,
+                    },
+            })),
+          }
+          if (transition !== null) {
+            const frame = planTransition(layout, {
+              from: transition.from,
+              to: transition.to,
+              t: transition.t,
+              reducedMotion,
+            }, { night, qualityTier })
+            base.transitionFrame = {
+              from: frame.from,
+              to: frame.to,
+              t: frame.t,
+              staged: frame.staged,
+              counts: frame.counts,
+              props: frame.props.map((staged) => ({
+                anchorName: staged.prop.anchorName,
+                propId: staged.prop.propId,
+                fromPropId: staged.fromPropId,
+                toPropId: staged.toPropId,
+                phase: staged.phase,
+                source: staged.source,
+                weight: staged.weight,
+              })),
+            }
+          }
+          return base
+        }, [activeEra, layout, lightingMode, night, qualityTier, reducedMotion, stats, transition])
+
+        useEffect(() => {
+          harness.controller = {
+            setEra: applyEraFromWindow,
+            setLightingMode,
+            setReducedMotion,
+            setQualityTier,
+            applyTransition: applyTransitionFromWindow,
+            snapshot,
+          }
+          return () => {
+            harness.controller = null
+          }
+        }, [applyEraFromWindow, applyTransitionFromWindow, snapshot])
+
+        useEffect(() => {
+          frameRef.current = null
+          const snapshotValue = snapshot()
+          body.dataset['propsStatus'] = 'ready'
+          body.dataset['propsEra'] = activeEra
+          body.dataset['propsNightMode'] = lightingMode
+          body.dataset['propsProps'] = String(snapshotValue.plan.props)
+          body.dataset['propsLamps'] = String(
+            snapshotValue.props.filter((prop) => prop.lamp !== null).length,
+          )
+          body.dataset['propsLampTech'] = snapshotValue.plan.lamp.technology
+          body.dataset['propsEmissive'] = String(snapshotValue.plan.lamp.emissiveIntensity)
+          body.dataset['propsTriangles'] = String(
+            stats === null ? snapshotValue.plan.triangles : stats.triangles,
+          )
+          body.dataset['propsDrawcalls'] = String(stats === null ? 0 : stats.drawCalls)
+          body.dataset['propsIssues'] = String(snapshotValue.plan.issues.length)
+
+          if (summaryNode) {
+            summaryNode.textContent = [
+              `${activeEra} ${getEra(activeEra).label}`,
+              `${snapshotValue.plan.props} props`,
+              `lamp ${snapshotValue.plan.lamp.technology}`,
+              `emissive ${snapshotValue.plan.lamp.emissiveIntensity.toFixed(3)}`,
+              `${snapshotValue.plan.lamp.pointLights} lights`,
+              stats === null ? 'stats pending' : `${stats.drawCalls} draw calls / ${stats.triangles} tris`,
+              snapshotValue.plan.night ? 'night' : 'day',
+              `lighting ${lightingMode}`,
+              reducedMotion ? 'reduced motion' : 'staged',
+              snapshotValue.plan.issues.length === 0 ? 'legal' : `${snapshotValue.plan.issues.length} issues`,
+            ].join(' · ')
+          }
+          if (reportNode) {
+            reportNode.textContent = [
+              describePlan(planEraProps(layout, { eraId: activeEra, night, qualityTier })),
+              `unique to ${activeEra}: ${snapshotValue.plan.uniqueToEra.join(', ')}`,
+              `active: ${snapshotValue.plan.activeProps.join(', ')}`,
+              `retired by ${activeEra}: ${snapshotValue.plan.retiredProps.join(', ')}`,
+              'detail census:',
+              ...Object.entries(snapshotValue.plan.detail).map(([kind, count]) => `  ${kind.padEnd(16)} ${count}`),
+              'coverage:',
+              ...Object.entries(snapshotValue.plan.coverage).map(
+                ([slot, entry]) => `  ${slot.padEnd(18)} ${entry.placed.length}/${entry.expected.length}`,
+              ),
+              'prop census:',
+              ...Object.entries(snapshotValue.plan.bySlot).map(([slot, count]) => `  ${slot.padEnd(18)} ${count}`),
+            ].join('\n')
+          }
+        }, [activeEra, layout, lightingMode, night, qualityTier, reducedMotion, snapshot, stats, transition])
+
+        const scene = useMemo(
+          () =>
+            h(
+              Canvas,
+              {
+                shadows: qualityTier !== 'low',
+                dpr: [1, 1.5],
+                camera: { position: [120, 96, 132], fov: 40, near: 0.5, far: 700 },
+                onCreated: ({ camera, scene: inner }) => {
+                  camera.lookAt(0, 6, 0)
+                  inner.background = new THREE.Color('#0b0f15')
+                  inner.fog = new THREE.Fog('#0b0f15', 240, 520)
+                },
+              },
+              h('hemisphereLight', { args: ['#dfe7ff', '#22262c', night ? 0.22 : 0.85] }),
+              h('directionalLight', {
+                position: [-120, 170, 90],
+                intensity: night ? 0.25 : 1.25,
+                castShadow: qualityTier !== 'low',
+              }),
+              h(LayoutShell, { layout }),
+              h(PropsLayer, {
+                layout,
+                eraId: activeEra,
+                transition,
+                night,
+                reducedMotion,
+                qualityTier,
+                onStats,
+              }),
+              h(RenderProbe),
+            ),
+          [eraId, layout, night, onStats, qualityTier, reducedMotion, transition],
+        )
+
+        return h(
+          'div',
+          { style: { display: 'contents' } },
+          h(Controls, {
+            eraId,
+            lightingMode,
+            reducedMotion,
+            qualityTier,
+            transition,
+            onEra: applyEraFromWindow,
+            onLightingMode: setLightingMode,
+            onReducedMotion: setReducedMotion,
+            onQuality: setQualityTier,
+            onTransition: applyTransitionFromWindow,
+          }),
+          webglAvailable ? scene : null,
+        )
+      }
+
+      /** Era selector, night and reduced-motion switches, transition slider. */
+      function Controls(props) {
+        const [transition, setTransition] = useState({ from: '1945', to: '1985', t: 0.5 })
+        const container = document.getElementById('controls')
+
+        useEffect(() => {
+          const nodes = []
+          const button = (label, testId, onClick, active) => {
+            const node = document.createElement('button')
+            node.type = 'button'
+            node.textContent = label
+            node.dataset['testid'] = testId
+            node.dataset['active'] = String(Boolean(active))
+            node.addEventListener('click', onClick)
+            return node
+          }
+
+          const eraGroup = document.createElement('div')
+          eraGroup.className = 'group'
+          for (const era of ERA_IDS) {
+            eraGroup.append(
+              button(
+                era,
+                `era-${era}`,
+                () => props.onEra(era),
+                props.transition === null && props.eraId === era,
+              ),
+            )
+          }
+          nodes.push(eraGroup)
+
+          const toggles = document.createElement('div')
+          toggles.className = 'group'
+          const nextMode = { auto: 'night', night: 'day', day: 'auto' }
+          toggles.append(
+            button(
+              `lighting: ${props.lightingMode}`,
+              'props-night-mode',
+              () => props.onLightingMode(nextMode[props.lightingMode] ?? 'auto'),
+              props.lightingMode !== 'auto',
+            ),
+            button(
+              'reduced motion',
+              'props-reduced-motion',
+              () => props.onReducedMotion(!props.reducedMotion),
+              props.reducedMotion,
+            ),
+          )
+          nodes.push(toggles)
+
+          const quality = document.createElement('label')
+          quality.textContent = 'quality'
+          const select = document.createElement('select')
+          select.dataset['testid'] = 'props-quality'
+          for (const tier of ['high', 'medium', 'low']) {
+            const option = document.createElement('option')
+            option.value = tier
+            option.textContent = tier
+            option.selected = tier === props.qualityTier
+            select.append(option)
+          }
+          select.addEventListener('change', (event) => props.onQuality(event.target.value))
+          quality.append(select)
+          nodes.push(quality)
+
+          const transitionGroup = document.createElement('div')
+          transitionGroup.className = 'group'
+          const range = document.createElement('input')
+          range.type = 'range'
+          range.min = '0'
+          range.max = '1'
+          range.step = '0.05'
+          range.value = String(transition.t)
+          range.dataset['testid'] = 'props-transition-t'
+          range.addEventListener('input', (event) => {
+            const next = { ...transition, t: Number(event.target.value) }
+            setTransition(next)
+            props.onTransition(next.from, next.to, next.t)
+          })
+          const from = document.createElement('select')
+          from.dataset['testid'] = 'props-transition-from'
+          const to = document.createElement('select')
+          to.dataset['testid'] = 'props-transition-to'
+          for (const era of ERA_IDS) {
+            const fromOption = document.createElement('option')
+            fromOption.value = era
+            fromOption.textContent = era
+            fromOption.selected = era === transition.from
+            from.append(fromOption)
+            const toOption = document.createElement('option')
+            toOption.value = era
+            toOption.textContent = era
+            toOption.selected = era === transition.to
+            to.append(toOption)
+          }
+          const emit = (next) => {
+            setTransition(next)
+            props.onTransition(next.from, next.to, next.t)
+          }
+          from.addEventListener('change', (event) => emit({ ...transition, from: event.target.value }))
+          to.addEventListener('change', (event) => emit({ ...transition, to: event.target.value }))
+          transitionGroup.append(
+            from,
+            document.createTextNode('→'),
+            to,
+            range,
+            button('settle', 'props-settle', () => props.onEra(props.eraId)),
+          )
+          nodes.push(transitionGroup)
+
+          container.replaceChildren(...nodes)
+        }, [props, transition])
+
+        return null
+      }
+
+      const layout = createCityLayout(CANONICAL_LAYOUT_SEED)
+      const root = createRoot(viewport)
+      root.render(h(HarnessApp, { layout }))
+
+      /* ------------------------------------------------------------------ *
+       * Published harness API
+       * ------------------------------------------------------------------ */
+
+      window.__propsHarness = {
+        eras: [...ERA_IDS],
+        layoutSeed: String(CANONICAL_LAYOUT_SEED),
+        get webgl() {
+          return webglAvailable
+        },
+        get errors() {
+          return [...harness.errors]
+        },
+        get mounted() {
+          return harness.controller !== null
+        },
+        get snapshot() {
+          return harness.controller === null ? null : harness.controller.snapshot()
+        },
+        selectEra(eraId) {
+          harness.controller?.setEra(eraId)
+        },
+        setNight(value) {
+          harness.controller?.setLightingMode(value ? 'night' : 'day')
+        },
+        setLightingMode(mode) {
+          harness.controller?.setLightingMode(mode)
+        },
+        setReducedMotion(value) {
+          harness.controller?.setReducedMotion(Boolean(value))
+        },
+        setQualityTier(tier) {
+          harness.controller?.setQualityTier(tier)
+        },
+        applyTransition(from, to, t) {
+          harness.controller?.applyTransition(from, to, t)
+        },
+        planFor(eraId) {
+          const plan = planEraProps(layout, { eraId })
+          return {
+            eraId: plan.eraId,
+            props: plan.props.length,
+            triangles: plan.triangles,
+            issues: plan.issues,
+            lamp: plan.lamp,
+            activeProps: plan.activeProps,
+            byCategory: plan.census.byCategory,
+          }
+        },
+      }
+
+      window.addEventListener('error', (event) => {
+        harness.errors.push(`window: ${event.message}`)
+      })
+      window.addEventListener('unhandledrejection', (event) => {
+        harness.errors.push(`promise: ${String(event.reason)}`)
+      })
+    </script>
+  </body>
+</html>

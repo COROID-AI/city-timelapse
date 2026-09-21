@@ -42,6 +42,7 @@ export default tseslint.config(
       'src/App.tsx',
       'src/scene/CameraRig.tsx',
       'src/scene/SceneCanvas.tsx',
+      'src/city/props/PropsLayer.tsx',
       'src/city/storefronts/StorefrontsLayer.tsx',
       'src/ui/*.{ts,tsx}',
       'src/vfx/VfxLayer.tsx',
