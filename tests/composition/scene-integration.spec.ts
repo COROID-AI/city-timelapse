@@ -967,9 +967,23 @@ describe('composed experience', () => {
     expect(disabledHost[DEBUG_SURFACE_KEY]).toBeUndefined()
   })
 
-  it('tolerates an empty extension directory and loads present modules', async () => {
-    expect(extensionModulePaths()).toEqual([])
-    expect(await loadExtensions()).toEqual([])
+  it('discovers the present extension modules and tolerates an empty directory', async () => {
+    // The navigation/inspection phase ships its four modules here; the slot must
+    // list exactly those, sorted, and resolve each one to a component.
+    const paths = extensionModulePaths()
+    expect(paths).toEqual([
+      '../interaction/extensions/inspectionExtension.tsx',
+      '../interaction/extensions/qualityExtension.tsx',
+      '../interaction/extensions/tourExtension.tsx',
+      '../interaction/extensions/viewpointsExtension.tsx',
+    ])
+    const discovered = await loadExtensions()
+    expect(discovered.length).toBe(paths.length)
+    expect(discovered.every((candidate) => typeof candidate === 'function')).toBe(true)
+
+    // An empty directory is still valid: nothing mounts and nothing throws.
+    expect(extensionModulePaths({})).toEqual([])
+    expect(await loadExtensions({})).toEqual([])
 
     const extension = (): null => null
     expect(resolveExtension({ default: extension })).toBe(extension)
