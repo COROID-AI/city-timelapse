@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T08:36:56.744Z",
+  "generatedAt": "2026-09-21T09:13:05.066Z",
   "qualityTier": "low",
   "camera": "{\"mode\":\"orbit\",\"target\":[0,4,0],\"orbit\":{\"azimuth\":0.7853981633974483,\"polar\":1.05,\"radius\":46},\"street\":{\"position\":[0,1.75,26],\"heading\":0,\"pitch\":0},\"fov\":46,\"near\":0.1,\"far\":180}",
   "thresholds": {
@@ -48,8 +48,8 @@
     {
       "from": "1945",
       "to": "1965",
-      "meanDifference": 28.626830108509836,
-      "differingFraction": 0.9341649255087209,
+      "meanDifference": 28.628064816600933,
+      "differingFraction": 0.9342217023982559,
       "comparedPixels": 880640,
       "width": 1280,
       "height": 688,
@@ -58,8 +58,8 @@
     {
       "from": "1965",
       "to": "1985",
-      "meanDifference": 49.082457833861426,
-      "differingFraction": 0.9944392714389535,
+      "meanDifference": 49.06179142458439,
+      "differingFraction": 0.9946323128633721,
       "comparedPixels": 880640,
       "width": 1280,
       "height": 688,
@@ -68,8 +68,8 @@
     {
       "from": "1985",
       "to": "2005",
-      "meanDifference": 50.342500908402485,
-      "differingFraction": 0.9955816224563954,
+      "meanDifference": 50.39052999330902,
+      "differingFraction": 0.995384038880814,
       "comparedPixels": 880640,
       "width": 1280,
       "height": 688,
@@ -78,8 +78,8 @@
     {
       "from": "2005",
       "to": "2025",
-      "meanDifference": 35.123749394341985,
-      "differingFraction": 0.9932390079941861,
+      "meanDifference": 35.13673843261737,
+      "differingFraction": 0.9929528524709302,
       "comparedPixels": 880640,
       "width": 1280,
       "height": 688,
@@ -87,11 +87,11 @@
     }
   ],
   "sameEraControl": {
-    "meanDifference": 0.5447295906007504,
-    "differingFraction": 0.00372569949127907,
+    "meanDifference": 0.548915561409837,
+    "differingFraction": 0.003836982194767442,
     "comparedPixels": 880640,
     "width": 1280,
     "height": 688,
-    "maxDifference": 112
+    "maxDifference": 129.66666666666666
   }
 }

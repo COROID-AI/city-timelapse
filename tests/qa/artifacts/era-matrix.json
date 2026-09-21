@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T08:58:05.806Z",
+  "generatedAt": "2026-09-21T09:08:49.783Z",
   "qualityTier": "low",
   "layerOrder": [
     "layout",
@@ -23,11 +23,11 @@
   ],
   "note": "buildings and pedestrians are reported by the composition as pending: their barrels are not shipped in this revision, so they carry no statistics. Every shipped category is verified below.",
   "timingsMs": {
-    "1945": 317,
-    "1965": 23777,
-    "1985": 19708,
-    "2005": 16517,
-    "2025": 16309
+    "1945": 607,
+    "1965": 22928,
+    "1985": 20667,
+    "2005": 15704,
+    "2025": 14506
   },
   "censuses": [
     {
@@ -117,10 +117,10 @@
       ],
       "categories": {
         "atmosphere": {
-          "plumeEmitters": 20,
+          "plumeEmitters": 23,
           "plumeBaseline": 2,
-          "plumeSources": 18,
-          "plumeSourcesPublished": 18,
+          "plumeSources": 21,
+          "plumeSourcesPublished": 21,
           "ambientBirds": 9
         },
         "storefronts": {
@@ -157,12 +157,12 @@
         "vehicles": 504
       },
       "fingerprints": {
-        "atmosphere": "plumeEmitters=20,plumeBaseline=2,plumeSources=18,plumeSourcesPublished=18,ambientBirds=9",
+        "atmosphere": "plumeEmitters=23,plumeBaseline=2,plumeSources=21,plumeSourcesPublished=21,ambientBirds=9",
         "storefronts": "units=68,meshes=506,signs=68,awnings=136,advertising=14,graffiti=16,litMeshes=144,textures=99",
         "props": "propCount=76,instanceCount=404,drawCalls=91,recipesUsed=20,pointLights=0,anchorsCovered=76",
         "vehicles": "movingInstances=21,parkedInstances=26,movingVariants=15,parkedVariants=15,meshes=499,markingMeshes=2"
       },
-      "combinedFingerprint": "plumeEmitters=20,plumeBaseline=2,plumeSources=18,plumeSourcesPublished=18,ambientBirds=9||units=68,meshes=506,signs=68,awnings=136,advertising=14,graffiti=16,litMeshes=144,textures=99||propCount=76,instanceCount=404,drawCalls=91,recipesUsed=20,pointLights=0,anchorsCovered=76||movingInstances=21,parkedInstances=26,movingVariants=15,parkedVariants=15,meshes=499,markingMeshes=2",
+      "combinedFingerprint": "plumeEmitters=23,plumeBaseline=2,plumeSources=21,plumeSourcesPublished=21,ambientBirds=9||units=68,meshes=506,signs=68,awnings=136,advertising=14,graffiti=16,litMeshes=144,textures=99||propCount=76,instanceCount=404,drawCalls=91,recipesUsed=20,pointLights=0,anchorsCovered=76||movingInstances=21,parkedInstances=26,movingVariants=15,parkedVariants=15,meshes=499,markingMeshes=2",
       "bedId": "1965-mid-century-boom",
       "inspection": {
         "count": 503,
