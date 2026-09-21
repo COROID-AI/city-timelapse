@@ -1,0 +1,512 @@
+/*
+ * Overlay styling for the city timelapse.
+ *
+ * Layout rules that matter to the brief:
+ * - `.timeline` is pinned to the top of the *viewport* (position: fixed) so it
+ *   sits above the 3D canvas and never scrolls away.
+ * - `.ui-overlay` itself is click-through (`pointer-events: none`) so the camera
+ *   controls keep working between panels; each panel re-enables its own hits.
+ * - Every focusable control draws a visible focus ring from `:focus-visible`
+ *   (with a `:focus` fallback for browsers and DOM implementations that do not
+ *   support it), so keyboard navigation is always visible.
+ * - Narrow viewports shrink the readout instead of covering the centre of the
+ *   scene: the summary line and stop names collapse first.
+ */
+
+:root {
+  --ui-focus-ring: #7ad7ff;
+  --ui-panel: rgba(9, 13, 22, 0.82);
+  --ui-panel-border: rgba(120, 150, 200, 0.24);
+  --ui-text: #e8edf7;
+  --ui-text-muted: #9dabc7;
+  --ui-accent: #6fd3ff;
+}
+
+.ui-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+  color: var(--ui-text);
+}
+
+.ui-overlay > * {
+  pointer-events: auto;
+}
+
+/* ---------------------------------------------------------------- timeline */
+
+.timeline {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: grid;
+  gap: 10px;
+  padding: 12px clamp(12px, 4vw, 40px) 18px;
+  background: linear-gradient(180deg, rgba(5, 7, 13, 0.92) 0%, rgba(5, 7, 13, 0.55) 70%, transparent 100%);
+  border-bottom: 1px solid var(--ui-panel-border);
+  backdrop-filter: blur(10px);
+}
+
+.timeline__readout {
+  display: grid;
+  gap: 2px;
+  max-width: min(880px, 100%);
+}
+
+.timeline__now {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 0;
+}
+
+.timeline__now-year {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: clamp(1.5rem, 3.4vw, 2.1rem);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--ui-accent);
+}
+
+.timeline__now-label {
+  font-size: clamp(0.85rem, 1.6vw, 1.05rem);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.timeline__summary {
+  margin: 0;
+  max-width: 72ch;
+  color: var(--ui-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.timeline__progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 0;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: var(--ui-text-muted);
+}
+
+.timeline__progressbar {
+  position: relative;
+  display: block;
+  width: clamp(90px, 22vw, 240px);
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.timeline__progress-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  background: linear-gradient(90deg, rgba(111, 211, 255, 0.6), var(--ui-accent));
+}
+
+/* Interaction rail: the slider strip and the stop buttons share one geometry. */
+.timeline__rail {
+  position: relative;
+  height: 52px;
+  touch-action: none;
+  user-select: none;
+}
+
+.timeline__slider {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  cursor: pointer;
+  border-radius: 10px;
+}
+
+.timeline__slider:focus-visible,
+.timeline__slider:focus {
+  outline: 2px solid #7ad7ff;
+  outline-offset: 2px;
+}
+
+.timeline__line {
+  position: absolute;
+  top: 22px;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.timeline__knob {
+  position: absolute;
+  top: 14px;
+  width: 18px;
+  height: 18px;
+  margin-left: -9px;
+  border: 2px solid #0a1018;
+  border-radius: 50%;
+  background: var(--ui-accent);
+  box-shadow: 0 0 0 3px rgba(111, 211, 255, 0.22);
+  transition: left 120ms ease-out;
+}
+
+.timeline__stops {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline__stop-item {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+}
+
+.timeline__stop {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ui-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.timeline__stop-dot {
+  width: 10px;
+  height: 10px;
+  margin-top: 14px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.timeline__stop-year {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+}
+
+.timeline__stop[data-active='true'] {
+  color: var(--ui-text);
+}
+
+.timeline__stop[data-active='true'] .timeline__stop-dot {
+  background: var(--ui-accent);
+  box-shadow: 0 0 0 3px rgba(111, 211, 255, 0.24);
+}
+
+.timeline__stop[data-transition-source='true'] .timeline__stop-dot {
+  background: rgba(111, 211, 255, 0.5);
+}
+
+.timeline__stop:focus-visible,
+.timeline__stop:focus {
+  outline: 2px solid #7ad7ff;
+  outline-offset: 2px;
+}
+
+.timeline[data-transitioning='true'] .timeline__knob {
+  background: #ffd479;
+}
+
+/* --------------------------------------------------------------------- HUD */
+
+.hud {
+  position: fixed;
+  bottom: 84px;
+  left: clamp(12px, 4vw, 40px);
+  max-width: min(340px, 72vw);
+  display: grid;
+  gap: 4px;
+  padding: 12px 16px;
+  border: 1px solid var(--ui-panel-border);
+  border-radius: 12px;
+  background: var(--ui-panel);
+  backdrop-filter: blur(12px);
+}
+
+.hud__year {
+  margin: 0;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--ui-accent);
+}
+
+.hud__era {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.hud__summary {
+  margin: 0;
+  color: var(--ui-text-muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.hud__status {
+  margin: 2px 0 0;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: var(--ui-text-muted);
+}
+
+/* ---------------------------------------------------------------- controls */
+
+.controls {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 12px clamp(12px, 4vw, 40px);
+}
+
+.controls__cluster {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 12px 10px;
+  border: 1px solid var(--ui-panel-border);
+  border-radius: 12px;
+  background: var(--ui-panel);
+  backdrop-filter: blur(12px);
+}
+
+.controls__legend {
+  padding: 0 4px;
+  color: var(--ui-text-muted);
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.controls__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.controls__status {
+  color: var(--ui-text-muted);
+  font-size: 0.68rem;
+}
+
+.ui-button {
+  padding: 7px 12px;
+  border: 1px solid var(--ui-panel-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ui-text);
+  font: inherit;
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+
+.ui-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.ui-button[aria-pressed='true'] {
+  border-color: var(--ui-accent);
+  background: rgba(111, 211, 255, 0.18);
+  color: #ffffff;
+}
+
+.ui-button--ghost {
+  background: transparent;
+}
+
+.ui-button:focus-visible,
+.ui-button:focus {
+  outline: 2px solid #7ad7ff;
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ legend */
+
+.legend {
+  position: fixed;
+  right: clamp(12px, 4vw, 40px);
+  bottom: 0;
+  width: min(360px, 82vw);
+  margin-bottom: 12px;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--ui-panel-border);
+  border-radius: 12px;
+  background: var(--ui-panel);
+  backdrop-filter: blur(12px);
+}
+
+.legend__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.legend__title {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ui-text-muted);
+}
+
+.legend__panel {
+  max-height: 46vh;
+  margin-top: 8px;
+  overflow-y: auto;
+}
+
+.legend__group + .legend__group {
+  margin-top: 8px;
+}
+
+.legend__group-title {
+  margin: 0 0 4px;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ui-accent);
+}
+
+.legend__list {
+  margin: 0;
+}
+
+.legend__entry {
+  display: grid;
+  grid-template-columns: minmax(96px, 40%) 1fr;
+  gap: 4px 10px;
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.legend__keys {
+  margin: 0;
+}
+
+.legend__keys kbd {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.68rem;
+  color: var(--ui-text);
+}
+
+.legend__description {
+  margin: 0;
+  color: var(--ui-text-muted);
+}
+
+/* ------------------------------------------------- notifications / states */
+
+.notice {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: min(440px, 88vw);
+  transform: translate(-50%, -50%);
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 20px 22px 22px;
+  border: 1px solid var(--ui-panel-border);
+  border-radius: 14px;
+  background: var(--ui-panel);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--shadow-panel, 0 18px 40px rgba(0, 0, 0, 0.45));
+}
+
+.notice__title {
+  margin: 0;
+  font-size: 1rem;
+  letter-spacing: 0.05em;
+}
+
+.notice__body {
+  margin: 0;
+  color: var(--ui-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.notice--error {
+  border-color: rgba(255, 128, 128, 0.45);
+}
+
+/* The viewer's motion preference, mirrored onto the DOM by the overlay. */
+.ui-overlay[data-reduced-motion='true'] .timeline__knob {
+  transition: none;
+}
+
+/* ----------------------------------------------------------- narrow widths */
+
+@media (max-width: 720px) {
+  .timeline {
+    padding-bottom: 12px;
+    gap: 6px;
+  }
+
+  .timeline__summary {
+    -webkit-line-clamp: 1;
+  }
+
+  .hud {
+    bottom: 132px;
+    max-width: 78vw;
+  }
+
+  .legend {
+    display: none;
+  }
+
+  .controls__cluster {
+    padding: 6px 10px 8px;
+  }
+}
+
+@media (max-width: 520px) {
+  .timeline__summary {
+    display: none;
+  }
+
+  .legend__entry {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline__knob {
+    transition: none;
+  }
+}
