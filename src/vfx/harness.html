@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Era atmosphere harness</title>
+    <!--
+      Self-contained verification page for the era atmosphere layer (src/vfx).
+
+      What it mounts
+      --------------
+      React mounts the render pipeline's own canvas host (`SceneCanvas` from
+      `src/scene`, the repository's documented canvas host) and the layer under
+      test (`VfxLayer` from `./index`) as its child. It does **not** mount the
+      composed application, any content layer (city, vehicles, storefronts,
+      pedestrians, audio, UI) or any phase-4 integration code, so per-era browser
+      verification never depends on work that lands later.
+
+      The page needs the two dependencies the layer itself consumes and nothing
+      else: `src/era` for the era list and records, and `src/scene` for the
+      pipeline whose public parameter surface the layer drives.
+
+      What it exposes
+      ---------------
+      `window.vfxHarness` publishes an era selector, a clock, a `plumeSources`
+      feed, the atmosphere snapshot, live particle/plume statistics, the scene
+      structure the layer built and a pixel readback of the rendered frame, so
+      the Playwright spec can assert era data, structure counts and per-era
+      differences without reaching into internals.
+    -->
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0b0e14;
+        color: #e7e6e1;
+      }
+      body {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem 0.9rem;
+        align-items: center;
+        padding: 0.6rem 0.9rem;
+        border-bottom: 1px solid #232a36;
+        background: #121722;
+      }
+      h1 {
+        font-size: 1rem;
+        margin: 0 0.6rem 0 0;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      button,
+      select {
+        font: inherit;
+        font-size: 0.82rem;
+        padding: 0.3rem 0.55rem;
+        color: #e7e6e1;
+        background: #1b2230;
+        border: 1px solid #313b4c;
+        border-radius: 0.3rem;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #232c3c;
+      }
+      button[data-active='true'] {
+        background: #2f6f8f;
+        border-color: #4ea3c8;
+      }
+      #summary {
+        margin: 0;
+        font-size: 0.82rem;
+        color: #b6bcc8;
+        flex: 1 1 100%;
+      }
+      .stage {
+        position: relative;
+        min-height: 0;
+      }
+      .stage canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .stage[data-webgl='false']::after {
+        content: 'WebGL unavailable: era data is still published for assertions.';
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: #8b93a1;
+        font-size: 0.8rem;
+      }
+      .readout {
+        margin: 0;
+        max-height: 26vh;
+        overflow: auto;
+        padding: 0.55rem 0.9rem;
+        border-top: 1px solid #232a36;
+        background: #121722;
+        font-size: 0.82rem;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        color: #b6bcc8;
+      }
+    </style>
+  </head>
+  <body data-harness-ready="false" data-vfx-era="" data-vfx-particles="0" data-vfx-source-emitters="0">
+    <header>
+      <h1>Era atmosphere harness</h1>
+      <span id="eras" data-testid="vfx-eras"></span>
+      <button type="button" id="btn-play" data-testid="vfx-play">Play</button>
+      <button type="button" id="btn-pause" data-testid="vfx-pause">Pause</button>
+      <button type="button" id="btn-advance" data-testid="vfx-advance">Advance 1 s</button>
+      <button type="button" id="btn-plumes" data-testid="vfx-feed-plumes">Feed 4 vehicles</button>
+      <button type="button" id="btn-clear-plumes" data-testid="vfx-clear-plumes">Clear plumes</button>
+      <label>
+        quality
+        <select id="quality" data-testid="vfx-quality">
+          <option value="high">high</option>
+          <option value="medium">medium</option>
+          <option value="low">low</option>
+        </select>
+      </label>
+      <p id="summary" data-testid="vfx-summary">Booting the era atmosphere…</p>
+    </header>
+    <div class="stage" id="stage" data-testid="vfx-stage"></div>
+    <pre class="readout" id="report" data-testid="vfx-report"></pre>
+
+    <script type="module">
+      import * as THREE from 'three'
+      import { createElement, useEffect, useRef, useState } from 'react'
+      import { createRoot } from 'react-dom/client'
+      import { SceneCanvas } from '../scene'
+      import { ERA_IDS, getEra } from '../era'
+      import { VfxLayer, VFX_ROOT_NAME } from './index'
+
+      const stage = document.getElementById('stage')
+      const eraBar = document.getElementById('eras')
+      const summary = document.getElementById('summary')
+      const readout = document.getElementById('report')
+      const qualitySelect = document.getElementById('quality')
+
+      /** Caller-owned clock: the layer reads it, the page advances it. */
+      const clock = { seconds: 0 }
+      const playing = { value: true }
+
+      let pipeline = null
+      let controller = null
+      let emissiveSigns = []
+      let frameCounter = 0
+
+      function say(text) {
+        readout.textContent = text
+      }
+
+      /* ------------------------------------------------------------------ */
+      /* Harness prop scene                                                  */
+      /* ------------------------------------------------------------------ */
+
+      /** [x, z, width, depth, height, colour] of the harness block. */
+      const BLOCKS = [
+        [-26, -22, 15, 13, 17, '#6b5946'],
+        [18, -26, 13, 11, 25, '#7d6b55'],
+        [-30, 16, 16, 12, 12, '#5f6b73'],
+        [24, 14, 14, 14, 21, '#8a8f92'],
+        [1, -5, 11, 11, 29, '#6f6a63'],
+        [-9, 23, 12, 9, 15, '#7a7468'],
+        [35, -3, 10, 10, 19, '#84807a'],
+      ]
+
+      function fillWorld(scene) {
+        const world = scene.world
+
+        const ground = new THREE.Mesh(
+          new THREE.PlaneGeometry(320, 320),
+          new THREE.MeshStandardMaterial({ color: 0x50514e, roughness: 0.92, metalness: 0.02 }),
+        )
+        ground.rotation.x = -Math.PI / 2
+        ground.receiveShadow = true
+        ground.name = 'harness-ground'
+        world.add(ground)
+
+        for (const [x, z, width, depth, height, color] of BLOCKS) {
+          const block = new THREE.Mesh(
+            new THREE.BoxGeometry(width, height, depth),
+            new THREE.MeshStandardMaterial({ color, roughness: 0.78, metalness: 0.04 }),
+          )
+          block.position.set(x, height / 2, z)
+          block.castShadow = true
+          block.receiveShadow = true
+          block.name = `harness-block-${x}-${z}`
+          world.add(block)
+        }
+
+        // Two emissive signs, so the era's bloom/emissive tuning is visible.
+        const signs = [
+          { color: '#ff6ad5', position: [3, 7, 6.4] },
+          { color: '#ffc164', position: [-12, 5.5, -8.4] },
+        ]
+        emissiveSigns = signs.map((sign, index) => {
+          const material = new THREE.MeshStandardMaterial({
+            color: 0x101018,
+            emissive: new THREE.Color(sign.color),
+            emissiveIntensity: 3,
+            side: THREE.DoubleSide,
+          })
+          const mesh = new THREE.Mesh(new THREE.PlaneGeometry(8, 3), material)
+          mesh.position.set(sign.position[0], sign.position[1], sign.position[2])
+          mesh.name = `harness-sign-${index}`
+          world.add(mesh)
+          return { mesh, material, baseColor: sign.color }
+        })
+      }
+
+      /** Applies the layer's emissive tuning to the harness signs. */
+      function applyEmissiveTuning() {
+        if (controller === null) {
+          return
+        }
+        const tuning = controller.snapshot.emissive
+        for (const sign of emissiveSigns) {
+          sign.material.emissiveIntensity = tuning.glowIntensity
+          sign.material.emissive.set(tuning.color ?? sign.baseColor)
+        }
+      }
+
+      /* ------------------------------------------------------------------ */
+      /* React host                                                          */
+      /* ------------------------------------------------------------------ */
+
+      const CAMERA_PRESET = {
+        mode: 'orbit',
+        target: [0, 9, 0],
+        orbit: { azimuth: 0.7, polar: 1.14, radius: 76 },
+        fov: 46,
+      }
+
+      const SOURCE_KINDS = ['exhaust', 'steam', 'evGlow']
+
+      /** Deterministic set of caller-supplied emission events. */
+      function buildPlumeSources(count) {
+        return Array.from({ length: count }, (_unused, index) => ({
+          id: `harness-vehicle-${index}`,
+          kind: SOURCE_KINDS[index % SOURCE_KINDS.length],
+          position: [-18 + index * 7, 1.1, -4 + (index % 2) * 6],
+          intensity: 0.9,
+        }))
+      }
+
+      function App() {
+        const [era, setEra] = useState(ERA_IDS[0])
+        const [plumeSources, setPlumeSources] = useState([])
+        const [qualityTier, setQualityTier] = useState('high')
+
+        // The imperative API drives React state for the era, the plume feed and
+        // the tier; the clock and the play/pause switch are plain objects so a
+        // frame never needs a re-render.
+        useEffect(() => {
+          api.setEra = (eraId) => {
+            if (ERA_IDS.includes(eraId)) {
+              setEra(eraId)
+            }
+          }
+          api.setPlumeSources = (list) => setPlumeSources(Array.isArray(list) ? list : [])
+          api.setQualityTier = (name) => setQualityTier(name)
+        })
+
+        // A control change draws one frame straight away, so the readouts and the
+        // rendered image follow the selection even while the loop is stopped.
+        useEffect(() => {
+          if (pipeline !== null) {
+            pipeline.renderFrame(1 / 60)
+          }
+        }, [era, plumeSources, qualityTier])
+
+        const onPipelineReady = (created) => {
+          pipeline = created
+          api.pipeline = created
+          fillWorld(created)
+          // The harness owns the clock, so "playing" is a harness decision: every
+          // pipeline frame advances the caller clock while play is on.
+          created.onFrame((_stats, deltaSeconds) => {
+            if (playing.value) {
+              clock.seconds += Math.min(deltaSeconds, 0.1)
+            }
+          })
+        }
+
+        const onLayerReady = (created) => {
+          controller = created
+          api.controller = created
+          api.ready = true
+          applyEmissiveTuning()
+          markActiveEra(created.snapshot.eraId)
+          document.body.dataset.harnessReady = 'true'
+        }
+
+        const onStats = (stats) => {
+          api.stats = stats
+          frameCounter += 1
+          document.body.dataset.vfxEra = stats.eraId
+          document.body.dataset.vfxParticles = String(
+            stats.particles.reduce((total, kind) => total + kind.count, 0),
+          )
+          document.body.dataset.vfxSourceEmitters = String(stats.plumes.sourceEmitters)
+          markActiveEra(stats.eraId)
+          if (frameCounter % 12 === 0) {
+            applyEmissiveTuning()
+            describe(stats)
+          }
+        }
+
+        return createElement(
+          SceneCanvas,
+          {
+            qualityTier,
+            autoStart: true,
+            camera: CAMERA_PRESET,
+            onReady: onPipelineReady,
+            onError: (reason) => say(`scene host failed: ${reason}`),
+          },
+          createElement(VfxLayer, {
+            era,
+            clock,
+            plumeSources,
+            qualityTier,
+            onReady: onLayerReady,
+            onStats,
+          }),
+        )
+      }
+
+      /* ------------------------------------------------------------------ */
+      /* Page chrome                                                         */
+      /* ------------------------------------------------------------------ */
+
+      function markActiveEra(eraId) {
+        for (const button of eraBar.querySelectorAll('button')) {
+          button.dataset.active = String(button.dataset.era === eraId)
+        }
+      }
+
+      function describe(stats) {
+        const particles = stats.particles
+          .map((kind) => `${kind.kind}:${kind.enabled ? kind.count : 'off'}`)
+          .join(' ')
+        const context = pipeline === null ? 'no context' : pipeline.contextInfo.renderer
+        summary.textContent = [
+          `era ${stats.eraId} (${stats.qualityTier})`,
+          `particles ${particles}`,
+          `plumes ${stats.plumes.baselineSources} baseline + ${stats.plumes.sourceEmitters} live`,
+          `weather wet=${stats.weather.wetness.toFixed(2)} snow=${stats.weather.snowCover.toFixed(2)}`,
+          `fog ${(controller.snapshot.lighting.fogDensity ?? 0).toFixed(5)}`,
+          `frames ${stats.frames}`,
+        ].join(' · ')
+        say(
+          [
+            `gpu: ${context}`,
+            `era: ${stats.eraId} day=${getEra(stats.eraId).label}`,
+            `groups: ${Object.entries(stats.groups)
+              .map(([name, count]) => `${name}=${count}`)
+              .join(' ')}`,
+            `clock: ${clock.seconds.toFixed(2)}s playing=${String(playing.value)}`,
+          ].join('\n'),
+        )
+      }
+
+      for (const eraId of ERA_IDS) {
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.textContent = eraId
+        button.dataset.era = eraId
+        button.dataset.testid = `vfx-era-${eraId}`
+        button.addEventListener('click', () => {
+          api.setEra(eraId)
+        })
+        eraBar.append(button)
+      }
+
+      document.getElementById('btn-play').addEventListener('click', () => {
+        playing.value = true
+      })
+      document.getElementById('btn-pause').addEventListener('click', () => {
+        playing.value = false
+      })
+      document.getElementById('btn-advance').addEventListener('click', () => {
+        api.advance(1)
+      })
+      document.getElementById('btn-plumes').addEventListener('click', () => {
+        api.setPlumeSources(buildPlumeSources(4))
+      })
+      document.getElementById('btn-clear-plumes').addEventListener('click', () => {
+        api.setPlumeSources([])
+      })
+      qualitySelect.addEventListener('change', (event) => {
+        api.setQualityTier(event.target.value)
+      })
+
+      /* ------------------------------------------------------------------ */
+      /* window.vfxHarness                                                   */
+      /* ------------------------------------------------------------------ */
+
+      /** Renders sub-steps so a clock jump advances the simulation proportionally. */
+      function advance(seconds) {
+        if (pipeline === null) {
+          return null
+        }
+        // Deterministic stepping: pause first, then walk the clock in small steps.
+        playing.value = false
+        const step = 0.1
+        let remaining = Math.max(0, Number(seconds) || 0)
+        while (remaining > 1e-4) {
+          const delta = Math.min(step, remaining)
+          clock.seconds += delta
+          pipeline.renderFrame(delta)
+          remaining -= delta
+        }
+        return controller === null ? null : controller.getStats()
+      }
+
+      function structure() {
+        if (controller === null) {
+          return null
+        }
+        const groups = {}
+        const meshes = []
+        let rootName = null
+        controller.root.traverse((child) => {
+          if (child === controller.root) {
+            rootName = child.name
+          }
+          if (child.isGroup) {
+            groups[child.name === '' ? 'unnamed' : child.name] = child.children.length
+          }
+          if (child.isMesh) {
+            meshes.push({
+              name: child.name,
+              instanced: child.isInstancedMesh === true,
+              count: child.isInstancedMesh === true ? child.count : 1,
+              kind: child.userData.kind ?? null,
+            })
+          }
+        })
+        return {
+          rootName,
+          rootNameMatchesConstant: rootName === VFX_ROOT_NAME,
+          rootInWorld: pipeline !== null && pipeline.world.children.includes(controller.root),
+          groups,
+          meshes,
+        }
+      }
+
+      function snapshotView() {
+        if (controller === null) {
+          return null
+        }
+        const snapshot = controller.snapshot
+        return {
+          eraId: snapshot.eraId,
+          year: snapshot.year,
+          night: snapshot.night,
+          qualityTier: snapshot.qualityTier,
+          sky: {
+            topColor: snapshot.sky.topColor,
+            horizonColor: snapshot.sky.horizonColor,
+            groundColor: snapshot.sky.groundColor,
+            sunColor: snapshot.sky.sunColor,
+            sunDiscSizeRad: snapshot.sky.sunDiscSizeRad,
+            horizonSharpness: snapshot.sky.horizonSharpness,
+            cloudOpacity: snapshot.sky.cloudOpacity,
+            starOpacity: snapshot.sky.starOpacity,
+            exposure: snapshot.sky.exposure,
+            sunDirection: [...snapshot.sky.sunDirection],
+          },
+          fog: { ...snapshot.fog },
+          grade: {
+            exposure: snapshot.grade.exposure,
+            contrast: snapshot.grade.contrast,
+            saturation: snapshot.grade.saturation,
+            temperature: snapshot.grade.temperature,
+            tint: snapshot.grade.tint,
+            vignette: snapshot.grade.vignette,
+            vignetteOffset: snapshot.grade.vignetteOffset,
+            grain: snapshot.grade.grain,
+            bloomIntensity: snapshot.grade.bloomIntensity,
+            bloomThreshold: snapshot.grade.bloomThreshold,
+            depthOfField: snapshot.grade.depthOfField.enabled,
+          },
+          emissive: { ...snapshot.emissive },
+          lighting: { ...snapshot.lighting },
+          postProcessing: {
+            enabled: snapshot.postProcessing.enabled,
+            bloomEnabled: snapshot.postProcessing.bloom.enabled,
+            bloomIntensity: snapshot.postProcessing.bloom.intensity,
+            saturation: snapshot.postProcessing.grade.saturation,
+            contrast: snapshot.postProcessing.grade.contrast,
+            temperature: snapshot.postProcessing.grade.temperature,
+            vignetteDarkness: snapshot.postProcessing.vignette.darkness,
+          },
+          particles: snapshot.particles.kinds.map((kind) => ({
+            kind: kind.kind,
+            enabled: kind.enabled,
+            count: kind.count,
+            sizeM: kind.sizeM,
+            opacity: kind.opacity,
+            color: kind.color,
+          })),
+          totalParticles: snapshot.particles.totalCount,
+          plumes: {
+            baseline: snapshot.plumes.baseline.map((source) => source.id),
+            birds: snapshot.plumes.ambient.birds,
+            aircraft: snapshot.plumes.ambient.aircraft,
+            rates: snapshot.plumes.kinds.map((kind) => ({
+              kind: kind.kind,
+              ratePerSecond: kind.ratePerSecond,
+              emissive: kind.emissive,
+            })),
+          },
+        }
+      }
+
+      function pipelineState() {
+        if (pipeline === null) {
+          return null
+        }
+        const fog = pipeline.scene.fog
+        return {
+          quality: pipeline.quality.name,
+          effects: [...pipeline.quality.effects],
+          passOrder: [...pipeline.postProcessing.passOrder],
+          postProcessingActive: pipeline.postProcessing.active,
+          postProcessingFailure: pipeline.postProcessing.failure,
+          fogDensity: fog === null || fog === undefined ? 0 : fog.density,
+          fogColor: fog === null || fog === undefined ? null : `#${fog.color.getHexString()}`,
+          sunColor: `#${pipeline.lighting.sun.color.getHexString()}`,
+          sunIntensity: pipeline.lighting.sun.intensity,
+          ambientIntensity: pipeline.lighting.ambient.intensity,
+          background: pipeline.scene.background === null ? null : `#${pipeline.scene.background.getHexString()}`,
+          context: pipeline.contextInfo,
+          running: pipeline.running,
+        }
+      }
+
+      /**
+       * Renders one frame and reads the drawing buffer back.
+       *
+       * Reading immediately after a render inside the same task is the only way
+       * to inspect a frame the browser is free to discard after compositing.
+       */
+      function measureFrame() {
+        if (pipeline === null) {
+          return null
+        }
+        const gl = pipeline.renderer.getContext()
+        pipeline.renderFrame(1 / 60)
+        const width = gl.drawingBufferWidth
+        const height = gl.drawingBufferHeight
+        const pixels = new Uint8Array(width * height * 4)
+        gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
+        const count = width * height
+        let red = 0
+        let green = 0
+        let blue = 0
+        let luminance = 0
+        let luminanceSquared = 0
+        for (let index = 0; index < pixels.length; index += 4) {
+          red += pixels[index]
+          green += pixels[index + 1]
+          blue += pixels[index + 2]
+          const value = 0.2126 * pixels[index] + 0.7152 * pixels[index + 1] + 0.0722 * pixels[index + 2]
+          luminance += value
+          luminanceSquared += value * value
+        }
+        const meanLuminance = luminance / count
+        return {
+          width,
+          height,
+          meanR: red / count,
+          meanG: green / count,
+          meanB: blue / count,
+          meanLuminance,
+          variance: Math.max(0, luminanceSquared / count - meanLuminance * meanLuminance),
+        }
+      }
+
+      const api = {
+        ready: false,
+        eras: [...ERA_IDS],
+        url: location.href,
+        pipeline: null,
+        controller: null,
+        stats: null,
+        setEra: () => {},
+        setPlumeSources: () => {},
+        setQualityTier: () => {},
+        getEra: () => (controller === null ? null : controller.snapshot.eraId),
+        getSnapshot: snapshotView,
+        getStats: () => (controller === null ? null : controller.getStats()),
+        getStructure: structure,
+        getPipelineState: pipelineState,
+        measureFrame,
+        advance,
+        setClock(seconds) {
+          clock.seconds = Number(seconds) || 0
+          return clock.seconds
+        },
+        getClock: () => clock.seconds,
+        pause() {
+          playing.value = false
+          return false
+        },
+        play() {
+          playing.value = true
+          return true
+        },
+        isPlaying: () => playing.value,
+        /**
+         * Stops the pipeline's animation loop.
+         *
+         * Automated checks stop it and drive `advance`/`step` explicitly, so a
+         * software-rasterised frame is never rendered behind their backs and
+         * every assertion runs against a frame the spec asked for.
+         */
+        stopLoop() {
+          if (pipeline !== null) {
+            pipeline.stop()
+          }
+          return pipeline !== null && pipeline.running
+        },
+        startLoop() {
+          if (pipeline !== null) {
+            pipeline.start()
+          }
+          return pipeline !== null && pipeline.running
+        },
+        isRunning: () => pipeline !== null && pipeline.running,
+        setTransition(request) {
+          if (controller === null) {
+            return null
+          }
+          controller.applyTransition({
+            from: request.from,
+            to: request.to,
+            t: request.t,
+            instant: request.instant === true,
+          })
+          return snapshotView()
+        },
+        step(frames = 1) {
+          if (pipeline === null) {
+            return 0
+          }
+          for (let index = 0; index < frames; index += 1) {
+            pipeline.renderFrame(1 / 60)
+          }
+          return frames
+        },
+        buildPlumeSources,
+      }
+
+      window.vfxHarness = api
+
+      void (async () => {
+        try {
+          const reactRoot = document.getElementById('react-root') ?? stage
+          if (document.getElementById('react-root') === null) {
+            const host = document.createElement('div')
+            host.id = 'react-root'
+            host.style.width = '100%'
+            host.style.height = '100%'
+            stage.append(host)
+            createRoot(host).render(createElement(App))
+          } else {
+            createRoot(reactRoot).render(createElement(App))
+          }
+        } catch (error) {
+          say(`harness failed: ${error instanceof Error ? error.message : String(error)}`)
+          document.body.dataset.harnessError = 'true'
+          throw error
+        }
+
+        window.setInterval(() => {
+          if (controller !== null) {
+            describe(controller.getStats())
+          }
+        }, 500)
+      })()
+    </script>
+  </body>
+</html>
