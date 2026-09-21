@@ -12,6 +12,10 @@ export const DEV_SERVER_URL = `http://127.0.0.1:${DEV_SERVER_PORT}`
  */
 export default defineConfig({
   testDir: 'e2e',
+  // Browser binaries live outside the repository, so a fresh sandbox can resolve
+  // `@playwright/test` and still have no Chromium. This installs it once when it
+  // is missing and is a no-op otherwise.
+  globalSetup: './e2e/globalSetup.ts',
   fullyParallel: true,
   forbidOnly: Boolean(process.env['CI']),
   retries: process.env['CI'] ? 1 : 0,
