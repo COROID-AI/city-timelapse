@@ -299,7 +299,14 @@ describe('director composed with the real registry, stores and scene layers', ()
   it('wires every shipped layer barrel and names the stages still pending one', async () => {
     const harness = await compose()
 
-    expect(harness.wiring.wired).toEqual(['atmosphere', 'storefronts', 'props', 'vehicles'])
+    expect(harness.wiring.wired).toEqual([
+      'atmosphere',
+      'buildings',
+      'storefronts',
+      'props',
+      'vehicles',
+      'pedestrians',
+    ])
     expect(harness.wiring.pending).toEqual(PENDING_LAYER_STAGES)
     // Every documentation row for a pending stage is scheduled with a real window.
     for (const id of harness.wiring.pending) {

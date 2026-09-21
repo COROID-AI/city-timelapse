@@ -21,10 +21,9 @@
  * - the camera is byte-identical across all five switches, so the transformation
  *   happens in front of the viewer (also asserted on its own in
  *   `qa-camera.spec.ts`);
- * - the composition still reports the two content barrels that have not shipped
- *   in this revision (`buildings`, `pedestrians`) as *pending*, which is recorded
- *   in the artifact and in `tests/qa/art-direction-report.md` as a known gap
- *   owned by those tasks rather than silently asserted as working.
+ * - every composed content layer — including the buildings and the crowd —
+ *   reports the new era with non-zero objects and a category census that no
+ *   other year repeats, so "it changed" is a measured fact for all six layers.
  *
  * The per-era census is written to `tests/qa/artifacts/era-matrix.json` so the
  * numbers behind every assertion survive the run.
@@ -164,6 +163,20 @@ const CATEGORIES: readonly CategoryExpectation[] = [
     fingerprint: ['plumeEmitters', 'plumeBaseline', 'plumeSources', 'plumeSourcesPublished', 'ambientBirds'],
   },
   {
+    layer: 'buildings',
+    label: 'Buildings and roof kits',
+    nonzero: ['buildingCount', 'totalFloors', 'windowCount'],
+    fingerprint: [
+      'buildingCount',
+      'totalFloors',
+      'maxHeight',
+      'windowCount',
+      'roofItemCount',
+      'vacantLotCount',
+      'constructionSiteCount',
+    ],
+  },
+  {
     layer: 'storefronts',
     label: 'Storefronts, signage and advertising',
     nonzero: ['units', 'signs', 'advertising', 'textures', 'meshes'],
@@ -187,6 +200,12 @@ const CATEGORIES: readonly CategoryExpectation[] = [
       'meshes',
       'markingMeshes',
     ],
+  },
+  {
+    layer: 'pedestrians',
+    label: 'Pedestrians',
+    nonzero: ['pedestrianCount', 'walkerCount', 'waiterCount'],
+    fingerprint: ['pedestrianCount', 'walkerCount', 'waiterCount', 'adultCount', 'childCount'],
   },
 ]
 
@@ -249,12 +268,17 @@ test('all five years report distinct, non-zero statistics for every composed con
     'vehicles',
     'pedestrians',
   ])
-  expect(mounted.mountedLayers).toEqual(['layout', 'atmosphere', 'storefronts', 'props', 'vehicles'])
-  // Reported, not hidden: these two barrels are still owned by their own tasks.
-  expect(mounted.pendingLayers).toEqual(expect.arrayContaining(['buildings', 'pedestrians']))
-  for (const pending of ['buildings', 'pedestrians']) {
-    expect(layerOf(mounted, pending)?.mounted, pending).toBe(false)
-  }
+  expect(mounted.mountedLayers).toEqual([
+    'layout',
+    'atmosphere',
+    'buildings',
+    'storefronts',
+    'props',
+    'vehicles',
+    'pedestrians',
+  ])
+  // Every barrel ships in this revision, so nothing is pending.
+  expect(mounted.pendingLayers).toEqual([])
   for (const id of ['layout', ...CATEGORIES.map((category) => category.layer)]) {
     const layer = layerOf(mounted, id)
     expect(layer?.mounted, id).toBe(true)
@@ -367,7 +391,7 @@ test('all five years report distinct, non-zero statistics for every composed con
     mountedLayers: mounted.mountedLayers,
     pendingLayers: mounted.pendingLayers,
     note:
-      'buildings and pedestrians are reported by the composition as pending: their barrels are not shipped in this revision, so they carry no statistics. Every shipped category is verified below.',
+      'Every composed content layer ships in this revision, so buildings and pedestrians carry real per-era statistics here alongside atmosphere, storefronts, props and vehicles.',
     timingsMs: timings,
     censuses,
   })

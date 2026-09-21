@@ -33,6 +33,8 @@ import type {
   SoundscapeDescriptor,
 } from '../audio'
 import type { BlockLayout } from '../city/layout'
+import type { BuildingPlan, BuildingTransitionPlan } from '../city/buildings'
+import type { PedestrianPlan, PedestrianTransitionPlan } from '../city/pedestrians'
 import type { EraVehiclePlan } from '../city/vehicles'
 import type { PropsLayerPlan, PropsRuntime } from '../city/props'
 import type { StorefrontPlan } from '../city/storefronts'
@@ -83,10 +85,7 @@ export const SCENE_LAYER_BARRELS: Readonly<Record<TransitionStageId, string>> = 
  * context) and this list shrinks. Nothing else changes: the stage ids, the
  * schedule rows and the store bookkeeping are already in place.
  */
-export const PENDING_LAYER_STAGES: readonly TransitionStageId[] = Object.freeze([
-  'buildings',
-  'pedestrians',
-])
+export const PENDING_LAYER_STAGES: readonly TransitionStageId[] = Object.freeze([])
 
 /* -------------------------------------------------------------------------- */
 /* Generic layer binding                                                      */
@@ -609,9 +608,11 @@ export function createUIControlsMotionPort(store: UIControlsStore): TransitionMo
 /** What the director read back from each shipped layer, for assertions. */
 export interface SceneLayerReadings {
   atmosphere: VfxSnapshot | null
+  buildings: BuildingPlan | null
   storefronts: StorefrontPlan | null
   props: PropsLayerPlan | null
   vehicles: EraVehiclePlan | null
+  pedestrians: PedestrianPlan | null
 }
 
 /** Options of {@link createSceneLayerAdapters}. */
@@ -659,19 +660,23 @@ export interface SceneLayerAdapters {
 export async function createSceneLayerAdapters(
   options: SceneLayerAdaptersOptions,
 ): Promise<SceneLayerAdapters> {
-  const [atmosphere, storefronts, props, vehicles] = await Promise.all([
+  const [atmosphere, buildings, storefronts, props, vehicles, pedestrians] = await Promise.all([
     import('../vfx'),
+    import('../city/buildings'),
     import('../city/storefronts'),
     import('../city/props'),
     import('../city/vehicles'),
+    import('../city/pedestrians'),
   ])
 
   const { layout, qualityTier, night, seed } = options
   const readings: SceneLayerReadings = {
     atmosphere: null,
+    buildings: null,
     storefronts: null,
     props: null,
     vehicles: null,
+    pedestrians: null,
   }
 
   const propsRuntime = props.createPropsRuntime(layout, { qualityTier, night, seed })
@@ -699,6 +704,20 @@ export async function createSceneLayerAdapters(
       readTransitionEra: (snapshot: VfxSnapshot) => {
         readings.atmosphere = snapshot
         return snapshot.eraId
+      },
+    }),
+    bindLayerAdapter({
+      id: 'buildings',
+      contextFor: ({ reducedMotion }) => ({ layout, qualityTier, night, seed, reducedMotion }),
+      applyEra: (eraId, context) => buildings.applyEra(eraId, context),
+      applyEraTransition: (request, context) => buildings.applyEraTransition(request, context),
+      readEra: (plan: BuildingPlan) => {
+        readings.buildings = plan
+        return plan.eraId
+      },
+      readTransitionEra: (frame: BuildingTransitionPlan) => {
+        readings.buildings = frame.plan
+        return frame.resolvedEra
       },
     }),
     bindLayerAdapter({
@@ -742,6 +761,20 @@ export async function createSceneLayerAdapters(
       applyEraTransition: (request, context) => vehicles.applyEraTransition(request, context),
       readEra: (plan: EraVehiclePlan) => plan.eraId,
       readTransitionEra: (plan: EraVehiclePlan) => plan.eraId,
+    }),
+    bindLayerAdapter({
+      id: 'pedestrians',
+      contextFor: ({ reducedMotion }) => ({ layout, qualityTier, night, seed, reducedMotion }),
+      applyEra: (eraId, context) => pedestrians.applyEra(eraId, context),
+      applyEraTransition: (request, context) => pedestrians.applyEraTransition(request, context),
+      readEra: (plan: PedestrianPlan) => {
+        readings.pedestrians = plan
+        return plan.eraId
+      },
+      readTransitionEra: (frame: PedestrianTransitionPlan) => {
+        readings.pedestrians = frame.plan
+        return frame.resolvedEra
+      },
     }),
     ...(options.extraLayers ?? []),
   ]

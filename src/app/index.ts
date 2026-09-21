@@ -16,17 +16,15 @@
  * | ------------- | ---------------------- | ------------------------------------ |
  * | `layout`      | `src/city/layout`      | `buildLayoutObject`                   |
  * | `atmosphere`  | `src/vfx`              | `createVfxController`                 |
- * | `buildings`   | `src/city/buildings`   | pending — barrel not shipped in this  |
- * |               |                        | revision, reported from the transition |
- * |               |                        | barrel's `PENDING_LAYER_STAGES`        |
+ * | `buildings`   | `src/city/buildings`   | `applyEra` + `createBuildingsGroup`   |
  * | `storefronts` | `src/city/storefronts` | `applyEra` / `applyEraTransition`     |
  * | `props`       | `src/city/props`       | `PropsRuntime.applyEra`               |
  * | `vehicles`    | `src/city/vehicles`    | `applyEra` + `VehicleSceneObject`     |
- * | `pedestrians` | `src/city/pedestrians` | pending — as above                    |
+ * | `pedestrians` | `src/city/pedestrians` | `applyEra` + `CrowdSceneObject`       |
  *
- * The pending slots are read from the director's own table, so the day those
- * barrels land the composition mounts them without a year branch, a hard-coded
- * list or a composition edit.
+ * `PENDING_LAYER_STAGES` is empty now that every barrel ships: the composition
+ * reads it rather than a hard-coded list, so a future barrel is mounted by
+ * wiring its adapter, not by editing the composition.
  *
  * How one era change flows
  * ------------------------
@@ -68,6 +66,19 @@ import type {
   PropsTransitionPlan,
 } from '../city/props'
 import {
+  applyEra as applyBuildingEra,
+  applyEraTransition as applyBuildingEraTransition,
+  applyProgressiveSwap as applyBuildingSwap,
+  buildingStatsRecord,
+  createBuildingsGroup,
+  disposeBuildingsGroup,
+} from '../city/buildings'
+import type {
+  BuildingContext,
+  BuildingPlan,
+  BuildingTransitionPlan,
+} from '../city/buildings'
+import {
   applyEra as applyStorefrontEra,
   applyEraTransition as applyStorefrontEraTransition,
   applyProgressiveSwap,
@@ -95,6 +106,19 @@ import type {
   VehicleLayer,
   VehicleSceneObject,
 } from '../city/vehicles'
+import {
+  applyCrowdSwap,
+  applyEra as applyCrowdEra,
+  applyEraTransition as applyCrowdEraTransition,
+  createCrowdSceneObject,
+  crowdStatsRecord,
+} from '../city/pedestrians'
+import type {
+  CrowdSceneObject,
+  PedestrianContext,
+  PedestrianPlan,
+  PedestrianTransitionPlan,
+} from '../city/pedestrians'
 import type { EraId, EraRegistry } from '../era'
 import type { QualityTierName } from '../lib/quality'
 import type { Seed } from '../lib/rng'
@@ -118,6 +142,7 @@ import type { EraStore } from '../state/eraStore'
 import {
   PENDING_LAYER_STAGES,
   bindLayerAdapter,
+  createManualClock,
   createTransitionDirector,
   createUIControlsMotionPort,
 } from '../transition'
@@ -212,9 +237,11 @@ export const LAYER_LABELS: Readonly<Record<LayerSlotId, string>> = Object.freeze
 export const SHIPPED_LAYER_IDS: readonly LayerSlotId[] = Object.freeze([
   'layout',
   'atmosphere',
+  'buildings',
   'storefronts',
   'props',
   'vehicles',
+  'pedestrians',
 ])
 
 /**
@@ -453,6 +480,16 @@ export function createSceneComposition(options: SceneCompositionOptions): SceneC
   let qualityTier: QualityTierName =
     options.qualityTier ?? selectRequestedQualityTier(uiStore.getState())
   let simSeconds = 0
+  /**
+   * Clock the transition director is driven by.
+   *
+   * The director is advanced by the *simulation* delta of `advance` rather than
+   * reading the host's wall clock itself, so a staged switch runs the same
+   * number of frames in the browser, in the test harness and in a capture. The
+   * sum of the frame deltas is what the viewer sees, so this changes nothing on
+   * screen — it only removes wall-clock timing from the composition's behaviour.
+   */
+  const directorClock = createManualClock(0)
   let frameCount = 0
   let lastStats: FrameStats | null = null
   let disposed = false
@@ -633,6 +670,171 @@ export function createSceneComposition(options: SceneCompositionOptions): SceneC
       storefrontTo = null
       storefrontPairKey = null
       layerEras.set('storefronts', plan.toPlan.eraId)
+    }
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Buildings                                                              */
+  /* ---------------------------------------------------------------------- */
+
+  const buildingHost: Group | null = attempt('buildings', () => layerHost('buildings'))
+
+  let buildingSingle: Group | null = null
+  let buildingFrom: Group | null = null
+  let buildingTo: Group | null = null
+  let buildingPairKey: string | null = null
+  let buildingPlan: BuildingPlan | null = null
+
+  function buildingContextFor(tier: QualityTierName): BuildingContext {
+    return {
+      layout,
+      qualityTier: tier,
+      reducedMotion: reducedMotion(),
+      ...(options.seed === undefined ? {} : { seed: options.seed }),
+      ...(night === undefined ? {} : { night }),
+    }
+  }
+
+  function clearBuildingGroups(): void {
+    for (const group of [buildingSingle, buildingFrom, buildingTo]) {
+      if (group === null) {
+        continue
+      }
+      group.removeFromParent()
+      disposeBuildingsGroup(group)
+    }
+    buildingSingle = null
+    buildingFrom = null
+    buildingTo = null
+    buildingPairKey = null
+  }
+
+  /** Shows one settled era's buildings, replacing whatever was mounted. */
+  function showBuildingPlan(plan: BuildingPlan): void {
+    clearBuildingGroups()
+    const group = createBuildingsGroup(plan)
+    buildingHost?.add(group)
+    buildingSingle = group
+    buildingPlan = plan
+    layerEras.set('buildings', plan.eraId)
+  }
+
+  /**
+   * Applies one staged building frame.
+   *
+   * The first frame of a pair builds both eras' groups; every later frame grows
+   * the incoming mass out of the ground while the outgoing one shrinks away, and
+   * `t = 1` settles on the incoming era — identical to a direct `applyEra`.
+   */
+  function applyBuildingFrame(plan: BuildingTransitionPlan): void {
+    if (buildingHost === null) {
+      return
+    }
+    buildingPlan = plan.plan
+    if (plan.instant || plan.from === plan.to) {
+      showBuildingPlan(plan.plan)
+      return
+    }
+    const key = `${plan.from}|${plan.to}`
+    if (key !== buildingPairKey || buildingFrom === null || buildingTo === null) {
+      clearBuildingGroups()
+      buildingFrom = createBuildingsGroup(plan.fromPlan)
+      buildingTo = createBuildingsGroup(plan.toPlan)
+      buildingHost.add(buildingFrom)
+      buildingHost.add(buildingTo)
+      buildingPairKey = key
+    }
+    applyBuildingSwap(buildingFrom, buildingTo, plan.mix)
+    layerEras.set('buildings', null)
+    if (plan.t >= 1) {
+      buildingFrom.removeFromParent()
+      disposeBuildingsGroup(buildingFrom)
+      buildingFrom = null
+      buildingSingle = buildingTo
+      buildingTo = null
+      buildingPairKey = null
+      layerEras.set('buildings', plan.toPlan.eraId)
+    }
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Pedestrians                                                            */
+  /* ---------------------------------------------------------------------- */
+
+  const crowdHost: Group | null = attempt('pedestrians', () => layerHost('pedestrians'))
+
+  let crowdSingle: CrowdSceneObject | null = null
+  let crowdFrom: CrowdSceneObject | null = null
+  let crowdTo: CrowdSceneObject | null = null
+  let crowdPairKey: string | null = null
+  let crowdPlan: PedestrianPlan | null = null
+
+  function crowdContextFor(tier: QualityTierName): PedestrianContext {
+    return {
+      layout,
+      qualityTier: tier,
+      reducedMotion: reducedMotion(),
+      ...(options.seed === undefined ? {} : { seed: options.seed }),
+      ...(night === undefined ? {} : { night }),
+    }
+  }
+
+  function clearCrowdScenes(): void {
+    for (const scene of [crowdSingle, crowdFrom, crowdTo]) {
+      if (scene === null) {
+        continue
+      }
+      scene.root.removeFromParent()
+      scene.dispose()
+    }
+    crowdSingle = null
+    crowdFrom = null
+    crowdTo = null
+    crowdPairKey = null
+  }
+
+  /** Shows one settled era's crowd, replacing whatever was mounted. */
+  function showCrowdPlan(plan: PedestrianPlan): void {
+    clearCrowdScenes()
+    const scene = createCrowdSceneObject(plan, { layout })
+    crowdHost?.add(scene.root)
+    crowdSingle = scene
+    crowdPlan = plan
+    scene.update(simSeconds)
+    layerEras.set('pedestrians', plan.eraId)
+  }
+
+  /** Applies one staged crowd frame: cross-dress in place, settle at `t = 1`. */
+  function applyCrowdFrame(plan: PedestrianTransitionPlan): void {
+    if (crowdHost === null) {
+      return
+    }
+    crowdPlan = plan.plan
+    if (plan.instant || plan.from === plan.to) {
+      showCrowdPlan(plan.plan)
+      return
+    }
+    const key = `${plan.from}|${plan.to}`
+    if (key !== crowdPairKey || crowdFrom === null || crowdTo === null) {
+      clearCrowdScenes()
+      crowdFrom = createCrowdSceneObject(plan.fromPlan, { layout })
+      crowdTo = createCrowdSceneObject(plan.toPlan, { layout })
+      crowdHost.add(crowdFrom.root)
+      crowdHost.add(crowdTo.root)
+      crowdPairKey = key
+    }
+    crowdFrom.update(simSeconds)
+    crowdTo.update(simSeconds)
+    applyCrowdSwap(crowdFrom, crowdTo, plan.mix)
+    layerEras.set('pedestrians', null)
+    if (plan.t >= 1) {
+      crowdFrom.root.removeFromParent()
+      crowdFrom.dispose()
+      crowdFrom = null
+      crowdSingle = crowdTo
+      crowdTo = null
+      crowdPairKey = null
+      layerEras.set('pedestrians', plan.toPlan.eraId)
     }
   }
 
@@ -845,8 +1047,14 @@ export function createSceneComposition(options: SceneCompositionOptions): SceneC
       layer.setClock(simSeconds)
       vehicleScene?.update(layer.poseAt(simSeconds))
     }
+    // The crowd is a pure function of the same clock, so every mounted crowd —
+    // the settled one, or both halves of a staged cross-dress — re-poses here.
+    for (const scene of [crowdSingle, crowdFrom, crowdTo]) {
+      scene?.update(simSeconds)
+    }
     publishPlumes()
     vfx?.setClock({ seconds: simSeconds })
+    directorClock.advance(delta)
     try {
       director.tick()
     } catch (error) {
@@ -1040,10 +1248,77 @@ export function createSceneComposition(options: SceneCompositionOptions): SceneC
     )
   }
 
+  if (buildingHost !== null) {
+    adapters.push(
+      bindLayerAdapter<BuildingContext, BuildingPlan | null, BuildingTransitionPlan | null>({
+        id: 'buildings',
+        contextFor: ({ reducedMotion: stageReduced }) => ({
+          layout,
+          qualityTier,
+          reducedMotion: stageReduced,
+          ...(options.seed === undefined ? {} : { seed: options.seed }),
+          ...(night === undefined ? {} : { night }),
+        }),
+        applyEra: (eraId, context) => {
+          activeLayerId = 'buildings'
+          return attempt('buildings', () => {
+            const plan = applyBuildingEra(eraId, context)
+            showBuildingPlan(plan)
+            return plan
+          })
+        },
+        applyEraTransition: (request, context) => {
+          activeLayerId = 'buildings'
+          return attempt('buildings', () => {
+            const frame = applyBuildingEraTransition(request, context)
+            applyBuildingFrame(frame)
+            return frame
+          })
+        },
+        readEra: (plan) => plan?.eraId ?? null,
+        readTransitionEra: (frame) => frame?.resolvedEra ?? null,
+      }),
+    )
+  }
+
+  if (crowdHost !== null) {
+    adapters.push(
+      bindLayerAdapter<PedestrianContext, PedestrianPlan | null, PedestrianTransitionPlan | null>({
+        id: 'pedestrians',
+        contextFor: ({ reducedMotion: stageReduced }) => ({
+          layout,
+          qualityTier,
+          reducedMotion: stageReduced,
+          ...(options.seed === undefined ? {} : { seed: options.seed }),
+          ...(night === undefined ? {} : { night }),
+        }),
+        applyEra: (eraId, context) => {
+          activeLayerId = 'pedestrians'
+          return attempt('pedestrians', () => {
+            const plan = applyCrowdEra(eraId, context)
+            showCrowdPlan(plan)
+            return plan
+          })
+        },
+        applyEraTransition: (request, context) => {
+          activeLayerId = 'pedestrians'
+          return attempt('pedestrians', () => {
+            const frame = applyCrowdEraTransition(request, context)
+            applyCrowdFrame(frame)
+            return frame
+          })
+        },
+        readEra: (plan) => plan?.eraId ?? null,
+        readTransitionEra: (frame) => frame?.resolvedEra ?? null,
+      }),
+    )
+  }
+
   const director: TransitionDirector = createTransitionDirector({
     store: eraStore,
     layers: adapters,
     audio: audioBridge?.port ?? null,
+    clock: directorClock,
     camera: {
       capture: () => pipeline.controls.getState(),
       restore: (state: CameraState) => {
@@ -1172,13 +1447,59 @@ export function createSceneComposition(options: SceneCompositionOptions): SceneC
     return [...parked, ...moving]
   }
 
+  /** Building targets use the layer's own plan, not per-instance bounding boxes. */
+  function buildingInspectionObjects(): readonly InspectionObjectInput[] {
+    const plan = buildingPlan
+    if (plan === null) {
+      return []
+    }
+    return plan.buildings.map((building) => {
+      const centreX = (building.footprint.min.x + building.footprint.max.x) / 2
+      const centreZ = (building.footprint.min.z + building.footprint.max.z) / 2
+      const height = Math.max(1, building.height)
+      const category: InspectionCategory =
+        building.state === 'vacant-lot' ? 'surface' : 'building'
+      const label =
+        building.state === 'building'
+          ? `${building.archetype} (${building.floors} floors)`
+          : building.state
+      return {
+        id: `building:${building.id}`,
+        category,
+        label,
+        source: building.parcelId,
+        bounds: boundsOfPoint([centreX, height / 2, centreZ], {
+          width: Math.max(building.footprint.width, building.footprint.depth),
+          height,
+        }),
+      }
+    })
+  }
+
+  /** Pedestrian targets are read from the live crowd's own poses. */
+  function pedestrianInspectionObjects(): readonly InspectionObjectInput[] {
+    const scene = crowdSingle
+    if (scene === null) {
+      return []
+    }
+    return scene.poses.map((pose) => ({
+      id: `pedestrian:${pose.id}`,
+      category: 'pedestrian',
+      label: pose.child ? 'Child' : 'Pedestrian',
+      source: pose.splineName,
+      bounds: boundsOfPoint(tuple(pose.position), { width: 0.6, height: pose.heightM }),
+    }))
+  }
+
   function inspectionSources(): readonly InspectionLayerInput[] {
     return [
       { layerId: 'layout', objects: layoutInspectionObjects() },
       { layerId: 'atmosphere', objects: atmosphereInspectionObjects() },
+      { layerId: 'buildings', objects: buildingInspectionObjects() },
       { layerId: 'storefronts', objects: storefrontInspectionObjects() },
       { layerId: 'props', objects: propsInspectionObjects() },
       { layerId: 'vehicles', objects: vehicleInspectionObjects() },
+      { layerId: 'pedestrians', objects: pedestrianInspectionObjects() },
     ]
   }
 
@@ -1279,9 +1600,18 @@ export function createSceneComposition(options: SceneCompositionOptions): SceneC
           sfxEvents: vehicleSfxEvents,
         }
       }
-      case 'buildings':
-      case 'pedestrians':
-        return {}
+      case 'buildings': {
+        if (buildingPlan === null) {
+          return {}
+        }
+        return buildingStatsRecord(buildingPlan.stats)
+      }
+      case 'pedestrians': {
+        if (crowdPlan === null) {
+          return {}
+        }
+        return crowdStatsRecord(crowdPlan.stats)
+      }
     }
   }
 
@@ -1474,6 +1804,16 @@ export function createSceneComposition(options: SceneCompositionOptions): SceneC
         showStorefrontPlan(applyStorefrontEra(eraId, storefrontContextFor(tier)))
       })
     }
+    if (buildingHost !== null) {
+      attempt('buildings', () => {
+        showBuildingPlan(applyBuildingEra(eraId, buildingContextFor(tier)))
+      })
+    }
+    if (crowdHost !== null) {
+      attempt('pedestrians', () => {
+        showCrowdPlan(applyCrowdEra(eraId, crowdContextFor(tier)))
+      })
+    }
     applyVehiclesSettled(eraId)
     inspectionDirty = true
     publishDebug()
@@ -1617,6 +1957,8 @@ export function createSceneComposition(options: SceneCompositionOptions): SceneC
       unsubscribeDirector()
       director.dispose()
       clearStorefrontGroups()
+      clearBuildingGroups()
+      clearCrowdScenes()
       if (vehicleScene !== null) {
         vehicleScene.root.removeFromParent()
         vehicleScene.dispose()

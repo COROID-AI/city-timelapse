@@ -567,15 +567,11 @@ describe('composed experience', () => {
     expect(layerGroups).toHaveLength(SHIPPED_LAYER_IDS.length)
     expect(new Set(layerGroups.map((group) => group.name)).size).toBe(SHIPPED_LAYER_IDS.length)
 
-    // The two slots whose barrels have not landed are reported honestly, from
-    // the director's own pending table rather than from a hard-coded list.
-    expect(PENDING_LAYER_IDS).toEqual(['buildings', 'pedestrians'])
-    for (const id of PENDING_LAYER_IDS) {
-      const layer = layers.find((candidate) => candidate.id === id)
-      expect(layer?.mounted, id).toBe(false)
-      expect(layer?.kind, id).toBe('pending')
-    }
-    expect(composition.pendingLayers).toEqual(expect.arrayContaining([...PENDING_LAYER_IDS]))
+    // Every barrel ships in this revision, so nothing is pending: the director's
+    // own pending table is empty and every content layer is mounted exactly once.
+    expect(PENDING_LAYER_IDS).toEqual([])
+    expect(composition.pendingLayers).toEqual([])
+    expect(layers.filter((layer) => layer.kind === 'pending')).toEqual([])
 
     // A composed block is not empty: every mounted layer owns real objects.
     for (const id of SHIPPED_LAYER_IDS) {
@@ -946,9 +942,11 @@ describe('composed experience', () => {
     expect(debug.inspection.count).toBeGreaterThan(0)
     expect(debug.transition.registeredLayers).toEqual([
       'atmosphere',
+      'buildings',
       'storefronts',
       'props',
       'vehicles',
+      'pedestrians',
     ])
 
     // The global is installable and removable, and a disabled surface installs

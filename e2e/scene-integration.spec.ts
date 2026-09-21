@@ -181,23 +181,33 @@ test('composes the block, walks all five years and keeps its camera and controls
   expect(mounted.mountedLayers).toEqual([
     'layout',
     'atmosphere',
+    'buildings',
     'storefronts',
     'props',
     'vehicles',
+    'pedestrians',
   ])
-  // The two barrels that have not shipped are reported, not hidden.
-  expect(mounted.pendingLayers).toEqual(expect.arrayContaining(['buildings', 'pedestrians']))
-  expect(mounted.transition.pendingStages).toEqual(
-    expect.arrayContaining(['buildings', 'pedestrians']),
-  )
+  // Every barrel ships in this revision, so nothing is pending.
+  expect(mounted.pendingLayers).toEqual([])
+  expect(mounted.transition.pendingStages).toEqual([])
   expect(mounted.transition.registeredLayers).toEqual([
     'atmosphere',
+    'buildings',
     'storefronts',
     'props',
     'vehicles',
+    'pedestrians',
   ])
 
-  for (const id of ['layout', 'atmosphere', 'storefronts', 'props', 'vehicles']) {
+  for (const id of [
+    'layout',
+    'atmosphere',
+    'buildings',
+    'storefronts',
+    'props',
+    'vehicles',
+    'pedestrians',
+  ]) {
     const layer = layerOf(mounted, id)
     expect(layer?.mounted, id).toBe(true)
     expect(layer?.mounts, id).toBe(1)
