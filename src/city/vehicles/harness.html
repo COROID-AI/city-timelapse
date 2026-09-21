@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Era vehicle layer harness</title>
+    <!--
+      Self-contained verification page for the era vehicle layer.
+
+      It mounts the layer's own react host (`VehiclesLayer`) together with the
+      *real* generated block, so per-era verification never depends on the
+      composed application built by a later task. Everything the browser suite
+      asserts on is published on `window.__vehiclesHarness` and mirrored into
+      the document body as `data-vehicles-*` attributes:
+
+      - the era selector and the simulated clock drive the same layer instance
+        the canvas renders, so DOM state, data state and pixels cannot drift;
+      - vehicle, parking, marking and light numbers come from the layer itself;
+      - instanced-mesh counts come from the mounted three.js scene, proving the
+        fleet really went through the instancing bridge;
+      - SFX triggers emitted through the layer's callback are logged.
+
+      The page is offline: three.js, React and react-three-fiber are bundled by
+      the dev server, and no asset, font or tile is fetched.
+    -->
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0d1016;
+        color: #e7e6e1;
+      }
+      body {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1rem;
+        align-items: center;
+        padding: 0.6rem 0.9rem;
+        border-bottom: 1px solid #262c38;
+        background: #151a23;
+      }
+      h1 {
+        font-size: 0.9rem;
+        margin: 0;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      p {
+        margin: 0;
+        font-size: 0.76rem;
+        color: #b6bcc8;
+      }
+      button {
+        font: inherit;
+        font-size: 0.72rem;
+        padding: 0.3rem 0.55rem;
+        color: #e7e6e1;
+        background: #1e2531;
+        border: 1px solid #333c4b;
+        border-radius: 0.3rem;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #263040;
+      }
+      button[aria-pressed='true'] {
+        background: #2f4f6f;
+        border-color: #6ea8d8;
+      }
+      .viewport {
+        position: relative;
+        min-height: 0;
+      }
+      .viewport canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .viewport[data-webgl='false']::after {
+        content: 'WebGL unavailable: the layer still publishes every count for assertions.';
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: #8b93a1;
+        font-size: 0.8rem;
+      }
+      .report {
+        margin: 0;
+        max-height: 34vh;
+        overflow: auto;
+        padding: 0.6rem 0.9rem;
+        border-top: 1px solid #262c38;
+        background: #151a23;
+        font-size: 0.7rem;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        color: #b6bcc8;
+      }
+      .group {
+        display: flex;
+        gap: 0.35rem;
+        align-items: center;
+      }
+    </style>
+  </head>
+  <body
+    data-vehicles-status="booting"
+    data-vehicles-webgl="unknown"
+    data-vehicles-era=""
+    data-vehicles-progress="0"
+    data-vehicles-count="0"
+    data-vehicles-parked="0"
+    data-vehicles-micro="0"
+    data-vehicles-markings=""
+    data-vehicles-night="false"
+    data-vehicles-sfx="0"
+  >
+    <header>
+      <h1>Era vehicle layer harness</h1>
+      <p data-testid="vehicles-summary">Booting the era fleet…</p>
+      <div class="group" id="era-buttons"></div>
+      <div class="group">
+        <button type="button" data-testid="vehicles-play">Play</button>
+        <button type="button" data-testid="vehicles-pause">Pause</button>
+        <button type="button" data-testid="vehicles-step">Step 5 s</button>
+        <button type="button" data-testid="vehicles-reset">Reset clock</button>
+      </div>
+      <div class="group">
+        <button type="button" data-testid="vehicles-blend">Blend to next era (t = 0.5)</button>
+        <button type="button" data-testid="vehicles-settle">Settle blend (t = 1)</button>
+      </div>
+    </header>
+    <div class="viewport" id="viewport" data-testid="vehicles-viewport"></div>
+    <pre class="report" id="report" data-testid="vehicles-report"></pre>
+
+    <script type="module">
+      import React, { createElement, useCallback, useEffect, useRef, useState } from 'react'
+      import { createRoot } from 'react-dom/client'
+      import { Canvas, useThree } from '@react-three/fiber'
+      import * as THREE from 'three'
+      import { DEFAULT_LAYOUT_SEED, generateBlock } from '../layout/index'
+      import { buildLayoutObject, disposeLayoutObject } from '../layout/buildMeshes'
+      import { DEFAULT_ERA_ID, ERA_DEFINITIONS, ERA_IDS, getEra } from '../../era/index'
+      import { VehiclesLayer, createVehicleLayer } from './index'
+
+      /** Simulated clock speed of the play loop, in seconds of scene time per second. */
+      const CLOCK_SCALE = 6
+      /** Clock step of the step button, in seconds. */
+      const STEP_SECONDS = 5
+
+      const body = document.body
+      const viewport = document.getElementById('viewport')
+      const summaryNode = document.querySelector('[data-testid="vehicles-summary"]')
+      const reportNode = document.getElementById('report')
+
+      const errors = []
+      const sfxLog = []
+      const layout = generateBlock(DEFAULT_LAYOUT_SEED)
+      /** React-side callbacks the window API and the page controls drive. */
+      const bridge = { apply: null }
+
+      /**
+       * `?render=0` skips the canvas: the same page, the same layer, the same
+       * published numbers, but without a renderer — which keeps the data
+       * assertions of the browser suite cheap and independent of the GPU.
+       */
+      const renderRequested = new URLSearchParams(window.location.search).get('render') !== '0'
+
+      let webglAvailable = false
+      let currentScene = null
+      let blendFrom = DEFAULT_ERA_ID
+
+      const layer = createVehicleLayer({
+        layout,
+        eraId: DEFAULT_ERA_ID,
+        seed: layout.seedInput,
+        onSfxTrigger: (trigger) => {
+          sfxLog.push({
+            kind: trigger.kind,
+            vehicleId: trigger.vehicleId,
+            modelKey: trigger.modelKey,
+            timeSec: trigger.timeSec,
+            splineName: trigger.splineName,
+          })
+          if (sfxLog.length > 400) {
+            sfxLog.splice(0, sfxLog.length - 400)
+          }
+          body.dataset['vehiclesSfx'] = String(sfxLog.length)
+        },
+      })
+
+      function detectWebgl() {
+        try {
+          const canvas = document.createElement('canvas')
+          return canvas.getContext('webgl2') !== null || canvas.getContext('webgl') !== null
+        } catch (error) {
+          errors.push(`webgl probe: ${error && error.message ? error.message : String(error)}`)
+          return false
+        }
+      }
+
+      /** Counters of the mounted three.js scene, read back from the instances. */
+      function sceneCounters() {
+        if (currentScene === null) {
+          return null
+        }
+        const movingMeshes = currentScene.moving.flatMap((variant) => variant.meshes)
+        const parkedMeshes = currentScene.parked.flatMap((variant) => variant.meshes)
+        return {
+          movingInstances: currentScene.moving.reduce((total, variant) => total + variant.count, 0),
+          parkedInstances: currentScene.parked.reduce((total, variant) => total + variant.count, 0),
+          movingVariants: currentScene.moving.length,
+          parkedVariants: currentScene.parked.length,
+          movingMeshes: movingMeshes.length,
+          parkedMeshes: parkedMeshes.length,
+          markingGroups: currentScene.markings.groupNames.length,
+          markingMeshes: currentScene.markings.meshCount,
+          markingTriangles: Math.round(currentScene.markings.triangles),
+          meshes: movingMeshes.length + parkedMeshes.length + currentScene.markings.meshCount,
+          /** Digest of every live instance matrix: changes as the fleet moves. */
+          matrixDigest: digest(movingMeshes),
+        }
+      }
+
+      function digest(meshes) {
+        let total = 0
+        for (const mesh of meshes) {
+          const array = mesh.instanceMatrix.array
+          for (let index = 0; index < array.length; index += 7) {
+            total += array[index]
+          }
+        }
+        return Math.round(total * 1000) / 1000
+      }
+
+      function snapshot() {
+        const snap = layer.snapshot()
+        return {
+          eraId: snap.eraId,
+          fromEraId: snap.fromEraId,
+          toEraId: snap.toEraId,
+          progress: snap.progress,
+          settled: snap.settled,
+          clockSec: snap.clockSec,
+          density: snap.density,
+          speedMps: snap.speedMps,
+          spacingM: snap.spacingM,
+          movingCount: snap.movingCount,
+          movingByModel: snap.movingByModel,
+          movingByClass: snap.movingByClass,
+          microCount: snap.microCount,
+          parkedCount: snap.parkedCount,
+          parkedByModel: snap.parkedByModel,
+          census: snap.census,
+          markingGroups: snap.markingGroupCounts,
+          markingSignature: snap.markingSignature,
+          markingPieceCount: snap.markingPieceCount,
+          lights: snap.lights,
+          night: snap.lights.night,
+          lanes: snap.lanes,
+          sfxKinds: snap.sfxKinds,
+          sfxEmitted: sfxLog.length,
+          sfxKindsEmitted: [...new Set(sfxLog.map((entry) => entry.kind))].sort(),
+          firstPose: snap.firstPose
+            ? {
+                id: snap.firstPose.id,
+                modelKey: snap.firstPose.modelKey,
+                x: snap.firstPose.position.x,
+                z: snap.firstPose.position.z,
+                headingRad: snap.firstPose.headingRad,
+                lampIndicator: snap.firstPose.lamps.indicator,
+              }
+            : null,
+          scene: sceneCounters(),
+          webgl: webglAvailable,
+        }
+      }
+
+      function publish() {
+        const snap = snapshot()
+        // The page only reports "ready" once the React host has mounted and
+        // wired the controls, so a browser test can never click into a half
+        // mounted harness.
+        body.dataset['vehiclesStatus'] = bridge.apply === null ? 'booting' : 'ready'
+        body.dataset['vehiclesEra'] = String(snap.eraId ?? `${snap.fromEraId}->${snap.toEraId}`)
+        body.dataset['vehiclesProgress'] = String(snap.progress)
+        body.dataset['vehiclesCount'] = String(snap.movingCount)
+        body.dataset['vehiclesParked'] = String(snap.parkedCount)
+        body.dataset['vehiclesMicro'] = String(snap.microCount)
+        body.dataset['vehiclesMarkings'] = Object.keys(snap.markingGroups).sort().join('+')
+        body.dataset['vehiclesNight'] = String(snap.night)
+        body.dataset['vehiclesSfx'] = String(snap.sfxEmitted)
+        if (summaryNode) {
+          summaryNode.textContent = [
+            `${snap.eraId ?? `${snap.fromEraId} → ${snap.toEraId} @ ${snap.progress.toFixed(2)}`}`,
+            `${snap.movingCount} driving`,
+            `${snap.parkedCount} parked`,
+            `${snap.microCount} micro`,
+            `density ${snap.density.toFixed(2)}`,
+            `spacing ${snap.spacingM} m`,
+            `lights ${snap.lights.headlampIntensity > 0 ? (snap.night ? 'night' : 'running') : 'off'}`,
+            `markings ${Object.keys(snap.markingGroups).sort().join('+')}`,
+            `${snap.sfxEmitted} SFX`,
+          ].join(' · ')
+        }
+        if (reportNode) {
+          const scene = snap.scene
+          reportNode.textContent = [
+            `clock ${snap.clockSec.toFixed(2)} s   era ${snap.eraId ?? '(blending)'}   progress ${snap.progress.toFixed(2)}   settled ${snap.settled}`,
+            `census: ${snap.census.join(', ')}`,
+            `moving by class: ${Object.entries(snap.movingByClass)
+              .map(([key, value]) => `${key} ${value}`)
+              .join('  ')}`,
+            `moving by model: ${Object.entries(snap.movingByModel)
+              .map(([key, value]) => `${key} ${value}`)
+              .join('  ')}`,
+            `parked by model: ${Object.entries(snap.parkedByModel)
+              .map(([key, value]) => `${key} ${value}`)
+              .join('  ')}`,
+            `marking groups: ${Object.entries(snap.markingGroups)
+              .map(([key, value]) => `${key} ${value}`)
+              .join('  ')}`,
+            `lanes: ${snap.lanes.totalLanes} total, ${snap.lanes.travelLanesPerDirection}/direction, parking ${snap.lanes.parkingLanes}, bike lane ${snap.lanes.bikeLane}, turn arrows ${snap.lanes.turnArrows}, rails ${snap.lanes.streetcarRails}`,
+            `lights: night ${snap.lights.night}, dusk ${snap.lights.dusk}, head ${snap.lights.headlampIntensity}, tail ${snap.lights.taillampIntensity}, indicators ${snap.lights.indicators}`,
+            `SFX kinds available: ${snap.sfxKinds.join(', ') || 'none'}   emitted: ${snap.sfxKindsEmitted.join(', ') || 'none'} (${snap.sfxEmitted} events)`,
+            `instanced scene: ${scene ? `${scene.movingInstances} moving / ${scene.parkedInstances} parked across ${scene.movingMeshes + scene.parkedMeshes} instanced meshes, ${scene.markingMeshes} marking meshes, ${scene.meshes} meshes total` : renderRequested ? 'not mounted (WebGL unavailable)' : 'not mounted (data-only mode)'}`,
+          ].join('\n')
+        }
+      }
+
+      /** Three.js lighting driven by the era the layer is showing. */
+      function SceneLights({ eraId }) {
+        const era = getEra(eraId)
+        const elevation = (era.lighting.sunElevationDeg * Math.PI) / 180
+        const azimuth = (era.lighting.sunAzimuthDeg * Math.PI) / 180
+        const distance = 260
+        const sun = [
+          Math.sin(azimuth) * Math.cos(elevation) * distance,
+          Math.max(20, Math.sin(elevation) * distance),
+          -Math.cos(azimuth) * Math.cos(elevation) * distance,
+        ]
+        return createElement(
+          React.Fragment,
+          null,
+          createElement('hemisphereLight', {
+            args: [0xdfe7ff, 0x1a1c20, era.lighting.hemisphereIntensity],
+          }),
+          createElement('ambientLight', {
+            args: [era.lighting.ambientColor, Math.max(0.25, era.lighting.ambientIntensity)],
+          }),
+          createElement('directionalLight', {
+            args: [era.lighting.sunColor, Math.max(0.15, era.lighting.sunIntensity)],
+            position: sun,
+          }),
+        )
+      }
+
+      /** The canonical block, mounted through the layout's own three.js bridge. */
+      function BlockMesh() {
+        const built = React.useMemo(() => buildLayoutObject(layout), [])
+        useEffect(() => () => disposeLayoutObject(built), [built])
+        return createElement('primitive', { object: built.root })
+      }
+
+      /** Minimal orbit navigation: drag to orbit, wheel to zoom. */
+      function CameraHost({ onView }) {
+        const { camera, gl } = useThree()
+        const state = useRef({ radius: 240, theta: Math.PI * 0.78, phi: 0.85 })
+        const callback = useRef(onView)
+        callback.current = onView
+
+        useEffect(() => {
+          const apply = () => {
+            const { radius, theta, phi } = state.current
+            camera.position.set(
+              radius * Math.sin(phi) * Math.sin(theta),
+              radius * Math.cos(phi),
+              radius * Math.sin(phi) * Math.cos(theta),
+            )
+            camera.lookAt(0, 4, 0)
+            callback.current?.({
+              position: camera.position.toArray().map((value) => Math.round(value * 100) / 100),
+              target: [0, 4, 0],
+            })
+          }
+          apply()
+
+          const dom = gl.domElement
+          let dragging = false
+          let lastX = 0
+          let lastY = 0
+          const onPointerDown = (event) => {
+            dragging = true
+            lastX = event.clientX
+            lastY = event.clientY
+          }
+          const onPointerMove = (event) => {
+            if (!dragging) {
+              return
+            }
+            const dx = event.clientX - lastX
+            const dy = event.clientY - lastY
+            lastX = event.clientX
+            lastY = event.clientY
+            state.current.theta -= dx * 0.006
+            state.current.phi = Math.min(Math.PI * 0.49, Math.max(0.12, state.current.phi - dy * 0.005))
+            apply()
+          }
+          const onPointerUp = () => {
+            dragging = false
+          }
+          const onWheel = (event) => {
+            event.preventDefault()
+            state.current.radius = Math.min(520, Math.max(60, state.current.radius + event.deltaY * 0.35))
+            apply()
+          }
+
+          dom.addEventListener('pointerdown', onPointerDown)
+          window.addEventListener('pointermove', onPointerMove)
+          window.addEventListener('pointerup', onPointerUp)
+          dom.addEventListener('wheel', onWheel, { passive: false })
+          return () => {
+            dom.removeEventListener('pointerdown', onPointerDown)
+            window.removeEventListener('pointermove', onPointerMove)
+            window.removeEventListener('pointerup', onPointerUp)
+            dom.removeEventListener('wheel', onWheel)
+          }
+        }, [camera, gl])
+
+        return null
+      }
+
+      function Harness() {
+        const [eraId, setEraId] = useState(DEFAULT_ERA_ID)
+        const [transition, setTransition] = useState(null)
+        const [clock, setClock] = useState(0)
+        const [playing, setPlaying] = useState(false)
+        const clockRef = useRef(0)
+
+        const apply = useCallback((patch) => {
+          if (patch.eraId !== undefined) {
+            layer.setEra(patch.eraId)
+            blendFrom = patch.eraId
+            setTransition(null)
+            setEraId(patch.eraId)
+          }
+          if (patch.transition !== undefined) {
+            if (patch.transition === null) {
+              setTransition(null)
+            } else {
+              layer.setEraTransition(patch.transition)
+              blendFrom = patch.transition.from
+              setTransition({ ...patch.transition })
+              setEraId(patch.transition.to)
+            }
+          }
+          if (patch.clock !== undefined) {
+            clockRef.current = patch.clock
+            layer.setClock(patch.clock)
+            setClock(patch.clock)
+          }
+          if (patch.delta !== undefined) {
+            clockRef.current += patch.delta
+            const next = Math.round(clockRef.current * 1000) / 1000
+            clockRef.current = next
+            layer.setClock(next)
+            setClock(next)
+          }
+          if (patch.playing !== undefined) {
+            setPlaying(patch.playing)
+          }
+          publish()
+        }, [])
+
+        bridge.apply = apply
+
+        useEffect(() => {
+          publish()
+        })
+
+        useEffect(() => {
+          if (!playing) {
+            return undefined
+          }
+          let handle = 0
+          let previous = performance.now()
+          const tick = (now) => {
+            const dt = Math.min((now - previous) / 1000, 0.1) * CLOCK_SCALE
+            previous = now
+            clockRef.current += dt
+            const next = Math.round(clockRef.current * 1000) / 1000
+            clockRef.current = next
+            layer.setClock(next)
+            setClock(next)
+            handle = requestAnimationFrame(tick)
+          }
+          handle = requestAnimationFrame(tick)
+          return () => cancelAnimationFrame(handle)
+        }, [playing])
+
+        const onSceneReady = useCallback((scene) => {
+          currentScene = scene
+          publish()
+        }, [])
+
+        const onView = useCallback((next) => {
+          window.__vehiclesHarness.__view = next
+          publish()
+        }, [])
+
+        return webglAvailable
+          ? createElement(
+              Canvas,
+              {
+                camera: { fov: 42, near: 0.5, far: 900, position: [180, 118, 190] },
+                gl: { antialias: true, alpha: false },
+                dpr: Math.min(window.devicePixelRatio || 1, 2),
+                onCreated: ({ gl }) => {
+                  gl.setClearColor(new THREE.Color(0x0d1016))
+                },
+              },
+              createElement(SceneLights, { eraId: transition ? transition.to : eraId }),
+              createElement(BlockMesh, null),
+              createElement(VehiclesLayer, {
+                layout,
+                layer,
+                eraId,
+                transition: transition ?? undefined,
+                clock,
+                seed: layout.seedInput,
+                onSceneReady,
+              }),
+              createElement(CameraHost, { onView }),
+            )
+          : null
+      }
+
+      const eraButtons = document.getElementById('era-buttons')
+
+      for (const definition of ERA_DEFINITIONS) {
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.textContent = definition.shortLabel
+        button.dataset['testid'] = `era-${definition.id}`
+        button.dataset['era'] = definition.id
+        button.addEventListener('click', () => bridge.apply?.({ eraId: definition.id, clock: 0 }))
+        eraButtons?.appendChild(button)
+      }
+
+      const blendButton = document.querySelector('[data-testid="vehicles-blend"]')
+      const settleButton = document.querySelector('[data-testid="vehicles-settle"]')
+      const playButton = document.querySelector('[data-testid="vehicles-play"]')
+      const pauseButton = document.querySelector('[data-testid="vehicles-pause"]')
+      const stepButton = document.querySelector('[data-testid="vehicles-step"]')
+      const resetButton = document.querySelector('[data-testid="vehicles-reset"]')
+
+      function nextEraId(from) {
+        const index = ERA_IDS.indexOf(from)
+        return ERA_IDS[Math.min(ERA_IDS.length - 1, index + 1)] ?? from
+      }
+
+      blendButton?.addEventListener('click', () => {
+        bridge.apply?.({ transition: { from: blendFrom, to: nextEraId(blendFrom), t: 0.5 } })
+      })
+      settleButton?.addEventListener('click', () => {
+        bridge.apply?.({ transition: { from: blendFrom, to: nextEraId(blendFrom), t: 1 } })
+      })
+      playButton?.addEventListener('click', () => bridge.apply?.({ playing: true }))
+      pauseButton?.addEventListener('click', () => bridge.apply?.({ playing: false }))
+      stepButton?.addEventListener('click', () => bridge.apply?.({ delta: STEP_SECONDS }))
+      resetButton?.addEventListener('click', () => bridge.apply?.({ clock: 0 }))
+
+      webglAvailable = renderRequested && detectWebgl()
+      body.dataset['vehiclesWebgl'] = String(webglAvailable)
+      if (viewport) {
+        viewport.dataset['webgl'] = String(webglAvailable)
+      }
+
+      window.__vehiclesHarness = {
+        get errors() {
+          return [...errors]
+        },
+        get webgl() {
+          return webglAvailable
+        },
+        get layer() {
+          return layer
+        },
+        get sfxLog() {
+          return [...sfxLog]
+        },
+        snapshot,
+        publish,
+        setEra(eraId) {
+          bridge.apply?.({ eraId, clock: layer.clockSec })
+        },
+        setTransition(input) {
+          bridge.apply?.({ transition: input })
+        },
+        setClock(seconds) {
+          bridge.apply?.({ clock: seconds })
+        },
+        step(delta) {
+          bridge.apply?.({ delta })
+        },
+        play() {
+          bridge.apply?.({ playing: true })
+        },
+        pause() {
+          bridge.apply?.({ playing: false })
+        },
+        sceneCounters,
+      }
+
+      try {
+        const root = createRoot(document.getElementById('viewport'))
+        root.render(createElement(Harness, null))
+      } catch (error) {
+        errors.push(`mount: ${error && error.message ? error.message : String(error)}`)
+      }
+
+      publish()
+    </script>
+  </body>
+</html>
