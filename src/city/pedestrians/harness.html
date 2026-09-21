@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Era pedestrian crowd harness</title>
+    <!--
+      Self-contained verification page for the pedestrian layer.
+
+      It imports this layer's own barrel plus react / react-three-fiber / three,
+      and nothing else: no scene pipeline, no composed application, no other era
+      content layer and no remote asset. The block comes from the layer's own
+      default layout (the canonical block), and the crowd is driven by a
+      *simulated clock* the page owns, so every era can be rendered at an exactly
+      reproducible instant.
+
+      Everything the browser suite asserts is published on
+      `window.__pedestrianHarness`, with the headline numbers mirrored into
+      `data-pedestrians-*` attributes on the document body.
+    -->
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #10131a;
+        color: #e7e6e1;
+      }
+      body {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1.25rem;
+        align-items: center;
+        padding: 0.7rem 1rem;
+        border-bottom: 1px solid #262c38;
+        background: #151a23;
+      }
+      h1 {
+        font-size: 0.95rem;
+        margin: 0;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      p {
+        margin: 0;
+        font-size: 0.78rem;
+        color: #b6bcc8;
+      }
+      label {
+        display: inline-flex;
+        gap: 0.35rem;
+        align-items: center;
+        font-size: 0.72rem;
+        color: #b6bcc8;
+      }
+      select,
+      button {
+        font: inherit;
+        font-size: 0.72rem;
+        padding: 0.3rem 0.5rem;
+        color: #e7e6e1;
+        background: #1e2531;
+        border: 1px solid #333c4b;
+        border-radius: 0.35rem;
+        cursor: pointer;
+      }
+      button:hover,
+      select:hover {
+        background: #263040;
+      }
+      .viewport {
+        position: relative;
+        min-height: 0;
+      }
+      .viewport canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .viewport[data-webgl='false']::after {
+        content: 'WebGL unavailable: crowd statistics are still published for assertions.';
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: #8b93a1;
+        font-size: 0.8rem;
+      }
+      .report {
+        margin: 0;
+        max-height: 26vh;
+        overflow: auto;
+        padding: 0.7rem 1rem;
+        border-top: 1px solid #262c38;
+        background: #151a23;
+        font-size: 0.7rem;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        color: #b6bcc8;
+      }
+    </style>
+  </head>
+  <body
+    data-pedestrians-status="booting"
+    data-pedestrians-webgl="unknown"
+    data-pedestrians-era=""
+    data-pedestrians-tier=""
+    data-pedestrians-count="0"
+    data-pedestrians-instances="0"
+    data-pedestrians-drawcalls="0"
+    data-pedestrians-triangles="0"
+    data-pedestrians-budget="0"
+  >
+    <header>
+      <h1>Era pedestrian crowd harness</h1>
+      <p data-testid="pedestrians-summary">Booting the crowd…</p>
+      <label>
+        Era
+        <select data-testid="pedestrians-era-select"></select>
+      </label>
+      <label>
+        Tier
+        <select data-testid="pedestrians-tier-select">
+          <option value="high">high</option>
+          <option value="medium">medium</option>
+          <option value="low">low</option>
+        </select>
+      </label>
+      <button type="button" data-testid="pedestrians-play">Play</button>
+      <button type="button" data-testid="pedestrians-pause">Pause</button>
+      <button type="button" data-testid="pedestrians-step">Step 1s</button>
+      <button type="button" data-testid="pedestrians-seek-zero">Clock 0s</button>
+      <button type="button" data-testid="pedestrians-seek-mid">Clock 40s</button>
+      <button type="button" data-testid="pedestrians-blend">Stage blend 0.5</button>
+      <button type="button" data-testid="pedestrians-reduced">Reduced motion</button>
+    </header>
+    <div class="viewport" id="viewport" data-testid="pedestrians-viewport"></div>
+    <pre class="report" id="report" data-testid="pedestrians-report"></pre>
+
+    <script type="module">
+      import { createElement } from 'react'
+      import { createRoot } from 'react-dom/client'
+      import { Canvas } from '@react-three/fiber'
+      import {
+        PEDESTRIAN_ERA_IDS,
+        PedestriansLayer,
+        applyEra,
+        applyEraTransition,
+        createPedestrianLayer,
+        crowdStats,
+        crowdTargetCount,
+        estimateCrowdCost,
+        getCrowdTable,
+        pedestrianOutfit,
+        pedestrianPlacement,
+        seekCrowd,
+        walkableSidewalkLength,
+      } from './index'
+
+      const CAMERA_POSITION = { x: 14, y: 2.4, z: -64 }
+      const CAMERA_TARGET = { x: 74, y: 1.2, z: -58 }
+      const SIMULATED_STEP_SECONDS = 1 / 30
+
+      const body = document.body
+      const viewport = document.getElementById('viewport')
+      const reportNode = document.getElementById('report')
+      const summaryNode = document.querySelector('[data-testid="pedestrians-summary"]')
+      const eraSelect = document.querySelector('[data-testid="pedestrians-era-select"]')
+      const tierSelect = document.querySelector('[data-testid="pedestrians-tier-select"]')
+
+      const state = {
+        tier: 'high',
+        eraId: PEDESTRIAN_ERA_IDS[0],
+        reducedMotion: false,
+        playing: false,
+        webgl: null,
+        errors: [],
+        handle: null,
+        root: null,
+        frame: null,
+      }
+
+      /** The simulated clock: the page owns time, the layer follows it. */
+      const clock = {
+        time: 0,
+        now() {
+          return clock.time
+        },
+      }
+
+      function hasWebgl() {
+        if (state.webgl !== null) {
+          return state.webgl
+        }
+        try {
+          const canvas = document.createElement('canvas')
+          state.webgl = Boolean(canvas.getContext('webgl2') || canvas.getContext('webgl'))
+        } catch (error) {
+          state.webgl = false
+          state.errors.push(`webgl probe: ${error && error.message ? error.message : String(error)}`)
+        }
+        return state.webgl
+      }
+
+      function sceneChildren() {
+        return [
+          createElement('ambientLight', { key: 'ambient', intensity: 0.75, color: '#cfd8ff' }),
+          createElement('hemisphereLight', {
+            key: 'hemi',
+            args: ['#dfe7ff', '#2b2b2b', 0.5],
+          }),
+          createElement('directionalLight', {
+            key: 'sun',
+            position: [80, 140, 60],
+            intensity: 2.1,
+            color: '#fff2dc',
+          }),
+          createElement(
+            'mesh',
+            { key: 'ground', rotation: [-Math.PI / 2, 0, 0], position: [0, 0, 0] },
+            createElement('planeGeometry', { key: 'ground-geometry', args: [320, 320] }),
+            createElement('meshStandardMaterial', {
+              key: 'ground-material',
+              color: '#2a303c',
+              roughness: 1,
+              metalness: 0,
+            }),
+          ),
+        ]
+      }
+
+      function mount() {
+        if (state.root !== null) {
+          state.root.unmount()
+          state.root = null
+        }
+        viewport.replaceChildren()
+        if (!hasWebgl()) {
+          viewport.dataset['webgl'] = 'false'
+          return
+        }
+        const layer = createElement(PedestriansLayer, {
+          handle: state.handle,
+          clock,
+          reducedMotion: state.reducedMotion,
+          onFrame: (frame) => {
+            state.frame = frame
+          },
+        })
+        const tree = createElement(
+          Canvas,
+          {
+            camera: {
+              position: [CAMERA_POSITION.x, CAMERA_POSITION.y, CAMERA_POSITION.z],
+              fov: 46,
+              near: 0.2,
+              far: 600,
+            },
+            gl: { antialias: true, alpha: false },
+            onCreated: ({ camera, scene }) => {
+              camera.lookAt(CAMERA_TARGET.x, CAMERA_TARGET.y, CAMERA_TARGET.z)
+              scene.background = null
+              state.webgl = true
+              viewport.dataset['webgl'] = 'true'
+            },
+          },
+          createElement('group', { position: [0, 0, 0] }, sceneChildren(), layer),
+        )
+        state.root = createRoot(viewport)
+        try {
+          state.root.render(tree)
+        } catch (error) {
+          state.errors.push(`mount: ${error && error.message ? error.message : String(error)}`)
+          viewport.dataset['webgl'] = 'false'
+        }
+      }
+
+      function rebuildHandle() {
+        state.handle = createPedestrianLayer({
+          eraId: state.eraId,
+          tier: state.tier,
+        })
+        clock.time = 0
+      }
+
+      function publish() {
+        const handle = state.handle
+        const crowd = handle.crowd
+        const stats = crowdStats(crowd)
+        const cost = estimateCrowdCost(crowd, { cameraPosition: CAMERA_POSITION })
+        const frame = state.frame
+        body.dataset['pedestriansStatus'] = 'ready'
+        body.dataset['pedestriansEra'] = crowd.eraId
+        body.dataset['pedestriansTier'] = crowd.tier
+        body.dataset['pedestriansCount'] = String(stats.activeCount)
+        body.dataset['pedestriansInstances'] = String(frame ? frame.instances : cost.instances)
+        body.dataset['pedestriansDrawcalls'] = String(frame ? frame.drawCalls : cost.drawCalls)
+        body.dataset['pedestriansTriangles'] = String(frame ? frame.triangles : cost.triangles)
+        body.dataset['pedestriansBudget'] = String(cost.triangleBudget)
+
+        if (summaryNode) {
+          summaryNode.textContent = [
+            `era ${crowd.eraId}`,
+            `tier ${crowd.tier}`,
+            `${stats.activeCount} pedestrians`,
+            `clock ${stats.timeSeconds.toFixed(1)}s`,
+            `walking ${stats.states.walking}`,
+            `waiting ${stats.states.waiting}`,
+            `crossing ${stats.states.crossing}`,
+            `${frame ? frame.drawCalls : cost.drawCalls} draws`,
+            `${frame ? frame.triangles : cost.triangles}/${cost.triangleBudget} tris`,
+            `webgl ${hasWebgl() ? 'yes' : 'no'}`,
+          ].join(' \u00b7 ')
+        }
+        if (reportNode) {
+          const table = getCrowdTable(crowd.eraId)
+          reportNode.textContent = [
+            `layout seed ${handle.layout.seed}  sidewalk ${walkableSidewalkLength(handle.layout).toFixed(1)} m  capacity ${crowd.capacity}`,
+            `density ${table.density}  speed ${table.gait.speedMps} m/s  outfit tag ${table.outfitEraTag}`,
+            `outfits: ${stats.outfitKeys.join(', ')}`,
+            `props: ${stats.propIds.join(', ') || 'none'}`,
+            `palette: ${table.palette.join(' ')}`,
+            `hair: ${table.hair.map((style) => style.id).join(', ')}`,
+            `headwear: ${table.headwear.map((entry) => entry.id).join(', ')}`,
+            `accessories: ${table.accessories.map((entry) => entry.id).join(', ')}`,
+            `targets: high ${crowdTargetCount(handle.layout, table.density, 'high')} medium ${crowdTargetCount(handle.layout, table.density, 'medium')} low ${crowdTargetCount(handle.layout, table.density, 'low')}`,
+            `signature ${stats.signature}`,
+            state.errors.length > 0 ? `errors: ${state.errors.join(' | ')}` : 'errors: none',
+          ].join('\n')
+        }
+      }
+
+      function snapshot() {
+        const handle = state.handle
+        const crowd = handle.crowd
+        const stats = crowdStats(crowd)
+        const cost = estimateCrowdCost(crowd, { cameraPosition: CAMERA_POSITION })
+        const table = getCrowdTable(crowd.eraId)
+        return {
+          eraId: crowd.eraId,
+          blend: crowd.blend,
+          tier: crowd.tier,
+          timeSeconds: stats.timeSeconds,
+          activeCount: stats.activeCount,
+          capacity: crowd.capacity,
+          seed: crowd.seed,
+          states: stats.states,
+          outfitKeys: stats.outfitKeys,
+          propIds: stats.propIds,
+          signature: stats.signature,
+          sidewalkLength: walkableSidewalkLength(handle.layout),
+          crossingCount: crowd.layout.crossings.length,
+          anchors: crowd.anchors.map((anchor) => ({
+            crossingName: anchor.crossingName,
+            splineName: handle.layout.pedestrianSplines[anchor.splineIndex]?.name ?? '',
+            anchorDistance: anchor.anchorDistance,
+            waitingPoint: anchor.waitingPoint,
+          })),
+          table: {
+            outfitEraTag: table.outfitEraTag,
+            density: table.density,
+            speedMps: table.gait.speedMps,
+            outfitKeys: table.outfits.map((look) => look.key),
+            palette: table.palette,
+            hairIds: table.hair.map((style) => style.id),
+            headwearIds: table.headwear.map((entry) => entry.id),
+            accessoryIds: table.accessories.map((entry) => entry.id),
+            propIds: table.props.map((entry) => entry.id),
+            garmentCounts: table.outfits.map((look) => look.layers.length),
+          },
+          pedestrians: crowd.pedestrians
+            .filter((pedestrian) => pedestrian.visible)
+            .map((pedestrian) => {
+              const dressed = pedestrianOutfit(crowd, pedestrian)
+              const placement = pedestrianPlacement(crowd, pedestrian)
+              return {
+                index: pedestrian.index,
+                state: placement.state,
+                stage: dressed.stage,
+                splineName: handle.layout.pedestrianSplines[pedestrian.splineIndex]?.name ?? '',
+                crossingIndex: pedestrian.crossingIndex,
+                position: {
+                  x: placement.position.x,
+                  y: placement.position.y,
+                  z: placement.position.z,
+                },
+                heading: { x: placement.heading.x, z: placement.heading.z },
+                distance: pedestrian.distance,
+                outfitKey: dressed.outfit.outfitKey,
+                propIds: dressed.props.map((prop) => prop.id),
+                heightM: pedestrian.body.heightM,
+                isChild: pedestrian.body.isChild,
+                speedMps: pedestrian.gait.speedMps,
+                dressWeight: pedestrian.dressWeight,
+                crosses: pedestrian.crosses,
+              }
+            }),
+          cost: {
+            pedestrians: cost.pedestrians,
+            instances: cost.instances,
+            triangles: cost.triangles,
+            drawCalls: cost.drawCalls,
+            poolTriangles: cost.poolTriangles,
+            triangleBudget: cost.triangleBudget,
+            drawCallBudget: cost.drawCallBudget,
+            geometryBudget: cost.geometryBudget,
+            lodCounts: cost.lodCounts,
+            withinBudget: cost.withinBudget,
+          },
+          renderer: state.frame,
+        }
+      }
+
+      function setEra(eraId) {
+        applyEra(eraId, state.handle)
+        state.eraId = eraId
+        if (eraSelect) {
+          eraSelect.value = eraId
+        }
+        publish()
+      }
+
+      function setTier(tier) {
+        state.tier = tier
+        rebuildHandle()
+        mount()
+        publish()
+      }
+
+      function setReducedMotion(enabled) {
+        state.reducedMotion = enabled
+        mount()
+        publish()
+      }
+
+      function setTransition(blend) {
+        applyEraTransition(blend, state.handle)
+        publish()
+      }
+
+      function seek(seconds) {
+        clock.time = seconds
+        seekCrowd(state.handle.crowd, seconds)
+        publish()
+      }
+
+      rebuildHandle()
+      if (eraSelect) {
+        for (const eraId of PEDESTRIAN_ERA_IDS) {
+          const option = document.createElement('option')
+          option.value = eraId
+          option.textContent = eraId
+          eraSelect.appendChild(option)
+        }
+        eraSelect.value = state.eraId
+        eraSelect.addEventListener('change', () => setEra(eraSelect.value))
+      }
+      if (tierSelect) {
+        tierSelect.value = state.tier
+        tierSelect.addEventListener('change', () => setTier(tierSelect.value))
+      }
+      viewport.dataset['webgl'] = String(hasWebgl())
+      mount()
+
+      document.querySelector('[data-testid="pedestrians-play"]').addEventListener('click', () => {
+        state.playing = true
+      })
+      document.querySelector('[data-testid="pedestrians-pause"]').addEventListener('click', () => {
+        state.playing = false
+      })
+      document.querySelector('[data-testid="pedestrians-step"]').addEventListener('click', () => {
+        seek(clock.time + 1)
+      })
+      document.querySelector('[data-testid="pedestrians-seek-zero"]').addEventListener('click', () => {
+        seek(0)
+      })
+      document.querySelector('[data-testid="pedestrians-seek-mid"]').addEventListener('click', () => {
+        seek(40)
+      })
+      document.querySelector('[data-testid="pedestrians-blend"]').addEventListener('click', () => {
+        const from = state.eraId
+        const to = PEDESTRIAN_ERA_IDS[PEDESTRIAN_ERA_IDS.length - 1]
+        setTransition({ from, to, t: 0.5 })
+      })
+      document.querySelector('[data-testid="pedestrians-reduced"]').addEventListener('click', () => {
+        const from = state.eraId
+        const to = PEDESTRIAN_ERA_IDS[PEDESTRIAN_ERA_IDS.length - 1]
+        applyEraTransition({ from, to, t: 0, reducedMotion: true }, state.handle)
+        state.eraId = to
+        if (eraSelect) {
+          eraSelect.value = to
+        }
+        publish()
+      })
+
+      let lastTick = performance.now()
+      let lastPublish = 0
+      function tick(now) {
+        const elapsed = Math.min((now - lastTick) / 1000, 0.25)
+        lastTick = now
+        if (state.playing) {
+          clock.time += elapsed
+          seekCrowd(state.handle.crowd, clock.time)
+        }
+        // Statistics are throttled: the crowd itself still runs every frame,
+        // but the (allocation-free but not free) estimate runs a few times a
+        // second, so a software-rendered browser keeps its frame rate.
+        if (now - lastPublish > 400) {
+          lastPublish = now
+          publish()
+        }
+        requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+
+      window.addEventListener('resize', () => publish())
+
+      window.__pedestrianHarness = {
+        eraIds: [...PEDESTRIAN_ERA_IDS],
+        get webgl() {
+          return hasWebgl()
+        },
+        get errors() {
+          return [...state.errors]
+        },
+        get clock() {
+          return clock.time
+        },
+        get snapshot() {
+          return snapshot()
+        },
+        setEra,
+        setTier,
+        setReducedMotion,
+        setTransition,
+        seek,
+        play() {
+          state.playing = true
+        },
+        pause() {
+          state.playing = false
+        },
+        step(seconds) {
+          seek(clock.time + (Number.isFinite(seconds) ? seconds : 1))
+        },
+        camera: CAMERA_POSITION,
+        simulatedStepSeconds: SIMULATED_STEP_SECONDS,
+      }
+
+      // The first paint happens after the initial frame, so publish once the
+      // document is interactive rather than before the canvas has drawn.
+      publish()
+    </script>
+  </body>
+</html>
