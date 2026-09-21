@@ -17,6 +17,24 @@
  * - {@link ADAPTIVE_COOLDOWN_FRAMES} separate two changes, so the tier does not
  *   oscillate when the block sits right on the budget line.
  *
+ * Evidence is counted in **time as well as frames**, because frame counts assume
+ * the host is rendering at something near the target rate. A device slow enough
+ * to produce a handful of frames per second would otherwise need a minute of
+ * visibly broken frames before it reacted — ninety frames is a minute and a half
+ * at 1 fps, which is exactly the shape of the software-rasterised browser the
+ * acceptance suite runs in. The same evidence measured in seconds reacts in a
+ * bounded wall-clock time: once {@link MIN_ADAPTIVE_SECONDS} of measurements
+ * (or {@link MIN_ADAPTIVE_SAMPLES} frames, whichever comes first) have been
+ * recorded, a downgrade needs {@link OVER_BUDGET_SECONDS} of sustained
+ * over-budget frames, and two changes are separated by
+ * {@link ADAPTIVE_COOLDOWN_SECONDS}. Each frame may claim at most
+ * {@link MAX_EVIDENCE_STEP_SECONDS} of that evidence, so a single long stall
+ * still counts as evidence without triggering on its own. A sample that carries
+ * no timing — every unit test, and any host without a clock — leaves the
+ * controller on exactly the frame-count policy above, so the frame-rate
+ * behaviour at 60 fps is unchanged (30 frames is half a second there, well
+ * before 1.5 s of accumulated evidence).
+ *
  * And it yields to the viewer: while the ui-controls store reports a manual tier
  * override the reducer suspends, keeps counting frames, and resumes only once
  * the override is cleared. Nothing here touches a store or a renderer — that is
@@ -38,6 +56,29 @@ export const SUSTAINED_HEADROOM_FRAMES = 90
 /** Frames that must pass after a change before another is allowed. */
 export const ADAPTIVE_COOLDOWN_FRAMES = 60
 
+/** Seconds that must pass after a change before another is allowed. */
+export const ADAPTIVE_COOLDOWN_SECONDS = 1
+
+/** Seconds of measurements that satisfy the warm-up window. */
+export const MIN_ADAPTIVE_SECONDS = 1.5
+
+/**
+ * Seconds of sustained over-budget frames that justify a downgrade.
+ *
+ * The budget is a per-frame promise, so a second and a half of frames that miss
+ * it is unambiguous evidence on any host, however few frames that second holds.
+ */
+export const OVER_BUDGET_SECONDS = 1.5
+
+/**
+ * Longest single frame that may count as elapsed evidence.
+ *
+ * A stall, a garbage collection pause or a background tab can produce
+ * multi-second steps; capping the step keeps one of them from claiming a whole
+ * evidence window while still counting the frame as over budget.
+ */
+export const MAX_EVIDENCE_STEP_SECONDS = 0.25
+
 /** Why the controller left the tier where it was. */
 export type AdaptiveQualityReason =
   | 'warmup'
@@ -54,6 +95,12 @@ export interface AdaptiveQualitySample {
   readonly frameTimeMs: number
   /** True while the viewer's manual tier override is set in ui-controls. */
   readonly manualOverride: boolean
+  /**
+   * Seconds the measured frame lasted, when the host has a clock.
+   *
+   * Omitted or zero leaves the controller on its frame-count policy alone.
+   */
+  readonly deltaSeconds?: number
 }
 
 /** A tier change worth telling the viewer about. */
@@ -72,10 +119,16 @@ export interface AdaptiveQualityState {
   readonly tier: QualityTierName
   /** Frames measured since the controller started. */
   readonly samples: number
+  /** Seconds of measurements recorded since the controller started. */
+  readonly measuredSeconds: number
   readonly overBudgetStreak: number
+  /** Seconds of sustained over-budget frames. */
+  readonly overBudgetSeconds: number
   readonly headroomStreak: number
   /** Frames since the last tier change. */
   readonly framesSinceChange: number
+  /** Seconds since the last tier change. */
+  readonly secondsSinceChange: number
   /** True while the viewer's manual override suspends the controller. */
   readonly suspended: boolean
   /** How many automatic changes have been applied. */
@@ -107,9 +160,12 @@ export function createAdaptiveQualityState(tier: QualityTierName): AdaptiveQuali
   return {
     tier,
     samples: 0,
+    measuredSeconds: 0,
     overBudgetStreak: 0,
+    overBudgetSeconds: 0,
     headroomStreak: 0,
     framesSinceChange: ADAPTIVE_COOLDOWN_FRAMES,
+    secondsSinceChange: ADAPTIVE_COOLDOWN_SECONDS,
     suspended: false,
     changes: 0,
     lastReason: 'warmup',
@@ -123,13 +179,23 @@ function noticeFor(
   frameTimeMs: number,
   budgetMs: number,
   id: string,
+  /** Which evidence window fired, so the notice never mis-states the run. */
+  evidence: string,
 ): AdaptiveQualityNotice {
   const measured = `Measured ${frameTimeMs.toFixed(1)} ms per frame against a ${budgetMs.toFixed(1)} ms budget`
   const message =
     reason === 'over-budget'
-      ? `Quality lowered to ${tierLabel(to)} to hold the frame rate. ${measured} for ${OVER_BUDGET_STREAK} frames. Pick a tier by hand to take over.`
-      : `Quality raised to ${tierLabel(to)} — there is headroom again. ${measured} for ${SUSTAINED_HEADROOM_FRAMES} frames.`
+      ? `Quality lowered to ${tierLabel(to)} to hold the frame rate. ${measured} for ${evidence}. Pick a tier by hand to take over.`
+      : `Quality raised to ${tierLabel(to)} — there is headroom again. ${measured} for ${evidence}.`
   return { id, from, to, reason, frameTimeMs, budgetMs, message }
+}
+
+/** Clamps one frame's step into the evidence window. */
+function evidenceSeconds(deltaSeconds: number | undefined): number {
+  if (typeof deltaSeconds !== 'number' || !Number.isFinite(deltaSeconds)) {
+    return 0
+  }
+  return Math.min(Math.max(0, deltaSeconds), MAX_EVIDENCE_STEP_SECONDS)
 }
 
 /**
@@ -147,9 +213,20 @@ export function stepAdaptiveQuality(
   const samples = state.samples + 1
   const framesSinceChange = state.framesSinceChange + 1
   const frameTimeMs = Number.isFinite(sample.frameTimeMs) ? Math.max(0, sample.frameTimeMs) : 0
+  const stepSeconds = evidenceSeconds(sample.deltaSeconds)
+  const measuredSeconds = state.measuredSeconds + stepSeconds
+  const secondsSinceChange = state.secondsSinceChange + stepSeconds
 
   const unchanged = (patch: Partial<AdaptiveQualityState>, reason: AdaptiveQualityReason): AdaptiveQualityStep => ({
-    state: { ...state, samples, framesSinceChange, ...patch, lastReason: reason },
+    state: {
+      ...state,
+      samples,
+      measuredSeconds,
+      framesSinceChange,
+      secondsSinceChange,
+      ...patch,
+      lastReason: reason,
+    },
     notice: null,
     tierChanged: false,
     previousTier: state.tier,
@@ -159,7 +236,7 @@ export function stepAdaptiveQuality(
     // The viewer owns the tier: keep measuring, change nothing, and clear the
     // streaks so a resumed controller starts from a clean slate.
     return unchanged(
-      { suspended: true, overBudgetStreak: 0, headroomStreak: 0 },
+      { suspended: true, overBudgetStreak: 0, overBudgetSeconds: 0, headroomStreak: 0 },
       'suspended',
     )
   }
@@ -168,17 +245,24 @@ export function stepAdaptiveQuality(
   const overBudget = frameTimeMs > budget * (1 + FRAME_BUDGET_TOLERANCE)
   const headroom = frameTimeMs < budget * UPGRADE_HEADROOM
   const overBudgetStreak = overBudget ? state.overBudgetStreak + 1 : 0
+  const overBudgetSeconds = overBudget ? state.overBudgetSeconds + stepSeconds : 0
   const headroomStreak = headroom ? state.headroomStreak + 1 : 0
-  const streaks = { suspended: false, overBudgetStreak, headroomStreak }
+  const streaks = { suspended: false, overBudgetStreak, overBudgetSeconds, headroomStreak }
 
-  if (samples < MIN_ADAPTIVE_SAMPLES) {
+  // Warm-up: enough frames, or enough measured time, to tell a trend from a
+  // single bad frame at mount.
+  if (samples < MIN_ADAPTIVE_SAMPLES && measuredSeconds < MIN_ADAPTIVE_SECONDS) {
     return unchanged(streaks, 'warmup')
   }
-  if (framesSinceChange < ADAPTIVE_COOLDOWN_FRAMES) {
+  // Cooldown: satisfied by either currency, so the tier cannot oscillate at the
+  // target rate and a slow host is not made to wait a minute between steps.
+  const cooledDown =
+    framesSinceChange >= ADAPTIVE_COOLDOWN_FRAMES || secondsSinceChange >= ADAPTIVE_COOLDOWN_SECONDS
+  if (!cooledDown) {
     return unchanged(streaks, 'cooldown')
   }
 
-  if (overBudgetStreak >= OVER_BUDGET_STREAK) {
+  if (overBudgetStreak >= OVER_BUDGET_STREAK || overBudgetSeconds >= OVER_BUDGET_SECONDS) {
     const next = downgradeQualityTier(state.tier, 1)
     if (next === state.tier) {
       return unchanged(streaks, 'capped')
@@ -188,9 +272,12 @@ export function stepAdaptiveQuality(
         ...state,
         tier: next,
         samples,
+        measuredSeconds,
         framesSinceChange: 0,
+        secondsSinceChange: 0,
         suspended: false,
         overBudgetStreak: 0,
+        overBudgetSeconds: 0,
         headroomStreak: 0,
         changes: state.changes + 1,
         lastReason: 'over-budget',
@@ -202,6 +289,9 @@ export function stepAdaptiveQuality(
         frameTimeMs,
         budget,
         options.noticeId ?? `adaptive:${state.changes + 1}`,
+        overBudgetStreak >= OVER_BUDGET_STREAK
+          ? `${OVER_BUDGET_STREAK} frames`
+          : `${overBudgetSeconds.toFixed(1)} s of frames`,
       ),
       tierChanged: true,
       previousTier: state.tier,
@@ -218,9 +308,12 @@ export function stepAdaptiveQuality(
         ...state,
         tier: next,
         samples,
+        measuredSeconds,
         framesSinceChange: 0,
+        secondsSinceChange: 0,
         suspended: false,
         overBudgetStreak: 0,
+        overBudgetSeconds: 0,
         headroomStreak: 0,
         changes: state.changes + 1,
         lastReason: 'headroom',
@@ -232,6 +325,7 @@ export function stepAdaptiveQuality(
         frameTimeMs,
         budget,
         options.noticeId ?? `adaptive:${state.changes + 1}`,
+        `${SUSTAINED_HEADROOM_FRAMES} frames`,
       ),
       tierChanged: true,
       previousTier: state.tier,

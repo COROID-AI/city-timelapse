@@ -55,7 +55,12 @@ import type {
   PickProbeOptions,
   ViewportSize,
 } from './inspector'
-import { ADAPTIVE_COOLDOWN_FRAMES, createAdaptiveQualityState, stepAdaptiveQuality } from './qualityAuto'
+import {
+  ADAPTIVE_COOLDOWN_FRAMES,
+  ADAPTIVE_COOLDOWN_SECONDS,
+  createAdaptiveQualityState,
+  stepAdaptiveQuality,
+} from './qualityAuto'
 import type {
   AdaptiveQualityNotice,
   AdaptiveQualityReason,
@@ -435,7 +440,7 @@ export function createInteractionController(
     return focus
   }
 
-  function advanceQuality(): void {
+  function advanceQuality(deltaSeconds: number): void {
     const state = uiStore.getState()
     const requested = selectRequestedQualityTier(state)
     if (requested !== quality.tier) {
@@ -445,7 +450,9 @@ export function createInteractionController(
         ...quality,
         tier: requested,
         framesSinceChange: ADAPTIVE_COOLDOWN_FRAMES,
+        secondsSinceChange: ADAPTIVE_COOLDOWN_SECONDS,
         overBudgetStreak: 0,
+        overBudgetSeconds: 0,
         headroomStreak: 0,
         lastReason: 'holding',
         suspended: false,
@@ -457,6 +464,10 @@ export function createInteractionController(
       {
         frameTimeMs: pipeline.instrumentation.stats.averageFrameTimeMs,
         manualOverride: selectQualityManualOverride(state),
+        // The controller keeps its evidence in frames *and* seconds: a host
+        // slow enough to render a few frames a second must still reach the
+        // degraded floor in bounded wall-clock time, not in ninety frames.
+        deltaSeconds,
       },
       { noticeId: `adaptive:${quality.changes + 1}:${Math.round(clock * 1000)}` },
     )
@@ -488,7 +499,7 @@ export function createInteractionController(
     }
     const dt = Math.max(0, Math.min(deltaSeconds, 0.25))
     clock += dt
-    advanceQuality()
+    advanceQuality(dt)
 
     if (motion !== null) {
       const sample = motion.tween.advance(dt)
@@ -570,6 +581,7 @@ export function createInteractionController(
   }
 
   function snapshot(): InteractionSnapshot {
+    const manualOverride = selectQualityManualOverride(uiStore.getState())
     return {
       version: INTERACTION_SURFACE_VERSION,
       features: featureList(),
@@ -585,8 +597,13 @@ export function createInteractionController(
       inspector: inspectorState(),
       quality: {
         tier: quality.tier,
-        manualOverride: selectQualityManualOverride(uiStore.getState()),
-        suspended: quality.suspended,
+        manualOverride,
+        // The viewer's intent is the store's, and it takes hold the moment it is
+        // recorded: the reducer's own flag only lands on the next measured frame,
+        // so reporting the cached value alone would let a reader that lands
+        // between two frames (a second apart on a slow host) see the controller
+        // "running" while its hands are tied.
+        suspended: manualOverride || quality.suspended,
         samples: quality.samples,
         changes: quality.changes,
         lastReason: quality.lastReason,
