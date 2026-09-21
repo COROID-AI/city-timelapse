@@ -1,22 +1,40 @@
-import { Canvas } from '@react-three/fiber'
-import { Component, useMemo, type ErrorInfo, type ReactElement, type ReactNode } from 'react'
-import { Color } from 'three'
-import { DEFAULT_QUALITY_TIER, resolveQualityTier, type QualityTierName } from './lib/quality'
-import { createRng } from './lib/rng'
+import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react'
+import type { CompositionFailure, SceneComposition } from './app'
+import { CompositionFallback, WEBGL_FALLBACK_MESSAGE } from './app/Fallback'
+import { CompositionProgress, createLoadingState } from './app/loading'
+import { SceneProvider, type SceneContextValue } from './app/providers'
+import { SceneExperience } from './app/SceneExperience'
+import { ExtensionSlot } from './app/extensionSlots'
+import { createCityLayout } from './city/layout'
+import { getEra } from './era'
+import { isQualityTierName, resolveQualityTier, type QualityTierName } from './lib/quality'
+import { SceneCanvas, type RenderPipeline } from './scene'
+import { useEraStore, useSelectedEra } from './state/eraStore'
+import {
+  Overlay,
+  selectRequestedQualityTier,
+  useUIControls,
+  useUIControlsStore,
+} from './ui'
+import type { SceneStatus } from './ui'
+import { devUrlFlag } from './app/debugSurface'
 
 /**
- * Placeholder scene host for the city timelapse.
+ * Application shell of the city timelapse.
  *
- * This module intentionally contains no city content: later tasks own the
- * scene graph, the era data and the overlay UI. What it does provide is the
- * wiring every later task can rely on — a WebGL-capable `<Canvas>` mounted into
- * a stable `data-testid="scene-host"` element, a guarded fallback for machines
- * without WebGL, and a deterministic handful of placeholder volumes that proves
- * the procedural pipeline (seeded PRNG to three.js meshes) is live.
+ * The page owns three things: the block layout (generated once, deterministic),
+ * the lifecycle the overlay renders (loading → ready, or a clear error) and the
+ * provider tree that hands the composed scene to everything else. The scene
+ * itself is built imperatively by {@link SceneExperience} inside the render
+ * pipeline, because layers mount three.js objects into the pipeline's world
+ * rather than into React's tree.
+ *
+ * Quality, sound and motion all come from the ui-controls store — the single
+ * source of the viewer's intent — so the overlay, the pipeline and the
+ * transition director never disagree. The `qualityTier` prop is a diagnostic
+ * override used by tests: it writes the tier into that same store rather than
+ * keeping a second copy.
  */
-
-/** Seed of the placeholder massing; kept stable so screenshots are comparable. */
-export const PLACEHOLDER_SCENE_SEED = 'city-timelapse:placeholder-scene'
 
 /**
  * Manifest of external scene assets. It is deliberately empty: every texture,
@@ -24,6 +42,9 @@ export const PLACEHOLDER_SCENE_SEED = 'city-timelapse:placeholder-scene'
  * download at build time or at runtime.
  */
 export const SCENE_ASSETS: readonly string[] = []
+
+/** Dev-only deep link that seeds the quality tier before the scene is built. */
+export const QUALITY_TIER_FLAG = 'tier'
 
 let cachedWebglSupport: boolean | null = null
 
@@ -40,7 +61,10 @@ export function supportsWebGL(): boolean {
     cachedWebglSupport = false
     return cachedWebglSupport
   }
-  if (typeof WebGLRenderingContext === 'undefined' && typeof WebGL2RenderingContext === 'undefined') {
+  if (
+    typeof WebGLRenderingContext === 'undefined' &&
+    typeof WebGL2RenderingContext === 'undefined'
+  ) {
     cachedWebglSupport = false
     return cachedWebglSupport
   }
@@ -54,158 +78,201 @@ export function supportsWebGL(): boolean {
   return cachedWebglSupport
 }
 
-interface SceneErrorBoundaryProps {
-  readonly fallback: ReactNode
-  readonly children: ReactNode
-}
-
-interface SceneErrorBoundaryState {
-  readonly failed: boolean
-}
-
-/** Keeps a renderer failure inside the scene host instead of breaking the app. */
-class SceneErrorBoundary extends Component<SceneErrorBoundaryProps, SceneErrorBoundaryState> {
-  override state: SceneErrorBoundaryState = { failed: false }
-
-  static getDerivedStateFromError(): SceneErrorBoundaryState {
-    return { failed: true }
-  }
-
-  override componentDidCatch(_error: Error, _info: ErrorInfo): void {
-    // Swallow: the fallback below already reports the degraded state in the UI.
-  }
-
-  override render(): ReactNode {
-    return this.state.failed ? this.props.fallback : this.props.children
-  }
-}
-
-interface PlaceholderMassing {
-  readonly key: string
-  readonly position: readonly [number, number, number]
-  readonly size: readonly [number, number, number]
-  readonly color: string
-}
-
-/** Deterministic stand-in massing until the real era buildings land. */
-function createPlaceholderMassing(): PlaceholderMassing[] {
-  const rng = createRng(PLACEHOLDER_SCENE_SEED, 'placeholder-massing')
-  return Array.from({ length: 9 }, (_unused, index) => {
-    const column = index % 3
-    const row = Math.floor(index / 3)
-    const height = rng.float(1.6, 4.4)
-    const width = rng.float(0.8, 1.2)
-    const depth = rng.float(0.8, 1.2)
-    const color = new Color().setHSL(0.58 + rng.float(-0.04, 0.04), 0.22, rng.float(0.38, 0.62))
-    return {
-      key: `placeholder-block-${index}`,
-      position: [(column - 1) * 2.6, height / 2, (row - 1) * 2.6],
-      size: [width, height, depth],
-      color: `#${color.getHexString()}`,
-    }
-  })
-}
-
-function PlaceholderMassing(): ReactElement {
-  const blocks = useMemo(createPlaceholderMassing, [])
-  return (
-    <group name="placeholder-massing">
-      {blocks.map((block) => (
-        <mesh key={block.key} position={block.position} castShadow receiveShadow>
-          <boxGeometry args={[block.size[0], block.size[1], block.size[2]]} />
-          <meshStandardMaterial color={block.color} roughness={0.72} metalness={0.06} />
-        </mesh>
-      ))}
-    </group>
-  )
-}
-
-function SceneFallback({ reason }: { readonly reason: string }): ReactElement {
-  return (
-    <div className="scene-fallback" data-testid="scene-fallback" role="status">
-      {reason}
-    </div>
-  )
-}
-
-export interface SceneHostProps {
-  /** Quality tier driving the renderer settings. */
-  readonly qualityTier?: QualityTierName
-}
-
-/**
- * Mount point for the 3D city block. Later tasks replace the placeholder group
- * with the real scene graph but keep this element as the browser-test handle.
- */
-export function SceneHost({ qualityTier = DEFAULT_QUALITY_TIER }: SceneHostProps): ReactElement {
-  const webgl = useMemo(supportsWebGL, [])
-  const tier = resolveQualityTier(qualityTier)
-
-  return (
-    <div
-      className="scene-host"
-      data-testid="scene-host"
-      data-webgl={webgl ? 'true' : 'false'}
-      data-quality-tier={tier.name}
-    >
-      {webgl ? (
-        <SceneErrorBoundary
-          fallback={<SceneFallback reason="The WebGL renderer failed to start on this device." />}
-        >
-          <Canvas
-            shadows
-            dpr={[tier.pixelRatio.min, tier.pixelRatio.max]}
-            camera={{
-              position: [7.5, 5.5, 9.5],
-              fov: 46,
-              near: 0.1,
-              far: tier.density.drawDistance,
-            }}
-          >
-            <color attach="background" args={['#070b14']} />
-            <hemisphereLight args={['#9fc4ff', '#1b2130', 0.45]} />
-            <directionalLight
-              position={[6, 9, 4]}
-              intensity={1.15}
-              castShadow
-              shadow-mapSize-width={tier.effects.shadowMapSize}
-              shadow-mapSize-height={tier.effects.shadowMapSize}
-            />
-            <PlaceholderMassing />
-            <mesh rotation-x={-Math.PI / 2} receiveShadow>
-              <planeGeometry args={[48, 48]} />
-              <meshStandardMaterial color="#141a26" roughness={0.95} metalness={0.02} />
-            </mesh>
-          </Canvas>
-        </SceneErrorBoundary>
-      ) : (
-        <SceneFallback reason="WebGL is unavailable in this browser, so the placeholder scene host renders without the 3D canvas." />
-      )}
-    </div>
-  )
-}
-
 export interface AppProps {
-  /** Overrides the quality tier, mainly for tests and diagnostics. */
+  /** Diagnostic override for the quality tier; writes the ui-controls store. */
   readonly qualityTier?: QualityTierName
 }
 
-/** Application shell: header, scene host and a status line. */
-export default function App({ qualityTier = DEFAULT_QUALITY_TIER }: AppProps): ReactElement {
-  const tier = resolveQualityTier(qualityTier)
+/** Application shell: header, composed scene, overlay and status line. */
+export default function App({ qualityTier }: AppProps): ReactElement {
+  const eraStore = useEraStore
+  const uiStore = useUIControlsStore
+  const eraId = useSelectedEra()
+  const requestedTier = useUIControls(selectRequestedQualityTier)
+
+  // `?tier=low` (development only) lets a capture or a browser check start on a
+  // cheap tier without paying for a first build at the default one. The value
+  // never reaches a production build: `devUrlFlag` returns null there.
+  const [flaggedTier] = useState(() => {
+    const flagged = devUrlFlag(QUALITY_TIER_FLAG)
+    return isQualityTierName(flagged) ? flagged : null
+  })
+  const tierOverride = qualityTier ?? flaggedTier ?? undefined
+
+  const [layout] = useState(() => createCityLayout())
+  const [pipeline, setPipeline] = useState<RenderPipeline | null>(null)
+  const [composition, setComposition] = useState<SceneComposition | null>(null)
+  const [status, setStatus] = useState<SceneStatus>('loading')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [failedLayer, setFailedLayer] = useState<string | null>(null)
+  const [loading, setLoading] = useState(() => createLoadingState())
+
+  const webgl = useMemo(supportsWebGL, [])
+  const tier = resolveQualityTier(tierOverride ?? requestedTier)
+  const era = getEra(eraId)
+
+  // The tier override becomes the viewer's stored request, so the store keeps
+  // being the single source of truth for quality.
+  useEffect(() => {
+    if (tierOverride !== undefined) {
+      uiStore.getState().requestQualityTier(tierOverride)
+    }
+  }, [tierOverride, uiStore])
+
+  // Without WebGL the page still works: the overlay, the timeline and the
+  // controls stay operable and the message explains what is missing.
+  useEffect(() => {
+    if (webgl) {
+      return
+    }
+    setStatus('error')
+    setErrorMessage(WEBGL_FALLBACK_MESSAGE)
+  }, [webgl])
+
+  const handleStatus = useCallback(
+    (next: SceneStatus, message: string | null, layer: string | null): void => {
+      setStatus(next)
+      setErrorMessage(message)
+      setFailedLayer(layer)
+    },
+    [],
+  )
+
+  const handleFailure = useCallback((failure: CompositionFailure): void => {
+    setFailedLayer(failure.layerId)
+    setErrorMessage(failure.message)
+  }, [])
+
+  const retry = useCallback((): void => {
+    if (typeof window !== 'undefined') {
+      window.location.reload()
+    }
+  }, [])
+
+  // Mount progress is reported by the composition itself, so the panel shows
+  // the real steps rather than a timer.
+  useEffect(() => {
+    if (composition === null) {
+      return undefined
+    }
+    setLoading(composition.loading)
+    return composition.subscribe((current) => {
+      setLoading(current.loading)
+    })
+  }, [composition])
+
+  const contextValue: SceneContextValue = useMemo(
+    () => ({
+      pipeline,
+      composition,
+      eraStore,
+      uiStore,
+      eraId,
+      qualityTier: tier.name,
+      status,
+      errorMessage,
+      failedLayer,
+      loading,
+      audio: composition?.audio ?? null,
+    }),
+    [
+      pipeline,
+      composition,
+      eraStore,
+      uiStore,
+      eraId,
+      tier.name,
+      status,
+      errorMessage,
+      failedLayer,
+      loading,
+    ],
+  )
 
   return (
     <div className="app-shell">
       <header className="app-header">
         <h1 className="app-title">City Time Period Timelapse</h1>
         <p className="app-subtitle">
-          Placeholder scene host — eras, timeline slider, SFX and navigation arrive in later tasks.
+          One city block, re-dressed in front of you — buildings, storefronts, traffic,
+          crowds, props and weather all change with the year you pick.
         </p>
       </header>
+
       <main className="app-main">
-        <SceneHost qualityTier={tier.name} />
+        <SceneProvider value={contextValue}>
+          <div
+            className="scene-host"
+            data-testid="scene-host"
+            data-webgl={webgl ? 'true' : 'false'}
+            data-quality-tier={tier.name}
+          >
+            {webgl ? (
+              <SceneCanvas
+                qualityTier={tier.name}
+                adaptiveQuality={false}
+                className="scene-canvas"
+                onReady={setPipeline}
+                onError={(reason) => {
+                  handleStatus('error', reason, null)
+                }}
+                fallback={
+                  <CompositionFallback
+                    reason="webgl-unavailable"
+                    message={WEBGL_FALLBACK_MESSAGE}
+                    onRetry={retry}
+                  />
+                }
+              >
+                <SceneExperience
+                  layout={layout}
+                  eraStore={eraStore}
+                  uiStore={uiStore}
+                  {...(tierOverride === undefined ? {} : { qualityTier: tierOverride })}
+                  onReady={setComposition}
+                  onStatus={handleStatus}
+                  onFailure={handleFailure}
+                />
+              </SceneCanvas>
+            ) : (
+              <CompositionFallback reason="webgl-unavailable" onRetry={retry} />
+            )}
+            {failedLayer === null ? null : (
+              <CompositionFallback
+                reason="layer-failure"
+                layerId={failedLayer}
+                message={errorMessage}
+                onRetry={retry}
+              />
+            )}
+            {status === 'loading' ? <CompositionProgress state={loading} /> : null}
+          </div>
+
+          {pipeline === null || composition === null ? null : (
+            <ExtensionSlot
+              pipeline={pipeline}
+              composition={composition}
+              eraId={eraId}
+              qualityTier={tier.name}
+              eraStore={eraStore}
+              uiStore={uiStore}
+            />
+          )}
+
+          <Overlay
+            eraStore={eraStore}
+            uiStore={uiStore}
+            status={status}
+            errorMessage={errorMessage}
+            onRetry={retry}
+          />
+        </SceneProvider>
       </main>
+
       <footer className="app-footer" data-testid="scene-status">
+        <span data-testid="scene-era">
+          {`${era.shortLabel} · ${era.label}`}
+        </span>
         <span>
           Quality tier: <strong>{tier.label}</strong>
         </span>

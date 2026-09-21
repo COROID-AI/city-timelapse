@@ -1,0 +1,2 @@
+Extension modules dropped here are picked up by src/app/extensionSlots.tsx
+(non-eager import.meta.glob). An empty directory is valid.

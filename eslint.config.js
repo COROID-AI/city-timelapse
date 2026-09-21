@@ -40,6 +40,10 @@ export default tseslint.config(
     // with components, so the fast-refresh export rule does not apply.
     files: [
       'src/App.tsx',
+      // Composition files co-locate the debug surface, the loading states, the
+      // fallback banners and the provider tree with the hosts that mount them,
+      // so their files export helpers beside components by design.
+      'src/app/*.{ts,tsx}',
       'src/scene/CameraRig.tsx',
       'src/scene/SceneCanvas.tsx',
       'src/city/props/PropsLayer.tsx',
