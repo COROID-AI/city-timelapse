@@ -1,0 +1,97 @@
+{
+  "generatedAt": "2026-09-21T05:49:46.406Z",
+  "qualityTier": "low",
+  "camera": "{\"mode\":\"orbit\",\"target\":[0,4,0],\"orbit\":{\"azimuth\":0.7853981633974483,\"polar\":1.05,\"radius\":46},\"street\":{\"position\":[0,1.75,26],\"heading\":0,\"pitch\":0},\"fov\":46,\"near\":0.1,\"far\":180}",
+  "thresholds": {
+    "adjacentMeanDifference": 12,
+    "adjacentDifferingFraction": 0.5,
+    "sameEraMeanDifferenceCeiling": 12
+  },
+  "captures": [
+    {
+      "eraId": "1945",
+      "year": 1945,
+      "sceneFile": "era-1945.png",
+      "frameFile": "frame-1945.png",
+      "camera": "{\"mode\":\"orbit\",\"target\":[0,4,0],\"orbit\":{\"azimuth\":0.7853981633974483,\"polar\":1.05,\"radius\":46},\"street\":{\"position\":[0,1.75,26],\"heading\":0,\"pitch\":0},\"fov\":46,\"near\":0.1,\"far\":180}"
+    },
+    {
+      "eraId": "1965",
+      "year": 1965,
+      "sceneFile": "era-1965.png",
+      "frameFile": "frame-1965.png",
+      "camera": "{\"mode\":\"orbit\",\"target\":[0,4,0],\"orbit\":{\"azimuth\":0.7853981633974483,\"polar\":1.05,\"radius\":46},\"street\":{\"position\":[0,1.75,26],\"heading\":0,\"pitch\":0},\"fov\":46,\"near\":0.1,\"far\":180}"
+    },
+    {
+      "eraId": "1985",
+      "year": 1985,
+      "sceneFile": "era-1985.png",
+      "frameFile": "frame-1985.png",
+      "camera": "{\"mode\":\"orbit\",\"target\":[0,4,0],\"orbit\":{\"azimuth\":0.7853981633974483,\"polar\":1.05,\"radius\":46},\"street\":{\"position\":[0,1.75,26],\"heading\":0,\"pitch\":0},\"fov\":46,\"near\":0.1,\"far\":180}"
+    },
+    {
+      "eraId": "2005",
+      "year": 2005,
+      "sceneFile": "era-2005.png",
+      "frameFile": "frame-2005.png",
+      "camera": "{\"mode\":\"orbit\",\"target\":[0,4,0],\"orbit\":{\"azimuth\":0.7853981633974483,\"polar\":1.05,\"radius\":46},\"street\":{\"position\":[0,1.75,26],\"heading\":0,\"pitch\":0},\"fov\":46,\"near\":0.1,\"far\":180}"
+    },
+    {
+      "eraId": "2025",
+      "year": 2025,
+      "sceneFile": "era-2025.png",
+      "frameFile": "frame-2025.png",
+      "camera": "{\"mode\":\"orbit\",\"target\":[0,4,0],\"orbit\":{\"azimuth\":0.7853981633974483,\"polar\":1.05,\"radius\":46},\"street\":{\"position\":[0,1.75,26],\"heading\":0,\"pitch\":0},\"fov\":46,\"near\":0.1,\"far\":180}"
+    }
+  ],
+  "pairs": [
+    {
+      "from": "1945",
+      "to": "1965",
+      "meanDifference": 28.651604515001992,
+      "differingFraction": 0.9341626544331395,
+      "comparedPixels": 880640,
+      "width": 1280,
+      "height": 688,
+      "passed": true
+    },
+    {
+      "from": "1965",
+      "to": "1985",
+      "meanDifference": 49.0527093933339,
+      "differingFraction": 0.9945846202761628,
+      "comparedPixels": 880640,
+      "width": 1280,
+      "height": 688,
+      "passed": true
+    },
+    {
+      "from": "1985",
+      "to": "2005",
+      "meanDifference": 50.382791303267226,
+      "differingFraction": 0.9955850290697674,
+      "comparedPixels": 880640,
+      "width": 1280,
+      "height": 688,
+      "passed": true
+    },
+    {
+      "from": "2005",
+      "to": "2025",
+      "meanDifference": 35.13456652733638,
+      "differingFraction": 0.9930936591569768,
+      "comparedPixels": 880640,
+      "width": 1280,
+      "height": 688,
+      "passed": true
+    }
+  ],
+  "sameEraControl": {
+    "meanDifference": 0.624818692466068,
+    "differingFraction": 0.013389126090116278,
+    "comparedPixels": 880640,
+    "width": 1280,
+    "height": 688,
+    "maxDifference": 112.66666666666667
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "generatedAt": "2026-09-21T05:53:36.754Z",
+  "initialCamera": "{\"mode\":\"orbit\",\"target\":[0,4,0],\"orbit\":{\"azimuth\":0.7853981633974483,\"polar\":1.05,\"radius\":46},\"street\":{\"position\":[0,1.75,26],\"heading\":0,\"pitch\":0},\"fov\":46,\"near\":0.1,\"far\":180}",
+  "initialBox": {
+    "x": 0,
+    "y": 77,
+    "width": 1280,
+    "height": 688
+  },
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "perEra": {
+    "1945": {
+      "camera": "{\"mode\":\"orbit\",\"target\":[0,4,0],\"orbit\":{\"azimuth\":0.7853981633974483,\"polar\":1.05,\"radius\":46},\"street\":{\"position\":[0,1.75,26],\"heading\":0,\"pitch\":0},\"fov\":46,\"near\":0.1,\"far\":180}",
+      "matchesInitial": true
+    },
+    "1965": {
+      "camera": "{\"mode\":\"orbit\",\"target\":[0,4,0],\"orbit\":{\"azimuth\":0.7853981633974483,\"polar\":1.05,\"radius\":46},\"street\":{\"position\":[0,1.75,26],\"heading\":0,\"pitch\":0},\"fov\":46,\"near\":0.1,\"far\":180}",
+      "matchesInitial": true
+    },
+    "1985": {
+      "camera": "{\"mode\":\"orbit\",\"target\":[0,4,0],\"orbit\":{\"azimuth\":0.7853981633974483,\"polar\":1.05,\"radius\":46},\"street\":{\"position\":[0,1.75,26],\"heading\":0,\"pitch\":0},\"fov\":46,\"near\":0.1,\"far\":180}",
+      "matchesInitial": true
+    },
+    "2005": {
+      "camera": "{\"mode\":\"orbit\",\"target\":[0,4,0],\"orbit\":{\"azimuth\":0.7853981633974483,\"polar\":1.05,\"radius\":46},\"street\":{\"position\":[0,1.75,26],\"heading\":0,\"pitch\":0},\"fov\":46,\"near\":0.1,\"far\":180}",
+      "matchesInitial": true
+    },
+    "2025": {
+      "camera": "{\"mode\":\"orbit\",\"target\":[0,4,0],\"orbit\":{\"azimuth\":0.7853981633974483,\"polar\":1.05,\"radius\":46},\"street\":{\"position\":[0,1.75,26],\"heading\":0,\"pitch\":0},\"fov\":46,\"near\":0.1,\"far\":180}",
+      "matchesInitial": true
+    }
+  },
+  "returnedCamera": "{\"mode\":\"orbit\",\"target\":[0,4,0],\"orbit\":{\"azimuth\":0.7853981633974483,\"polar\":1.05,\"radius\":46},\"street\":{\"position\":[0,1.75,26],\"heading\":0,\"pitch\":0},\"fov\":46,\"near\":0.1,\"far\":180}"
+}

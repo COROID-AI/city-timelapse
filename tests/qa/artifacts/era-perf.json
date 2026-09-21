@@ -1,0 +1,116 @@
+{
+  "generatedAt": "2026-09-21T06:37:53.930Z",
+  "environment": "headless Chromium with swiftshader software rasterisation; no GPU. The absolute 60 fps target is not reachable in this sandbox, so the enforced property is the adaptive reaction, the degraded floor and the tier-dependent load, all measured below.",
+  "budgets": {
+    "targetFps": 60,
+    "frameBudgetMs": 16.666666666666668,
+    "degradedTargetFps": 30,
+    "degradedFrameBudgetMs": 33.333333333333336
+  },
+  "decisions": [
+    {
+      "id": "adaptive:1:3000",
+      "from": "high",
+      "to": "medium",
+      "reason": "over-budget",
+      "frameTimeMs": 94.73333333333336,
+      "budgetMs": 16.666666666666668
+    },
+    {
+      "id": "adaptive:2:8917",
+      "from": "medium",
+      "to": "low",
+      "reason": "over-budget",
+      "frameTimeMs": 97.10680272108844,
+      "budgetMs": 16.666666666666668
+    }
+  ],
+  "tierSequence": [
+    "high",
+    "medium",
+    "low"
+  ],
+  "finalQuality": {
+    "tier": "low",
+    "manualOverride": false,
+    "suspended": false,
+    "samples": 93,
+    "changes": 2,
+    "lastReason": "cooldown",
+    "notices": [
+      {
+        "id": "adaptive:1:3000",
+        "from": "high",
+        "to": "medium",
+        "reason": "over-budget",
+        "frameTimeMs": 94.73333333333336,
+        "budgetMs": 16.666666666666668,
+        "message": "Quality lowered to Medium to hold the frame rate. Measured 94.7 ms per frame against a 16.7 ms budget for 30 frames. Pick a tier by hand to take over."
+      },
+      {
+        "id": "adaptive:2:8917",
+        "from": "medium",
+        "to": "low",
+        "reason": "over-budget",
+        "frameTimeMs": 97.10680272108844,
+        "budgetMs": 16.666666666666668,
+        "message": "Quality lowered to Low to hold the frame rate. Measured 97.1 ms per frame against a 16.7 ms budget for 30 frames. Pick a tier by hand to take over."
+      }
+    ]
+  },
+  "finalMeasurement": {
+    "frame": 98,
+    "frameTimeMs": 97.10680272108844,
+    "fps": 10,
+    "averageFrameTimeMs": 97.02838283828378,
+    "exceedsSharedBudget": true,
+    "withinDegradedBudget": false
+  },
+  "sampledAverageFrameTimeMs": [
+    93.74583333333337,
+    93.93535353535357,
+    94.1137254901961,
+    94.44074074074076,
+    94.73333333333336,
+    93.08455284552845,
+    93.40620155038759,
+    93.5560606060606,
+    93.83623188405797,
+    93.83623188405797,
+    93.83623188405797,
+    93.83623188405797,
+    93.83623188405797,
+    93.83623188405797,
+    93.83623188405797,
+    94.09305555555555,
+    94.44052287581698,
+    94.6503144654088,
+    94.74938271604937,
+    94.84484848484848,
+    95.11149425287356,
+    95.19435028248587,
+    95.351912568306,
+    95.4268817204301,
+    95.63794871794872,
+    95.76815920398009,
+    95.83039215686274,
+    95.89082125603863,
+    96.06203703703703,
+    96.1159817351598,
+    96.21955555555554,
+    96.26929824561402,
+    96.41097046413502,
+    96.49958847736625,
+    96.54227642276422,
+    96.62460317460317,
+    96.7031007751938,
+    96.74099616858238,
+    96.81423220973784,
+    96.84962962962963,
+    96.91811594202899,
+    96.98368794326241,
+    97.04652777777778,
+    97.10680272108844,
+    97.02838283828378
+  ]
+}

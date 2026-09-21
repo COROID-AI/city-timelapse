@@ -1,0 +1,110 @@
+{
+  "generatedAt": "2026-09-21T06:36:37.424Z",
+  "era": "1945",
+  "tier": "high",
+  "totals": {
+    "objects": 1270,
+    "meshes": 1185,
+    "instances": 2665,
+    "triangles": 69224
+  },
+  "perLayer": {
+    "atmosphere": {
+      "id": "atmosphere",
+      "label": "Atmosphere and sky",
+      "mounted": true,
+      "kind": "atmosphere",
+      "eraId": "1945",
+      "mounts": 1,
+      "qualityTier": "high",
+      "objects": 17,
+      "meshes": 10,
+      "instancedMeshes": 8,
+      "instances": 850,
+      "lights": 0,
+      "triangles": 17348,
+      "stats": {
+        "frames": 0,
+        "particleAlive": 427,
+        "plumeEmitters": 3,
+        "plumeBaseline": 3,
+        "plumeSources": 0,
+        "plumeSourcesPublished": 0,
+        "ambientBirds": 14
+      }
+    },
+    "storefronts": {
+      "id": "storefronts",
+      "label": "Storefronts and signage",
+      "mounted": true,
+      "kind": "layer",
+      "eraId": "1945",
+      "mounts": 1,
+      "qualityTier": "high",
+      "objects": 570,
+      "meshes": 500,
+      "instancedMeshes": 0,
+      "instances": 0,
+      "lights": 0,
+      "triangles": 11184,
+      "stats": {
+        "units": 68,
+        "meshes": 500,
+        "signs": 68,
+        "awnings": 136,
+        "advertising": 12,
+        "graffiti": 0,
+        "litMeshes": 0,
+        "textures": 84
+      }
+    },
+    "props": {
+      "id": "props",
+      "label": "Street furniture",
+      "mounted": true,
+      "kind": "layer",
+      "eraId": "1945",
+      "mounts": 1,
+      "qualityTier": "high",
+      "objects": 105,
+      "meshes": 102,
+      "instancedMeshes": 102,
+      "instances": 439,
+      "lights": 0,
+      "triangles": 12816,
+      "stats": {
+        "propCount": 76,
+        "instanceCount": 439,
+        "drawCalls": 102,
+        "recipesUsed": 19,
+        "pointLights": 0,
+        "anchorsCovered": 76
+      }
+    },
+    "vehicles": {
+      "id": "vehicles",
+      "label": "Vehicles",
+      "mounted": true,
+      "kind": "layer",
+      "eraId": "1945",
+      "mounts": 1,
+      "qualityTier": "high",
+      "objects": 578,
+      "meshes": 573,
+      "instancedMeshes": 572,
+      "instances": 1376,
+      "lights": 0,
+      "triangles": 27876,
+      "stats": {
+        "movingInstances": 38,
+        "parkedInstances": 37,
+        "movingVariants": 18,
+        "parkedVariants": 13,
+        "meshes": 573,
+        "markingMeshes": 1,
+        "sfxEvents": 0
+      }
+    }
+  },
+  "layoutMeshes": 116
+}
