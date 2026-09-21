@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Era storefronts harness</title>
+    <!--
+      Self-contained verification page for the storefront, signage and
+      advertising layer.
+
+      It imports this layer (`./index`) plus the canonical block it dresses
+      (`../layout/index`) and mounts the React layer on a minimal
+      react-three-fiber canvas — no composed application, no render pipeline and
+      no remote asset. The page publishes everything the browser suite asserts
+      on `window.__storefrontsHarness`, and echoes the same numbers into the body
+      `data-storefronts-*` attributes for cheap selectors.
+
+      For every era the harness reports the mounted scene back:
+      storefront-bay groups, fascia sign and awning mesh counts, street
+      advertising, graffiti and the emissive state read off the sign materials,
+      so "era-correct illumination" is measured from the real objects.
+    -->
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0f1218;
+        color: #e7e6e1;
+      }
+      body {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem 1rem;
+        align-items: center;
+        padding: 0.7rem 1rem;
+        border-bottom: 1px solid #262c38;
+        background: #151a23;
+      }
+      h1 {
+        font-size: 0.9rem;
+        margin: 0;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      p {
+        margin: 0;
+        font-size: 0.78rem;
+        color: #b6bcc8;
+      }
+      button,
+      select {
+        font: inherit;
+        font-size: 0.74rem;
+        padding: 0.32rem 0.55rem;
+        color: #e7e6e1;
+        background: #1e2531;
+        border: 1px solid #333c4b;
+        border-radius: 0.35rem;
+        cursor: pointer;
+      }
+      button[aria-pressed='true'] {
+        background: #2d3d5a;
+        border-color: #4d6ea8;
+      }
+      .viewport {
+        position: relative;
+        min-height: 0;
+      }
+      .viewport canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .report {
+        margin: 0;
+        max-height: 32vh;
+        overflow: auto;
+        padding: 0.7rem 1rem;
+        border-top: 1px solid #262c38;
+        background: #151a23;
+        font-size: 0.7rem;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        color: #b6bcc8;
+      }
+    </style>
+  </head>
+  <body
+    data-storefronts-status="booting"
+    data-storefronts-webgl="unknown"
+    data-storefronts-era=""
+    data-storefronts-night="false"
+    data-storefronts-signs="0"
+    data-storefronts-awnings="0"
+    data-storefronts-ads="0"
+    data-storefronts-graffiti="0"
+    data-storefronts-lit="0"
+    data-storefronts-mean-emissive="0"
+    data-storefronts-plan-hash=""
+    data-storefronts-textures="0"
+  >
+    <header>
+      <h1>Era storefronts harness</h1>
+      <p data-testid="storefronts-summary">Booting the dressed block…</p>
+      <span id="era-buttons"></span>
+      <button type="button" data-testid="storefronts-night">Toggle night</button>
+      <button type="button" data-testid="storefronts-transition">Stage 1985 → 2005</button>
+      <button type="button" data-testid="storefronts-reset">Settle era</button>
+    </header>
+    <div class="viewport" id="viewport" data-testid="storefronts-viewport"></div>
+    <pre class="report" id="report" data-testid="storefronts-report"></pre>
+
+    <script type="module">
+      import * as THREE from 'three'
+      import React from 'react'
+      import { createRoot } from 'react-dom/client'
+      import { Canvas, useThree } from '@react-three/fiber'
+      import { createCityLayout } from '../layout/index'
+      import {
+        STOREFRONT_ERA_IDS,
+        StorefrontLayer,
+        applyEra,
+        applyEraTransition,
+        surfaceColours,
+        storefrontPlanHash,
+        summariseStorefrontGroup,
+      } from './index'
+
+      const body = document.body
+      const viewport = document.getElementById('viewport')
+      const reportNode = document.getElementById('report')
+      const summaryNode = document.querySelector('[data-testid="storefronts-summary"]')
+
+      const layout = createCityLayout()
+      // A street-level viewpoint on the first bay of the block: the same camera
+      // for every era, so the per-era screenshots differ only by content.
+      const reference = applyEra(STOREFRONT_ERA_IDS[0], { layout })
+      const anchorUnit = reference.units[0]
+      const eye = [
+        anchorUnit.position.x + anchorUnit.normal.x * 13 + anchorUnit.normal.z * 5,
+        anchorUnit.position.y + 3.1,
+        anchorUnit.position.z + anchorUnit.normal.z * 13 - anchorUnit.normal.x * 5,
+      ]
+      const target = [
+        anchorUnit.position.x + anchorUnit.normal.x * 2,
+        anchorUnit.position.y + 2.4,
+        anchorUnit.position.z + anchorUnit.normal.z * 2,
+      ]
+
+      const state = {
+        era: STOREFRONT_ERA_IDS[0],
+        night: null,
+        quality: 'high',
+        transition: null,
+        scene: null,
+        plan: null,
+        summary: null,
+        webgl: false,
+        mounted: false,
+        errors: [],
+        frames: 0,
+      }
+
+      function findLayerGroup(scene, era) {
+        if (scene === null) {
+          return null
+        }
+        let found = null
+        scene.traverse((object) => {
+          if (found === null && typeof object.name === 'string' && object.name === `storefronts:${era}`) {
+            found = object
+          }
+        })
+        return found
+      }
+
+      function publish() {
+        const summary = state.summary
+        const stats = state.plan === null ? null : state.plan.stats
+        body.dataset['storefrontsEra'] = state.era
+        body.dataset['storefrontsNight'] = String(state.night === null ? (stats === null ? false : stats.night) : state.night)
+        body.dataset['storefrontsSigns'] = String(summary === null ? (stats === null ? 0 : stats.bayCount) : summary.signMeshes)
+        body.dataset['storefrontsAwnings'] = String(summary === null ? (stats === null ? 0 : stats.bayCount) : summary.awningMeshes)
+        body.dataset['storefrontsAds'] = String(summary === null ? (stats === null ? 0 : stats.advertisingTotal) : summary.advertisingMeshes)
+        body.dataset['storefrontsGraffiti'] = String(summary === null ? (stats === null ? 0 : stats.graffitiCount) : summary.graffitiMeshes)
+        body.dataset['storefrontsLit'] = String(summary === null ? 0 : summary.litMeshes)
+        body.dataset['storefrontsMeanEmissive'] = String(summary === null ? 0 : summary.meanEmissiveIntensity)
+        body.dataset['storefrontsPlanHash'] = state.plan === null ? '' : storefrontPlanHash(state.plan)
+        body.dataset['storefrontsTextures'] = String(summary === null ? 0 : summary.textureCount)
+
+        if (summaryNode !== null && stats !== null) {
+          summaryNode.textContent = [
+            `${state.era}`,
+            `${summary === null ? stats.bayCount : summary.signMeshes} signs`,
+            `${summary === null ? stats.bayCount : summary.awningMeshes} awning panels`,
+            `${summary === null ? stats.advertisingTotal : summary.advertisingMeshes} ads`,
+            `${summary === null ? stats.graffitiCount : summary.graffitiMeshes} graffiti`,
+            `mean emissive ${summary === null ? 0 : summary.meanEmissiveIntensity}`,
+          ].join(' · ')
+        }
+        if (reportNode !== null && stats !== null && summary !== null) {
+          reportNode.textContent = [
+            `era ${state.era} (${state.plan.year})  night ${String(summary.night)}  quality ${state.quality}`,
+            `plan hash ${storefrontPlanHash(state.plan)}  textures ${summary.textureCount}  ${(stats.textureBytes / 1048576).toFixed(1)} MB of ${(stats.textureBudgetBytes / 1048576).toFixed(0)} MB`,
+            `bays ${stats.bayCount} dressed ${stats.dressedBays} bare ${stats.bareBays}`,
+            `signs ${summary.signMeshes}  awnings ${summary.awningMeshes}  advertising ${summary.advertisingMeshes}  graffiti ${summary.graffitiMeshes}`,
+            `lit meshes ${summary.litMeshes}  max emissive ${summary.maxEmissiveIntensity} (${summary.emissiveColour})`,
+            `shop types: ${Object.entries(stats.shopTypeCounts).map(([id, count]) => `${id}×${count}`).join(', ')}`,
+            `advertising: ${Object.entries(stats.advertisingByKind).map(([kind, count]) => `${kind} ${count}`).join(', ')}`,
+            `signage: ${stats.signageVocabulary.join(', ')}`,
+            `signage illumination ${stats.illumination}  typography ${stats.typographyId}  emissive ${stats.emissiveIntensity}`,
+            `first shop sign: ${JSON.stringify(
+              surfaceColours(state.plan.surfaces.find((surface) => surface.purpose === 'shop-sign')),
+            )}`,
+            `graffiti ${stats.graffitiState} ×${stats.graffitiCount}`,
+          ].join('\n')
+        }
+      }
+
+      function refresh() {
+        state.mounted = false
+        requestAnimationFrame(() => {
+          const group = findLayerGroup(state.scene, state.era)
+          if (group !== null) {
+            state.summary = summariseStorefrontGroup(group)
+            state.mounted = true
+          }
+          body.dataset['storefrontsStatus'] = state.plan === null ? 'booting' : 'ready'
+          publish()
+        })
+      }
+
+      /**
+       * Both sides of a staged change, as mounted: how many children each era's
+       * group carries and how many the progressive swap has revealed. Null when
+       * no transition is staged.
+       */
+      function transitionReport() {
+        if (state.transition === null) {
+          return null
+        }
+        const fromGroup = findLayerGroup(state.scene, state.transition.from)
+        const toGroup = findLayerGroup(state.scene, state.transition.to)
+        if (fromGroup === null || toGroup === null) {
+          return null
+        }
+        return {
+          from: state.transition.from,
+          to: state.transition.to,
+          t: state.transition.t,
+          fromChildren: fromGroup.children.length,
+          toChildren: toGroup.children.length,
+          fromVisible: fromGroup.children.filter((child) => child.visible).length,
+          toVisible: toGroup.children.filter((child) => child.visible).length,
+        }
+      }
+
+      function CameraAim() {
+        const camera = useThree((three) => three.camera)
+        React.useEffect(() => {
+          camera.position.set(eye[0], eye[1], eye[2])
+          camera.lookAt(target[0], target[1], target[2])
+          camera.updateProjectionMatrix()
+        }, [camera])
+        return null
+      }
+
+      class ErrorBoundary extends React.Component {
+        constructor(props) {
+          super(props)
+          this.state = { failed: false }
+        }
+
+        static getDerivedStateFromError() {
+          return { failed: true }
+        }
+
+        componentDidCatch(error) {
+          state.errors.push(String(error && error.message ? error.message : error))
+          state.webgl = false
+          body.dataset['storefrontsWebgl'] = 'false'
+          body.dataset['storefrontsStatus'] = 'ready'
+          refresh()
+        }
+
+        render() {
+          return this.state.failed ? null : this.props.children
+        }
+      }
+
+      function Harness() {
+        const planSink = React.useCallback((plan) => {
+          state.plan = plan
+          refresh()
+        }, [])
+        const transition =
+          state.transition === null
+            ? null
+            : { from: state.transition.from, to: state.transition.to, t: state.transition.t }
+        return React.createElement(
+          ErrorBoundary,
+          null,
+          React.createElement(
+            Canvas,
+            {
+              camera: { position: eye, fov: 40, near: 0.1, far: 600 },
+              dpr: 1,
+              // Nothing animates here: the layer only changes when the era,
+              // the night flag or the quality tier does, so the canvas renders
+              // on demand instead of burning a software-GL core every frame.
+              frameloop: 'demand',
+              gl: { antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' },
+              onCreated: (context) => {
+                state.scene = context.scene
+                state.webgl = true
+                context.scene.background = new THREE.Color(0x101620)
+                body.dataset['storefrontsWebgl'] = 'true'
+              },
+            },
+            React.createElement(CameraAim),
+            React.createElement('ambientLight', { intensity: 0.55 }),
+            React.createElement('hemisphereLight', {
+              args: [0xdfe7ff, 0x22252c, 0.5],
+            }),
+            React.createElement('directionalLight', { position: [24, 30, 18], intensity: 1.15 }),
+            React.createElement('directionalLight', { position: [-20, 16, -14], intensity: 0.35 }),
+            React.createElement(StorefrontLayer, {
+              eraId: state.era,
+              layout,
+              qualityTier: state.quality,
+              night: state.night === null ? undefined : state.night,
+              transition,
+              onPlan: planSink,
+            }),
+          ),
+        )
+      }
+
+      const root = createRoot(viewport)
+      function render() {
+        root.render(React.createElement(Harness))
+      }
+
+      const eraButtons = document.getElementById('era-buttons')
+      for (const eraId of STOREFRONT_ERA_IDS) {
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.textContent = eraId
+        button.dataset['testid'] = `storefronts-era-${eraId}`
+        button.setAttribute('aria-pressed', String(eraId === state.era))
+        button.addEventListener('click', () => {
+          api.setEra(eraId)
+        })
+        eraButtons.appendChild(button)
+      }
+
+      function syncEraButtons() {
+        for (const button of eraButtons.querySelectorAll('button')) {
+          button.setAttribute('aria-pressed', String(button.textContent === state.era))
+        }
+      }
+
+      const api = {
+        eraIds: [...STOREFRONT_ERA_IDS],
+        get ready() {
+          return state.plan !== null
+        },
+        get mounted() {
+          return state.mounted
+        },
+        get webgl() {
+          return state.webgl
+        },
+        get errors() {
+          return [...state.errors]
+        },
+        get era() {
+          return state.era
+        },
+        get night() {
+          return state.night
+        },
+        setEra(eraId) {
+          state.era = eraId
+          state.transition = null
+          syncEraButtons()
+          render()
+          refresh()
+          return eraId
+        },
+        setNight(value) {
+          state.night = value
+          render()
+          refresh()
+          return value
+        },
+        setQualityTier(tier) {
+          state.quality = tier
+          render()
+          refresh()
+          return tier
+        },
+        stageTransition(from, to, t) {
+          state.transition = { from, to, t }
+          state.era = t >= 0.5 ? to : from
+          syncEraButtons()
+          render()
+          refresh()
+          return applyEraTransition({ from, to, t }, { layout }).mix
+        },
+        settleTransition() {
+          state.transition = null
+          render()
+          refresh()
+          return state.era
+        },
+        planFor(eraId) {
+          const plan = applyEra(eraId, { layout, qualityTier: state.quality, night: state.night === null ? undefined : state.night })
+          return {
+            eraId: plan.eraId,
+            hash: storefrontPlanHash(plan),
+            stats: plan.stats,
+            signTexts: plan.units.map((unit) => unit.signBoard.surface.lines.map((line) => line.text).join(' / ')),
+            campaigns: plan.advertising.map((placement) => `${placement.kind}:${placement.copy.tag}`),
+            illuminationKinds: [...new Set(plan.units.map((unit) => unit.signBoard.illumination))],
+            emissives: plan.units.map((unit) => unit.signBoard.emissive),
+          }
+        },
+        get snapshot() {
+          const stats = state.plan === null ? null : state.plan.stats
+          const summary = state.summary
+          return {
+            eraId: state.era,
+            year: state.plan === null ? 0 : state.plan.year,
+            ready: state.plan !== null,
+            mounted: state.mounted,
+            webgl: state.webgl,
+            sceneBacked: summary !== null,
+            night: state.night === null ? (stats === null ? false : stats.night) : state.night,
+            planHash: state.plan === null ? '' : storefrontPlanHash(state.plan),
+            stats,
+            summary,
+            transition: transitionReport(),
+            scene: {
+              signMeshes: summary === null ? 0 : summary.signMeshes,
+              awningMeshes: summary === null ? 0 : summary.awningMeshes,
+              unitGroups: summary === null ? 0 : summary.unitGroups,
+              advertisingMeshes: summary === null ? 0 : summary.advertisingMeshes,
+              graffitiMeshes: summary === null ? 0 : summary.graffitiMeshes,
+              litMeshes: summary === null ? 0 : summary.litMeshes,
+              emissiveSigns: summary === null ? 0 : summary.emissiveSigns,
+              meanEmissiveIntensity: summary === null ? 0 : summary.meanEmissiveIntensity,
+              maxEmissiveIntensity: summary === null ? 0 : summary.maxEmissiveIntensity,
+              emissiveColour: summary === null ? '#000000' : summary.emissiveColour,
+              emissiveSignColour: summary === null ? '#000000' : summary.emissiveSignColour,
+              textureCount: summary === null ? 0 : summary.textureCount,
+              byKind: summary === null ? {} : summary.byKind,
+            },
+          }
+        },
+      }
+
+      document.querySelector('[data-testid="storefronts-night"]').addEventListener('click', () => {
+        api.setNight(state.night === null ? true : null)
+      })
+      document.querySelector('[data-testid="storefronts-transition"]').addEventListener('click', () => {
+        api.stageTransition('1985', '2005', 0.5)
+      })
+      document.querySelector('[data-testid="storefronts-reset"]').addEventListener('click', () => {
+        api.settleTransition()
+      })
+
+      body.dataset['storefrontsWebgl'] = 'unknown'
+      render()
+      refresh()
+
+      window.__storefrontsHarness = api
+    </script>
+  </body>
+</html>

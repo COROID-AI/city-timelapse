@@ -27,7 +27,10 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['tests/setup.ts'],
-    include: ['tests/**/*.test.{ts,tsx}'],
+    // `.test.*` is the default suite; `.spec.*` carries the cross-module
+    // composition suites (real layout + real era registry + real content layer)
+    // that later phases add next to their unit tests.
+    include: ['tests/**/*.test.{ts,tsx}', 'tests/**/*.spec.{ts,tsx}'],
     exclude: ['node_modules/**', 'dist/**', 'e2e/**'],
     restoreMocks: true,
     clearMocks: true,
