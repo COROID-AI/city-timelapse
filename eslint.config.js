@@ -43,6 +43,7 @@ export default tseslint.config(
       'src/scene/CameraRig.tsx',
       'src/scene/SceneCanvas.tsx',
       'src/ui/*.{ts,tsx}',
+      'src/vfx/VfxLayer.tsx',
       'tests/**/*.{ts,tsx}',
     ],
     rules: {

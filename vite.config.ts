@@ -27,7 +27,9 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['tests/setup.ts'],
-    include: ['tests/**/*.{test,spec}.{ts,tsx}'],
+    // `.test.ts` for the unit suites and `.spec.ts` for the composition suites:
+    // both tiers are run by `npm test`, and each can also be run on its own.
+    include: ['tests/**/*.test.{ts,tsx}', 'tests/**/*.spec.{ts,tsx}'],
     exclude: ['node_modules/**', 'dist/**', 'e2e/**'],
     restoreMocks: true,
     clearMocks: true,
