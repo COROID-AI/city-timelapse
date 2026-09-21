@@ -15,6 +15,8 @@ and where it does not.
 | `npx playwright test e2e/qa-audio.spec.ts` | pass | `artifacts/era-audio.json` |
 | `npx playwright test e2e/qa-accessibility.spec.ts` | pass | `artifacts/era-accessibility.json` |
 | `npx playwright test e2e/qa-camera.spec.ts` | pass | `artifacts/era-camera.json` |
+| `npx playwright test e2e/buildings-eras.spec.ts` | pass | `artifacts/era-buildings.json` |
+| `npx playwright test e2e/pedestrians-eras.spec.ts` | pass | `artifacts/era-pedestrians.json` |
 
 Environment: headless Chromium (SwiftShader software rasterisation, no GPU),
 reference viewport 1280x800, dev server on `http://127.0.0.1:5173`, quality tier
@@ -42,32 +44,39 @@ Legend: **PASS** = present and period-distinct; **FAIL** = absent or wrong;
 
 | Category | 1945 | 1965 | 1985 | 2005 | 2025 |
 | --- | --- | --- | --- | --- | --- |
-| Architecture (buildings) | FAIL | FAIL | FAIL | FAIL | FAIL |
+| Architecture (buildings) | PASS | PASS | PASS | PASS | PASS |
 | Commerce & advertising | PASS | PASS | PASS | PASS | PASS |
 | Transport | PASS | PASS | PASS | PASS | PASS |
-| People (pedestrians) | FAIL | FAIL | FAIL | FAIL | FAIL |
+| People (pedestrians) | PASS | PASS | PASS | PASS | PASS |
 | Street furniture | PASS | PASS | PASS | PASS | PASS |
 | Atmosphere & colour | PASS | PASS | PASS | PASS | PASS |
 | Audio character | PASS | PASS | PASS | PASS | PASS |
 
 ## 4. Evidence per category
 
-### Architecture — FAIL (all eras)
+### Architecture — PASS (all eras)
 
-No buildings layer is mounted. The composition publishes `buildings` as a
-* pending* slot (`mounted: false`, `objects: 0`, `stats: {}`) in
-`era-matrix.json`, and `src/city/buildings/` contains no barrel to mount. The
-frozen block contributes only ground surfaces to the render — its mesh groups are
-`parcels`, `roads`, `lane-strips`, `parking-strips`, `sidewalks`, `curbs`,
-`crosswalks`, `drainage` — so there is no massing, window grid, rooftop detail or
-construction state to judge. The storefront layer dresses the shopfront band
-(bays, awnings, signage) but nothing above it, which is why the skyline is flat in
-all five captures.
+Measured from `buildings` in `era-matrix.json` and `era-buildings.json`; every
+parcel of the frozen block resolves to exactly one state, and the skyline tells
+the century's story:
 
-Owner: the "Era building sets for every parcel" task (its lane was superseded and
-its barrel is not in this revision). Linked failing check:
-`qa-era-matrix.spec.ts` asserts the slot is reported pending and records it; there
-is no passing assertion for buildings.
+| | 1945 | 1965 | 1985 | 2005 | 2025 |
+| --- | --- | --- | --- | --- | --- |
+| Buildings / vacant / building-site | 13 / 3 / 0 | 15 / 0 / 1 | 12 / 2 / 2 | 13 / 2 / 1 | 12 / 1 / 3 |
+| Total floors | 43 | 116 | 189 | 105 | 234 |
+| Tallest building (m) | 18 | 46.4 | 72.6 | 44.4 | 93.8 |
+| Window panes | 408 | 1392 | 2000 | 1052 | 2156 |
+| Roof add-ons | 47 | 24 | 60 | 22 | 25 |
+| Lit windows (night) | 0 | 0 | 2000 | 0 | 0 |
+
+The massing reads correctly: low soot-brick masonry in 1945 (chimneys, water
+tanks and fire escapes), mid-rise brick and glass with rooftop sign frames in
+1965, concrete towers with exposed frames, AC boxes, antennas and dishes in 1985
+(authored as a night scene, so its 2000 windows glow), glass mixed-use with
+spandrel bands and a mechanical penthouse in 2005, and tall contemporary
+structures with solar arrays, green roofs and roof decks in 2025. The ground
+floor is deliberately left clear on every street-facing parcel — the storefront
+layer dresses that band — and no mass leaves its own parcel footprint.
 
 ### Commerce & advertising — PASS (all eras)
 
@@ -104,17 +113,27 @@ and triggers no engine/horn SFX, which the audio check had to account for.
 Parking pressure rises again by 2025 (41 parked instances) — a believable
 present-day curbside.
 
-### People — FAIL (all eras)
+### People — PASS (all eras)
 
-No pedestrians layer is mounted either: `pedestrians` is published as
-*pending* with zero objects, and `src/city/pedestrians/` holds no barrel, so there
-are no crowds, outfits, walk cycles or carried props on any sidewalk in any of the
-five captures. This is the largest gap against the brief ("pedestrian outfits …
-crowds"), and it is visible: the streets are empty of people in every
-`frame-*.png`.
+Measured from `pedestrians` in `era-matrix.json` and `era-pedestrians.json`. The
+crowd is sized against the *real* sidewalk length the layout publishes, and every
+person is bound to a real sampled sidewalk spline or a real crosswalk waypoint:
 
-Owner: the "Era pedestrian crowds with period outfits" task (lane superseded,
-barrel not in this revision).
+| | 1945 | 1965 | 1985 | 2005 | 2025 |
+| --- | --- | --- | --- | --- | --- |
+| Crowd | 8 | 16 | 21 | 23 | 24 |
+| Walking / waiting | 7 / 1 | 13 / 3 | 17 / 4 | 19 / 4 | 20 / 4 |
+| Adults / children | 7 / 1 | 14 / 2 | 18 / 3 | 18 / 5 | 17 / 7 |
+
+The progression reads: a sparse, wartime pavement of wool overcoats, ration
+shoppers and a returning soldier; the mid-century shopping boom of suits, shift
+dresses and a transit uniform; neon-era streetwear with boomboxes and
+walkmans; a denim-and-commuter crowd with phones and laptop bags; and finally
+the densest, most layered present with delivery couriers, coffee cups and
+scooter helmets. The unit and composition suites additionally prove confinement
+(every walker classifies as sidewalk, every waiter stands exactly on a crosswalk
+waypoint), tangent-aligned headings, individual gait, and the fact that the
+crowd stays inside the shared quality constants at every tier.
 
 ### Street furniture — PASS (all eras)
 
@@ -143,10 +162,10 @@ illumination into the signage instead.
 Air quality and light follow the century: clean air in 1945 (baseline emitters
 only, no traffic exhaust), heavy exhaust through the boom decades, 1985's
 smog-thick downtown with almost no birds left, then birds returning as the fleet
-electrifies. Adjacent-era frames differ by mean per-channel deltas of **28.7 /
-49.1 / 50.4 / 35.1** (of 255) with 93–99.5% of pixels changed, against a same-era
-control of **0.62** — the visual transformation is large and is not animation
-noise.
+electrifies. Adjacent-era frames differ by mean per-channel deltas of **34.5 /
+35.9 / 62.5 / 48.4** (of 255) with 95–100% of pixels changed, against a
+same-era control of **0.92** — the visual transformation is large, and it is not
+animation noise.
 
 ### Audio character — PASS (all eras)
 
@@ -170,61 +189,58 @@ assertable and were not judged here.
 
 ## 5. Shortcomings automated checks cannot detect
 
-1. **Empty streets (people).** No pedestrian layer; the pre-eminent "period
-   street" signal — who is on the pavement and what they wear — is missing
-   entirely.
-2. **Flat skyline (architecture).** No building massing; every period is judged on
-   a single-storey shopfront band over bare parcels, so the century's most
-   dramatic change (the skyline) is absent.
-3. **Absolute frame rate is unverified.** The reference sandbox has no GPU: the
-   app measured **94.7 ms and 97.1 ms** per frame when it decided to degrade
-   (against the shared 16.67 ms budget) and settled at ~97 ms/frame at every
-   tier. The degraded floor and the adaptive reaction are correct and asserted,
-   but "60 fps on real hardware" remains unproven and needs a GPU machine.
-4. **Frame instrumentation reports a clamped delta.** The pipeline feeds the
+1. **Absolute frame rate is unverified.** The reference sandbox has no GPU: the
+   app measured **94.6 ms** per frame when it decided to degrade (against the
+   shared 16.67 ms budget) and settled at the degraded floor. The degraded floor
+   and the adaptive reaction are correct and asserted, but "60 fps on real
+   hardware" remains unproven and needs a GPU machine.
+2. **Frame instrumentation reports a clamped delta.** The pipeline feeds the
    instrumentation a delta capped at the simulation step, so `frameTimeMs`
    saturates near 100 ms and cannot report a slower frame honestly. That is why
    this report records the controller's own measurements
    (`era-perf.json → decisions`) rather than the surface's `frameTimeMs`.
-5. **Stale per-layer census after a tier change.** Changing tier rebuilds the
+3. **Stale per-layer census after a tier change.** Changing tier rebuilds the
    density-driven layers but does not invalidate the cached debug records, so the
    published census keeps the *old* tier's `qualityTier` and counts until an era
    change forces a re-measure. The perf checks work around it by comparing the
    first-frame census of each build; the owning task should invalidate the record
    cache in `setQualityTier`.
-6. **Colour grading is measured, not judged.** The per-era grade is proven to
+4. **Colour grading is measured, not judged.** The per-era grade is proven to
    differ (pixels) and to track the era, but whether 1985 is "too magenta" or
    2005 "too flat" is a human call; see `frame-1985.png` and `frame-2005.png`.
-7. **The 1945 soundscape has no vehicle SFX** because its fleet is horse-drawn.
+5. **The 1945 soundscape has no vehicle SFX** because its fleet is horse-drawn.
    That is correct, but it means the SFX cadence check can only be observed from
    a motorised period; an era whose traffic is silent would pass vacuously if the
    suite ever ran only in 1945.
-8. **Quality-tier counts are coarse.** Several layers scale only slightly between
-   tiers (storefront object counts are identical at `high` and `low`; only the
-   facade subdivision and texture resolution change), so "lower tier, lower cost"
-   is proven at the aggregate level (objects 1270→1171, meshes 1185→1086,
-   instances 2665→1884, triangles 69 224→56 276) rather than for every layer.
+6. **Quality-tier counts are coarse for some layers.** Several layers scale only
+   slightly between tiers (storefront object counts are identical at `high` and
+   `low`; only the facade subdivision and texture resolution change), so "lower
+   tier, lower cost" is proven at the aggregate level rather than for every
+   layer.
+7. **Building and crowd silhouettes are stylised.** The figures and the roof
+   kits are procedurally boxed geometry, not sculpted models: they read as the
+   period through proportion, palette and detail count rather than through
+   sculptural accuracy. A human should judge `frame-*.png` for whether the
+   skyline and the crowd feel of the decade.
 
 ## 6. Defects filed against owning tasks
 
 | # | Defect | Owning task | Evidence | Status |
 | --- | --- | --- | --- | --- |
-| D1 | No buildings layer: `buildings` reported pending, `src/city/buildings/` empty | Era building sets for every parcel | `era-matrix.json → pendingLayers`; `qa-era-matrix.spec.ts` pending-slot assertion | open, reported here |
-| D2 | No pedestrians layer: `pedestrians` reported pending, `src/city/pedestrians/` empty | Era pedestrian crowds with period outfits | `era-matrix.json → pendingLayers` | open, reported here |
-| D3 | Frame instrumentation measures a clamped delta, so it cannot report frames slower than the sim step | WebGL render pipeline | `era-perf.json → finalMeasurement` (~97 ms with real frames far slower) | open, reported here |
+| D3 | Frame instrumentation measures a clamped delta, so it cannot report frames slower than the sim step | WebGL render pipeline | `era-perf.json → finalMeasurement` (~94.6 ms with real frames far slower) | open, reported here |
 | D4 | Tier change does not invalidate cached debug layer records (stale census/`qualityTier`) | Compose the full era-switching city-block experience | layer `qualityTier` stayed `high` after the controller adapted to `medium`/`low` | open, reported here |
 
-These are the only categories that failed. Both are missing-barrel gaps rather
-than regressions in shipped code, and neither is fixable from this task: the
-suite owns only its own test files, and the plan requires defects to be reported
-here and fixed by the owning task.
+The two previously reported missing-barrel gaps (buildings, pedestrians) are
+closed: both barrels ship, both are mounted exactly once, and both carry real
+per-era statistics in `era-matrix.json`.
 
 ## 7. Verdict
 
 The composed experience delivers a convincing, measurable period transformation
-across **commerce and advertising, transport, street furniture, atmosphere and
-audio** — five distinct years, distinct statistics, distinct pixels, a stable
-camera, a working keyboard/ARIA timeline and an audio engine that waits for the
-viewer. It does **not** yet deliver **architecture** or **people**, because two
-content barrels are absent from this revision. Those two gaps are the reason the
-"polished, high-end" bar is not fully met, and they are filed above as D1 and D2.
+across **architecture, commerce and advertising, transport, people, street
+furniture, atmosphere and audio** — five distinct years, distinct statistics,
+distinct pixels, a stable camera, a working keyboard/ARIA timeline and an audio
+engine that waits for the viewer. Every parcel carries a period building and
+every pavement carries a period crowd, so the two gaps that previously kept the
+"polished, high-end" bar from being met are closed. The remaining defects (D3,
+D4) are instrumentation and cache-hygiene issues, not art-direction gaps.

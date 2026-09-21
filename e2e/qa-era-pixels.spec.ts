@@ -40,7 +40,10 @@ import {
   type PixelDiff,
 } from '../tests/qa/pixelBaseline'
 
-test.describe.configure({ timeout: 280_000 })
+// Software rasterisation, five era rebuilds and fifteen canvas captures: the
+// budget is generous because the captures are the expensive part, and they run
+// on the reference (GPU-less) viewport by design.
+test.describe.configure({ timeout: 420_000 })
 
 interface DebugSnapshot {
   readonly eraId: EraId

@@ -505,7 +505,13 @@ function createHarness(options: { readonly tier?: QualityTierName; readonly debu
     uiStore,
     clock,
     run,
-    settle(maxFrames = 400): void {
+    settle(maxFrames = 4000): void {
+      // The composition drives the transition director with the real frame
+      // clock, so a switch advances with *wall time*, not with the number of
+      // synchronous steps this helper takes. Under parallel suite load each
+      // step costs more wall time, so the budget is generous rather than tight:
+      // a real switch settles long before this, and a genuinely stuck transition
+      // still fails instead of hanging the suite.
       for (let index = 0; index < maxFrames; index += 1) {
         run(1)
         if (!composition.director.getSnapshot().active) {

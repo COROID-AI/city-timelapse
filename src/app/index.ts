@@ -142,7 +142,6 @@ import type { EraStore } from '../state/eraStore'
 import {
   PENDING_LAYER_STAGES,
   bindLayerAdapter,
-  createManualClock,
   createTransitionDirector,
   createUIControlsMotionPort,
 } from '../transition'
@@ -267,11 +266,28 @@ export const PENDING_LAYER_IDS: readonly LayerSlotId[] = Object.freeze(
   PENDING_LAYER_STAGES.filter(isLayerSlotId),
 )
 
-/** Largest simulation step a single frame may add, in seconds. */
-export const MAX_SIM_STEP_SECONDS = 0.1
+/**
+ * Largest simulation step a single frame may add, in seconds.
+ *
+ * The cap exists so a stalled frame cannot teleport the traffic or the crowd,
+ * but it is a *stall* guard, not the frame budget: at a quarter of a second the
+ * simulation still advances far enough per frame that the block keeps its
+ * authored pace on a slow rasteriser (where frames run at hundreds of
+ * milliseconds), while a paused tab still cannot jump the whole timeline.
+ */
+export const MAX_SIM_STEP_SECONDS = 0.25
 
 /** How many frames between two automatic debug publishes. */
 export const DEBUG_PUBLISH_INTERVAL_FRAMES = 30
+
+/**
+ * Frames that always publish, on top of {@link DEBUG_PUBLISH_INTERVAL_FRAMES}.
+ *
+ * The opening frames are the ones a host, a capture or a browser check reads
+ * first; publishing them immediately means the debug surface never reports the
+ * pre-first-frame state for a whole interval on a slow rasteriser.
+ */
+export const DEBUG_FIRST_FRAMES = 3
 
 /** Largest number of vehicle plume sources fed to the atmosphere at once. */
 export const MAX_PLUME_SOURCES = 24
@@ -480,16 +496,6 @@ export function createSceneComposition(options: SceneCompositionOptions): SceneC
   let qualityTier: QualityTierName =
     options.qualityTier ?? selectRequestedQualityTier(uiStore.getState())
   let simSeconds = 0
-  /**
-   * Clock the transition director is driven by.
-   *
-   * The director is advanced by the *simulation* delta of `advance` rather than
-   * reading the host's wall clock itself, so a staged switch runs the same
-   * number of frames in the browser, in the test harness and in a capture. The
-   * sum of the frame deltas is what the viewer sees, so this changes nothing on
-   * screen — it only removes wall-clock timing from the composition's behaviour.
-   */
-  const directorClock = createManualClock(0)
   let frameCount = 0
   let lastStats: FrameStats | null = null
   let disposed = false
@@ -1054,7 +1060,6 @@ export function createSceneComposition(options: SceneCompositionOptions): SceneC
     }
     publishPlumes()
     vfx?.setClock({ seconds: simSeconds })
-    directorClock.advance(delta)
     try {
       director.tick()
     } catch (error) {
@@ -1072,6 +1077,10 @@ export function createSceneComposition(options: SceneCompositionOptions): SceneC
 
     if (
       debugDirty.value ||
+      // Publish the opening frames straight away: a host that never renders 30
+      // frames (a slow rasteriser, a capture, a poll) must still see a live
+      // `frame` count and a populated layer census rather than the initial state.
+      frameCount <= DEBUG_FIRST_FRAMES ||
       (debugSurface?.enabled === true && frameCount % DEBUG_PUBLISH_INTERVAL_FRAMES === 0)
     ) {
       publishDebug()
@@ -1318,7 +1327,6 @@ export function createSceneComposition(options: SceneCompositionOptions): SceneC
     store: eraStore,
     layers: adapters,
     audio: audioBridge?.port ?? null,
-    clock: directorClock,
     camera: {
       capture: () => pipeline.controls.getState(),
       restore: (state: CameraState) => {
@@ -1328,6 +1336,22 @@ export function createSceneComposition(options: SceneCompositionOptions): SceneC
     motion: motionPort,
     autoStart: true,
   })
+
+  /**
+   * Mirror the audio bridge into the debug surface.
+   *
+   * The viewer's unlock/mute intent and the routed SFX counters change outside
+   * the frame loop, so waiting for the next periodic publish would report them
+   * up to an interval late (and never, on a host that renders few frames).
+   * Republishing on the bridge's own notifications keeps the surface honest.
+   */
+  const unsubscribeAudio =
+    audioBridge === null
+      ? (): void => {}
+      : audioBridge.subscribe(() => {
+          debugDirty.value = true
+          publishDebug()
+        })
 
   /* ---------------------------------------------------------------------- */
   /* Era payloads                                                           */
@@ -1955,6 +1979,7 @@ export function createSceneComposition(options: SceneCompositionOptions): SceneC
       unsubscribeEraSelection()
       unsubscribeQuality()
       unsubscribeDirector()
+      unsubscribeAudio()
       director.dispose()
       clearStorefrontGroups()
       clearBuildingGroups()

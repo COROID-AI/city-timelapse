@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T09:13:05.066Z",
+  "generatedAt": "2026-09-21T13:48:49.395Z",
   "qualityTier": "low",
   "camera": "{\"mode\":\"orbit\",\"target\":[0,4,0],\"orbit\":{\"azimuth\":0.7853981633974483,\"polar\":1.05,\"radius\":46},\"street\":{\"position\":[0,1.75,26],\"heading\":0,\"pitch\":0},\"fov\":46,\"near\":0.1,\"far\":180}",
   "thresholds": {
@@ -48,8 +48,8 @@
     {
       "from": "1945",
       "to": "1965",
-      "meanDifference": 28.628064816600933,
-      "differingFraction": 0.9342217023982559,
+      "meanDifference": 34.48663396321059,
+      "differingFraction": 0.9997320130813954,
       "comparedPixels": 880640,
       "width": 1280,
       "height": 688,
@@ -58,8 +58,8 @@
     {
       "from": "1965",
       "to": "1985",
-      "meanDifference": 49.06179142458439,
-      "differingFraction": 0.9946323128633721,
+      "meanDifference": 35.89031348414936,
+      "differingFraction": 0.9501998546511627,
       "comparedPixels": 880640,
       "width": 1280,
       "height": 688,
@@ -68,8 +68,8 @@
     {
       "from": "1985",
       "to": "2005",
-      "meanDifference": 50.39052999330902,
-      "differingFraction": 0.995384038880814,
+      "meanDifference": 62.51565149583218,
+      "differingFraction": 0.9985249364098837,
       "comparedPixels": 880640,
       "width": 1280,
       "height": 688,
@@ -78,8 +78,8 @@
     {
       "from": "2005",
       "to": "2025",
-      "meanDifference": 35.13673843261737,
-      "differingFraction": 0.9929528524709302,
+      "meanDifference": 48.363393668252904,
+      "differingFraction": 0.9960846656976744,
       "comparedPixels": 880640,
       "width": 1280,
       "height": 688,
@@ -87,11 +87,11 @@
     }
   ],
   "sameEraControl": {
-    "meanDifference": 0.548915561409837,
-    "differingFraction": 0.003836982194767442,
+    "meanDifference": 0.9191921027132174,
+    "differingFraction": 0.039939135174418605,
     "comparedPixels": 880640,
     "width": 1280,
     "height": 688,
-    "maxDifference": 129.66666666666666
+    "maxDifference": 118.66666666666667
   }
 }

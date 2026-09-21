@@ -86,6 +86,7 @@ const FINGERPRINT = [
   'roofItemCount',
   'vacantLotCount',
   'constructionSiteCount',
+  'litWindowCount',
 ] as const
 
 test('the buildings layer rebuilds visibly in every period with the camera pinned', async ({ page }) => {

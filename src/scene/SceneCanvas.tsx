@@ -192,7 +192,8 @@ export function createRenderPipeline(options: RenderPipelineOptions): RenderPipe
    * frame budget is written against.
    */
   const renderFrame = (deltaSeconds?: number): number => {
-    const delta = clamp(deltaSeconds ?? lastDelta, 0, maxDeltaSeconds)
+    const rawDelta = Math.max(Number.isFinite(deltaSeconds ?? lastDelta) ? (deltaSeconds ?? lastDelta) : 0, 0)
+    const delta = clamp(rawDelta, 0, maxDeltaSeconds)
     lastDelta = delta
     const started = nowMilliseconds()
     rig.update(delta)
@@ -210,7 +211,12 @@ export function createRenderPipeline(options: RenderPipelineOptions): RenderPipe
       }
     }
     for (const hook of frameHooks) {
-      hook(stats, delta)
+      // Camera damping and the effect chain need the *clamped* step so a stalled
+      // frame cannot kick the rig; a consumer that advances its own clock (the
+      // composition) needs the real frame interval, or simulation time would run
+      // at a fraction of real time whenever the host renders slowly. Both are
+      // handed out: the clamped step for effects, the raw interval here.
+      hook(stats, rawDelta)
     }
     return nowMilliseconds() - started
   }
