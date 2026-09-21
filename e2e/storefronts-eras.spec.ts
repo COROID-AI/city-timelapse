@@ -28,6 +28,22 @@ const ERAS = ['1945', '1965', '1985', '2005', '2025'] as const
 
 type EraId = (typeof ERAS)[number]
 
+/**
+ * Budget for every DOM wait in this spec.
+ *
+ * Each interaction here ends in a re-render of the whole dressed block, and on
+ * the container's software rasteriser (SwiftShader) a single frame of that
+ * block occupies the page's main thread for seconds. Playwright cannot read the
+ * document while a frame is in flight, so a wait that a GPU browser would
+ * satisfy in tens of milliseconds can legitimately take several seconds. The
+ * scene is asserted exactly as before — only the tolerance for software GL
+ * changed.
+ */
+const DOM_TIMEOUT_MS = 90_000
+
+/** The DOM-wait variant of Playwright's expect, sized for software rendering. */
+const ui = expect.configure({ timeout: DOM_TIMEOUT_MS })
+
 /** Artificial light colour of each era, from the era registry. */
 const ERA_LIGHT_COLOUR: Readonly<Record<EraId, string>> = {
   '1945': '#ffb469',
@@ -152,10 +168,25 @@ async function readPlan(page: Page, eraId: string): Promise<HarnessPlan> {
   )
 }
 
+/**
+ * Boots the harness page and returns its first snapshot.
+ *
+ * Readiness is deliberately patient. The harness dresses the whole canonical
+ * block — 68 storefront bays, their fascias, awnings, street advertising and the
+ * per-era artwork textures — and then paints it in one WebGL frame, which on the
+ * container's software rasteriser (SwiftShader) occupies the page's main thread
+ * for several seconds. Playwright cannot observe the document while that frame
+ * is in flight, so the readiness wait and the mounted-scene poll both need a
+ * budget sized for software GL rather than for a GPU. The scene itself is
+ * asserted below exactly as before; only the tolerance for a slow first frame
+ * changed.
+ */
 async function openHarness(page: Page): Promise<HarnessSnapshot> {
   await page.goto(HARNESS_PATH, { waitUntil: 'load' })
-  await expect(page.locator('body')).toHaveAttribute('data-storefronts-status', 'ready')
-  await expect.poll(async () => (await readSnapshot(page)).mounted, { timeout: 30_000 }).toBe(true)
+  await ui(page.locator('body')).toHaveAttribute('data-storefronts-status', 'ready')
+  await ui
+    .poll(async () => (await readSnapshot(page)).mounted)
+    .toBe(true)
   return readSnapshot(page)
 }
 
@@ -165,14 +196,18 @@ async function showEra(page: Page, eraId: EraId): Promise<HarnessSnapshot> {
     (era) => (window as unknown as HarnessWindow).__storefrontsHarness.setEra(era),
     eraId,
   )
-  await expect(page.locator('body')).toHaveAttribute('data-storefronts-era', eraId)
-  await expect
-    .poll(async () => (await readSnapshot(page)).mounted, { timeout: 30_000, message: `mounted ${eraId}` })
+  await ui(page.locator('body')).toHaveAttribute('data-storefronts-era', eraId)
+  await ui
+    .poll(async () => (await readSnapshot(page)).mounted, { message: `mounted ${eraId}` })
     .toBe(true)
   return readSnapshot(page)
 }
 
-test.describe.configure({ mode: 'serial' })
+// Serial because each test mounts a software-GL canvas with the whole block
+// dressed; the generous per-test budget covers five era renders (test one) and
+// the staged transitions plus night pass (test two) on the container's
+// software rasteriser.
+test.describe.configure({ mode: 'serial', timeout: 300_000 })
 
 test.describe('era storefronts in the browser', () => {
   test('dresses every bay per era, lights it by period and captures screenshots', async ({
@@ -228,11 +263,11 @@ test.describe('era storefronts in the browser', () => {
       expect(scene.graffitiMeshes, `${era} graffiti`).toBe(stats.graffitiCount)
       expect(scene.textureCount, `${era} textures`).toBe(stats.surfaceCount)
 
-      await expect(page.locator('body')).toHaveAttribute(
+      await ui(page.locator('body')).toHaveAttribute(
         'data-storefronts-signs',
         String(stats.bayCount),
       )
-      await expect(page.locator('body')).toHaveAttribute(
+      await ui(page.locator('body')).toHaveAttribute(
         'data-storefronts-ads',
         String(stats.advertisingTotal),
       )
@@ -351,9 +386,9 @@ test.describe('era storefronts in the browser', () => {
 
     // The night flag is what drives emissive strength: same shopfronts, more light.
     await page.getByTestId('storefronts-night').click()
-    await expect(page.locator('body')).toHaveAttribute('data-storefronts-night', 'true')
-    await expect
-      .poll(async () => (await readSnapshot(page)).scene.meanEmissiveIntensity, { timeout: 30_000 })
+    await ui(page.locator('body')).toHaveAttribute('data-storefronts-night', 'true')
+    await ui
+      .poll(async () => (await readSnapshot(page)).scene.meanEmissiveIntensity)
       .toBeGreaterThan(day.scene.meanEmissiveIntensity * 1.5)
     const night = await readSnapshot(page)
     expect(night.night).toBe(true)
@@ -369,9 +404,9 @@ test.describe('era storefronts in the browser', () => {
       return harness.stageTransition('1985', '2005', 0.5)
     })
     expect(stagedMix).toBe(0.5)
-    await expect(page.locator('body')).toHaveAttribute('data-storefronts-era', '2005')
-    await expect
-      .poll(async () => (await readSnapshot(page)).transition?.toVisible ?? 0, { timeout: 30_000 })
+    await ui(page.locator('body')).toHaveAttribute('data-storefronts-era', '2005')
+    await ui
+      .poll(async () => (await readSnapshot(page)).transition?.toVisible ?? 0)
       .toBeGreaterThan(0)
 
     const middle = await readSnapshot(page)
@@ -393,16 +428,16 @@ test.describe('era storefronts in the browser', () => {
       const harness = (window as unknown as HarnessWindow).__storefrontsHarness
       harness.stageTransition('1985', '2005', 1)
     })
-    await expect
-      .poll(async () => (await readSnapshot(page)).transition?.fromVisible ?? -1, { timeout: 30_000 })
+    await ui
+      .poll(async () => (await readSnapshot(page)).transition?.fromVisible ?? -1)
       .toBe(0)
     const finished = await readSnapshot(page)
     expect(finished.transition?.toVisible).toBe(finished.transition?.toChildren)
 
     await page.getByTestId('storefronts-reset').click()
-    await expect.poll(async () => (await readSnapshot(page)).transition).toBeNull()
-    await expect
-      .poll(async () => (await readSnapshot(page)).scene.signMeshes, { timeout: 30_000 })
+    await ui.poll(async () => (await readSnapshot(page)).transition).toBeNull()
+    await ui
+      .poll(async () => (await readSnapshot(page)).scene.signMeshes)
       .toBe(initial.stats.bayCount)
     const settled = await readSnapshot(page)
     expect(settled.stats.bayCount).toBe(initial.stats.bayCount)
