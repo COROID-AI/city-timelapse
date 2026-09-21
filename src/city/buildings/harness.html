@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Era building layer harness</title>
+    <!--
+      Self-contained verification page for the era building layer.
+
+      It imports *only* this layer's barrel (`./index`), which re-exports the
+      real layout generator and the era ids, plus three.js, React and a minimal
+      react-three-fiber canvas. No composed application, no render pipeline and
+      no remote asset are involved, so per-era browser verification never
+      depends on later phases.
+
+      The page mounts the layer's own group with the real runtime canvas
+      texture factory, exposes an era selector, a blend slider and the layer
+      statistics on `window.__buildingsHarness`, and mirrors the numbers into
+      `data-buildings-*` attributes on <body> for cheap selectors.
+    -->
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #10131a;
+        color: #e7e6e1;
+      }
+      body {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1rem;
+        align-items: center;
+        padding: 0.6rem 1rem;
+        border-bottom: 1px solid #262c38;
+        background: #151a23;
+      }
+      h1 {
+        font-size: 0.95rem;
+        margin: 0 0.5rem 0 0;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      p {
+        margin: 0;
+        font-size: 0.78rem;
+        color: #b6bcc8;
+      }
+      button {
+        font: inherit;
+        font-size: 0.75rem;
+        padding: 0.3rem 0.55rem;
+        color: #e7e6e1;
+        background: #1e2531;
+        border: 1px solid #333c4b;
+        border-radius: 0.35rem;
+        cursor: pointer;
+      }
+      button[aria-pressed='true'] {
+        background: #2f4a6d;
+        border-color: #4f7bb0;
+      }
+      button:hover {
+        background: #263040;
+      }
+      label {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.75rem;
+        color: #b6bcc8;
+      }
+      input[type='range'] {
+        width: 8rem;
+      }
+      .viewport {
+        position: relative;
+        min-height: 0;
+      }
+      .viewport canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .viewport[data-webgl='false']::after {
+        content: 'WebGL unavailable: layer statistics are still published for assertions.';
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: #8b93a1;
+        font-size: 0.8rem;
+      }
+      .report {
+        margin: 0;
+        max-height: 26vh;
+        overflow: auto;
+        padding: 0.6rem 1rem;
+        border-top: 1px solid #262c38;
+        background: #131821;
+        font-size: 0.72rem;
+        line-height: 1.45;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body
+    data-buildings-status="booting"
+    data-buildings-webgl="unknown"
+    data-buildings-era=""
+    data-buildings-progress="0"
+    data-buildings-meshes="0"
+    data-buildings-triangles="0"
+    data-buildings-roof-kits="0"
+    data-buildings-deterministic="unknown"
+    data-buildings-layout-hash=""
+    data-buildings-textures="0"
+  >
+    <header>
+      <h1>Era building layer</h1>
+      <p data-testid="buildings-summary">Booting the era buildings…</p>
+      <div id="era-controls"></div>
+      <label>
+        blend
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value="0"
+          data-testid="buildings-blend"
+          data-from="1945"
+          data-to="2025"
+        />
+      </label>
+      <button type="button" data-testid="buildings-blend-settle">Settle blend</button>
+    </header>
+    <div class="viewport" id="viewport" data-testid="buildings-viewport"></div>
+    <pre class="report" id="report" data-testid="buildings-report"></pre>
+
+    <script type="module">
+      import * as THREE from 'three'
+      import React from 'react'
+      import { createRoot } from 'react-dom/client'
+      import { Canvas } from '@react-three/fiber'
+      import {
+        BUILDING_ERA_IDS,
+        BUILDING_GROUPS,
+        applyEra,
+        applyEraTransition,
+        buildLayoutObject,
+        buildingSetFingerprint,
+        createBuildingScene,
+        getEra,
+        layoutHash,
+        planBuildingSet,
+      } from './index'
+
+      const body = document.body
+      const viewport = document.getElementById('viewport')
+      const summaryNode = document.querySelector('[data-testid="buildings-summary"]')
+      const reportNode = document.getElementById('report')
+      const eraControls = document.getElementById('era-controls')
+      const blendInput = document.querySelector('[data-testid="buildings-blend"]')
+
+      const state = {
+        eraId: BUILDING_ERA_IDS[0],
+        progress: 0,
+        fromEra: BUILDING_ERA_IDS[0],
+        toEra: BUILDING_ERA_IDS[0],
+        webgl: false,
+        errors: [],
+        fingerprints: {},
+        deterministic: false,
+      }
+
+      /* --- boot: the real layout plus a real layer ---------------------- */
+      let scene
+      try {
+        scene = createBuildingScene({ eraId: BUILDING_ERA_IDS[0] })
+      } catch (error) {
+        state.errors.push(`scene: ${error && error.message ? error.message : String(error)}`)
+      }
+
+      const layout = scene?.layout
+      const layer = scene?.layer
+      let ground = null
+      try {
+        ground = layout ? buildLayoutObject(layout) : null
+      } catch (error) {
+        state.errors.push(`ground: ${error && error.message ? error.message : String(error)}`)
+      }
+
+      // Determinism is checked for every era in the browser, from the plan
+      // alone: same seed plus same era id must give the same primitives.
+      if (layout) {
+        state.deterministic = BUILDING_ERA_IDS.every((eraId) => {
+          const first = planBuildingSet({ layout, eraId })
+          const second = planBuildingSet({ layout, eraId })
+          state.fingerprints[eraId] = buildingSetFingerprint(first).length
+          return buildingSetFingerprint(first) === buildingSetFingerprint(second)
+        })
+      }
+
+      function detectWebgl() {
+        try {
+          const canvas = document.createElement('canvas')
+          return Boolean(canvas.getContext('webgl2') ?? canvas.getContext('webgl'))
+        } catch (error) {
+          state.errors.push(`webgl: ${error && error.message ? error.message : String(error)}`)
+          return false
+        }
+      }
+
+      function groupSummary(built) {
+        const groups = {}
+        for (const group of BUILDING_GROUPS) {
+          groups[group] = {
+            meshCount: built.summary.groupMeshCounts[group],
+            triangles: built.summary.groupTriangles[group],
+          }
+        }
+        return groups
+      }
+
+      function snapshot() {
+        if (!layer || !layout) {
+          return null
+        }
+        const layerState = layer.state()
+        const active = layer.mounted('to') ?? layer.mounted('from')
+        const stats = layerState.stats
+        return {
+          eraId: layerState.eraId,
+          fromEra: layerState.fromEra,
+          toEra: layerState.toEra,
+          progress: layerState.progress,
+          transitioning: layerState.transitioning,
+          night: layerState.night,
+          stats,
+          groups: groupSummary(active),
+          meshCount: active.summary.meshCount,
+          triangleCount: active.summary.triangleCount,
+          instancedMeshCount: active.summary.instancedMeshCount,
+          meshNames: [...active.summary.names],
+          roofKits: stats.roofKitsByKit,
+          addOns: stats.addOnsByKind,
+          emissive: {
+            glass: active.materials.glass.emissiveIntensity,
+            mass: active.materials.mass.emissiveIntensity,
+          },
+          materials: Object.keys(active.materials),
+          plots: active.plan.plots.map((plot) => ({
+            parcelId: plot.parcelId,
+            state: plot.state,
+            facing: [...plot.facing],
+            height: plot.height,
+            floors: plot.floors,
+            footprintArea: plot.footprint.area,
+            windows: plot.facade.windowCount,
+            frontage: plot.frontage.length,
+            addOns: plot.addOns.length,
+            edgeCount: plot.facade.edges.length,
+            anchors: [...plot.anchorNames],
+          })),
+          anchorsUsed: [...active.plan.anchorsUsed],
+          parcelCount: layout.stats.parcelCount,
+          anchorCatalogueSize: layout.stats.anchorCount,
+          layoutHash: layout ? layoutHash(layout) : null,
+          deterministic: state.deterministic,
+          fingerprints: { ...state.fingerprints },
+          textures: active.textureHandles.map((handle) => handle.id),
+          webgl: state.webgl,
+          errors: [...state.errors],
+        }
+      }
+
+      function publish() {
+        const current = snapshot()
+        if (current === null) {
+          return null
+        }
+        body.dataset['buildingsStatus'] = 'ready'
+        body.dataset['buildingsEra'] = String(current.eraId)
+        body.dataset['buildingsProgress'] = String(current.progress)
+        body.dataset['buildingsMeshes'] = String(current.meshCount)
+        body.dataset['buildingsTriangles'] = String(current.triangleCount)
+        body.dataset['buildingsRoofKits'] = String(current.stats.roofKitCount)
+        body.dataset['buildingsDeterministic'] = String(current.deterministic)
+        body.dataset['buildingsLayoutHash'] = String(current.layoutHash ?? '')
+        body.dataset['buildingsTextures'] = String(current.textures.length)
+
+        const stats = current.stats
+        if (summaryNode) {
+          summaryNode.textContent = [
+            `era ${current.eraId}`,
+            `${stats.buildingCount} buildings`,
+            `${stats.vacantLotCount} vacant`,
+            `${stats.constructionCount} building sites`,
+            `heights ${stats.heightMin}-${stats.heightMax} m (mean ${stats.heightMean})`,
+            `${stats.windowCount} windows`,
+            `${current.meshCount} meshes / ${current.triangleCount} tris`,
+            current.night ? 'night windows lit' : 'day windows dark',
+          ].join(' · ')
+        }
+        if (reportNode) {
+          const lines = [
+            `parcels ${current.parcelCount}, anchors ${current.anchorsUsed.length} used of ${current.anchorCatalogueSize}`,
+            `groups ${Object.entries(current.groups)
+              .map(([group, entry]) => `${group}:${entry.meshCount}`)
+              .join(' ')}`,
+            `textures ${current.textures.join(', ')}`,
+            `deterministic ${current.deterministic ? 'yes' : 'NO'} (per-era fingerprints ${Object.entries(
+              current.fingerprints,
+            )
+              .map(([era, size]) => `${era}:${size}`)
+              .join(' ')})`,
+            'add-ons:',
+            ...Object.entries(current.addOns)
+              .filter(([, count]) => count > 0)
+              .map(([kind, count]) => `  ${kind.padEnd(22)} ${String(count).padStart(4)}`),
+            'per parcel:',
+            ...current.plots.map(
+              (plot) =>
+                `  ${plot.parcelId.padEnd(3)} ${plot.state.padEnd(13)} h ${String(plot.height).padStart(
+                  6,
+                )} m  ${String(plot.floors).padStart(2)} floors  ${String(plot.windows).padStart(
+                  4,
+                )} windows  ${String(plot.frontage).padStart(2)} shopfronts  ${String(
+                  plot.addOns,
+                ).padStart(3)} add-ons`,
+            ),
+          ]
+          reportNode.textContent = lines.join('\n')
+        }
+        return current
+      }
+
+      /* --- controls ----------------------------------------------------- */
+      for (const eraId of BUILDING_ERA_IDS) {
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.textContent = eraId
+        button.dataset['testid'] = `buildings-era-${eraId}`
+        button.dataset['era'] = eraId
+        button.addEventListener('click', () => selectEra(eraId))
+        eraControls?.appendChild(button)
+      }
+
+      function selectEra(eraId) {
+        if (!layer) {
+          return null
+        }
+        const next = applyEra(eraId, layer)
+        state.eraId = next.eraId
+        state.fromEra = next.fromEra
+        state.toEra = next.toEra
+        state.progress = next.progress
+        markSelected()
+        r3fState?.invalidate()
+        return publish()
+      }
+
+      function setBlend(from, to, t) {
+        if (!layer) {
+          return null
+        }
+        const next = applyEraTransition({ from, to, t }, layer)
+        state.eraId = next.eraId
+        state.fromEra = next.fromEra
+        state.toEra = next.toEra
+        state.progress = next.progress
+        if (blendInput) {
+          blendInput.dataset['from'] = from
+          blendInput.dataset['to'] = to
+          blendInput.value = String(Math.round(t * 100))
+        }
+        markSelected()
+        r3fState?.invalidate()
+        return publish()
+      }
+
+      function markSelected() {
+        for (const button of document.querySelectorAll('#era-controls button')) {
+          button.setAttribute('aria-pressed', String(button.dataset['era'] === state.eraId))
+        }
+      }
+
+      if (blendInput) {
+        blendInput.addEventListener('input', () => {
+          const t = Number(blendInput.value) / 100
+          const from = blendInput.dataset['from'] || BUILDING_ERA_IDS[0]
+          const to = blendInput.dataset['to'] || BUILDING_ERA_IDS[BUILDING_ERA_IDS.length - 1]
+          setBlend(from, to, t)
+        })
+      }
+      document.querySelector('[data-testid="buildings-blend-settle"]')?.addEventListener('click', () => {
+        selectEra(blendInput?.dataset['to'] || BUILDING_ERA_IDS[BUILDING_ERA_IDS.length - 1])
+      })
+
+      markSelected()
+
+      /* --- mount -------------------------------------------------------- */
+      // The canvas renders on demand: era switches and blends ask for a frame,
+      // so the page does not burn software-rasterised frames while idle.
+      let r3fState = null
+      state.webgl = detectWebgl()
+      body.dataset['buildingsWebgl'] = String(state.webgl)
+      if (viewport) {
+        viewport.dataset['webgl'] = String(state.webgl)
+      }
+
+      function HarnessScene() {
+        const lights = React.createElement(
+          React.Fragment,
+          null,
+          React.createElement('hemisphereLight', { args: [0xdfe7ff, 0x2b2b2b, 1.05] }),
+          React.createElement('ambientLight', { args: [0xffffff, 0.35] }),
+          React.createElement('directionalLight', {
+            position: [-160, 210, 150],
+            intensity: 2.4,
+            color: 0xfff2dc,
+          }),
+          React.createElement('directionalLight', {
+            position: [180, 120, -120],
+            intensity: 0.9,
+            color: 0x9fb6ff,
+          }),
+        )
+        const children = [lights]
+        if (ground) {
+          children.push(React.createElement('primitive', { key: 'ground', object: ground.root }))
+        }
+        if (layer) {
+          children.push(React.createElement('primitive', { key: 'buildings', object: layer.root }))
+        }
+        return React.createElement(React.Fragment, null, ...children)
+      }
+
+      if (state.webgl && viewport) {
+        try {
+          createRoot(viewport).render(
+            React.createElement(
+              Canvas,
+              {
+                camera: { position: [150, 118, 168], fov: 42, near: 0.5, far: 900 },
+                gl: { antialias: true },
+                frameloop: 'demand',
+                // No tone mapping: the harness shows the era materials as the
+                // pipeline's lighting parameters would grade them, ungraded.
+                flat: true,
+                onCreated: (root) => {
+                  r3fState = root
+                  root.scene.background = new THREE.Color(0x161c26)
+                  root.scene.fog = new THREE.Fog(0x161c26, 380, 820)
+                  root.camera.lookAt(new THREE.Vector3(0, 12, 0))
+                  root.invalidate()
+                },
+              },
+              React.createElement(HarnessScene),
+            ),
+          )
+        } catch (error) {
+          state.webgl = false
+          body.dataset['buildingsWebgl'] = 'false'
+          state.errors.push(`mount: ${error && error.message ? error.message : String(error)}`)
+        }
+      }
+
+      window.addEventListener('error', (event) => {
+        state.errors.push(`window: ${event.message}`)
+      })
+
+      const first = publish()
+
+      window.__buildingsHarness = {
+        first,
+        get webgl() {
+          return state.webgl
+        },
+        get errors() {
+          return [...state.errors]
+        },
+        get snapshot() {
+          return snapshot()
+        },
+        get eras() {
+          return [...BUILDING_ERA_IDS]
+        },
+        get eraTable() {
+          return BUILDING_ERA_IDS.map((eraId) => {
+            const era = getEra(eraId)
+            return { id: eraId, year: era.year, label: era.label }
+          })
+        },
+        selectEra,
+        setBlend,
+        blend: (from, to, t) => setBlend(from, to, t),
+        stats: () => snapshot()?.stats ?? null,
+        /** What the WebGL renderer actually drew in the last frame. */
+        render: () => ({
+          triangles: r3fState?.gl?.info?.render?.triangles ?? 0,
+          calls: r3fState?.gl?.info?.render?.calls ?? 0,
+          frame: r3fState?.gl?.info?.render?.frame ?? 0,
+        }),
+      }
+    </script>
+  </body>
+</html>

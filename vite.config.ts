@@ -27,7 +27,9 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['tests/setup.ts'],
-    include: ['tests/**/*.test.{ts,tsx}'],
+    // Unit tests are `*.test.*`, cross-module composition suites are `*.spec.*`;
+    // the browser suite lives under `e2e/` and is owned by Playwright.
+    include: ['tests/**/*.{test,spec}.{ts,tsx}'],
     exclude: ['node_modules/**', 'dist/**', 'e2e/**'],
     restoreMocks: true,
     clearMocks: true,
