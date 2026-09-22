@@ -1,0 +1,264 @@
+/*
+ * Controls overlay stylesheet for the navigation task.
+ *
+ * Contains two surfaces owned by src/controls:
+ *  1. The detail callout panel (src/controls/callouts.ts).
+ *  2. The navigation control bar (orbit/walk/reset buttons + key hints).
+ *
+ * Visual language matches the app shell's glassy dark overlay: translucent
+ * panels, soft blur, hairline borders, restrained accent color. Interactive
+ * elements are real buttons so they stay fully keyboard operable, with
+ * high-contrast :focus-visible outlines. Nothing here traps the pointer or
+ * hides the cursor.
+ */
+
+/* ------------------------------------------------------------------ *
+ * 1. Detail callout panel
+ * ------------------------------------------------------------------ */
+
+.callout {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 30;
+  box-sizing: border-box;
+  width: min(380px, calc(100vw - 40px));
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+  padding: 18px 22px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  background: linear-gradient(165deg, rgba(18, 24, 36, 0.94), rgba(10, 13, 21, 0.88));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: #eaf1ff;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(14px) scale(0.97);
+  transition:
+    opacity 0.32s cubic-bezier(0.22, 0.61, 0.36, 1),
+    transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1),
+    visibility 0s linear 0.32s;
+}
+
+.callout.is-open {
+  pointer-events: auto;
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+  transition-delay: 0s;
+}
+
+.callout__close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: #cfe0ff;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.callout__close:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+.callout__close:focus-visible,
+.nav-controls__button:focus-visible {
+  outline: 2px solid var(--callout-accent, #7fd0ff);
+  outline-offset: 2px;
+}
+
+.callout__eyebrow {
+  margin: 0 36px 6px 0;
+  color: var(--callout-accent, #7fd0ff);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.callout__title {
+  margin: 0 36px 8px 0;
+  font-size: 21px;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+.callout__title::after {
+  content: '';
+  display: block;
+  width: 44px;
+  height: 3px;
+  margin-top: 10px;
+  border-radius: 2px;
+  background: var(--callout-accent, #7fd0ff);
+  opacity: 0.85;
+}
+
+.callout__description {
+  margin: 10px 0 0;
+  color: #b9c6de;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.callout__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.callout__fact {
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #d7e2f6;
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+}
+
+/* ------------------------------------------------------------------ *
+ * 2. Navigation control bar
+ * ------------------------------------------------------------------ */
+
+.nav-controls {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  max-width: min(560px, calc(100vw - 40px));
+  pointer-events: none;
+}
+
+.nav-controls__button {
+  pointer-events: auto;
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(12, 16, 25, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  color: #d9e4fb;
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.nav-controls__button:hover {
+  background: rgba(28, 36, 54, 0.85);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+.nav-controls__button:active {
+  transform: translateY(1px);
+}
+
+.nav-controls__button[aria-pressed='true'] {
+  background: rgba(74, 128, 255, 0.28);
+  border-color: rgba(126, 176, 255, 0.65);
+  color: #f2f6ff;
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.3),
+    inset 0 0 0 1px rgba(126, 176, 255, 0.35);
+}
+
+.nav-controls__hint {
+  flex-basis: 100%;
+  margin: 2px 0 0;
+  padding: 0 2px;
+  color: rgba(214, 226, 246, 0.72);
+  font-size: 11px;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+/* ------------------------------------------------------------------ *
+ * Responsive + motion preferences
+ * ------------------------------------------------------------------ */
+
+@media (max-width: 760px) {
+  .callout {
+    right: 12px;
+    bottom: 84px;
+    left: 12px;
+    width: auto;
+  }
+
+  .nav-controls {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    max-width: none;
+  }
+
+  .nav-controls__hint {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .callout,
+  .callout__close,
+  .nav-controls__button {
+    transition: none;
+  }
+
+  .callout {
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Canvas interaction affordances (owned by the navigation module)
+ * ------------------------------------------------------------------ */
+
+/* Touch input must not be intercepted by browser scrolling/zooming, and the
+ * grab cursor communicates draggability without ever trapping the pointer. */
+.scene-canvas {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.scene-canvas:active {
+  cursor: grabbing;
+}
