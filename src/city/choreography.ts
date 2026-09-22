@@ -196,12 +196,23 @@ export interface StagedEraPump {
    * during an animated transition the morph driver dispatches (staged stage
    * progress); when the slider moved without an animation (drag, snap, or
    * programmatic select) the settled frame dispatches so the scene tracks the
-   * slider WYSIWYG. Returns the timeline frame for HUD repaints.
+   * slider WYSIWYG. The delta is sanitized and clamped to the pump ceiling so
+   * a pathological stall can never jump-cut the eased staged morph. Returns
+   * the timeline frame for HUD repaints.
    */
   advance(deltaSeconds: number): EraFrame;
   /** Immediately dispatch the current frame to every member; returns count. */
   sync(): number;
 }
+
+/**
+ * Longest delta the pump forwards to the morph driver — the same ceiling the
+ * app loop applies. Embedding hosts and programmatic pumps can deliver huge
+ * first deltas after a stall; clamping keeps the ease-in-out transition and
+ * its per-stage windows from resolving in a single frame (a visible cut
+ * instead of the polished morph).
+ */
+const MAX_PUMP_DELTA_SECONDS = 0.1;
 
 /**
  * Create the shared staged era pump for a wired morph system. One dispatch at
@@ -214,8 +225,12 @@ export function createStagedEraPump(system: EraMorphSystem): StagedEraPump {
 
   return {
     advance(deltaSeconds: number): EraFrame {
+      const delta =
+        Number.isFinite(deltaSeconds) && deltaSeconds > 0
+          ? Math.min(deltaSeconds, MAX_PUMP_DELTA_SECONDS)
+          : 0;
       const wasTransitioning = core.isTransitioning;
-      const frame = driver.advance(deltaSeconds); // dispatches iff transitioning
+      const frame = driver.advance(delta); // dispatches iff transitioning
       const moved = frame.position !== lastPosition;
       lastPosition = frame.position;
       if (!wasTransitioning && moved) {

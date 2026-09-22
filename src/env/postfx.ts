@@ -30,6 +30,39 @@ import type { EraYear } from '../era/timeline';
 /** Atmosphere quality tier: `high` keeps bloom, lower tiers drop it first. */
 export type AtmosphereQuality = 'low' | 'medium' | 'high';
 
+/* -------------------------------------------------------------------------- */
+/* Adaptive render scaling under load                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Render-scale ladder used when the frame budget is under sustained pressure.
+ * Index 0 is the app's authored pixel ratio; each further rung renders the
+ * whole frame — scene AND post chain (the composer follows the renderer's
+ * pixel ratio) — at a smaller internal resolution. Resolution is deliberately
+ * the FIRST lever under load: detail, instancing, and draw-call batching are
+ * never traded away for frames.
+ */
+export const POSTFX_RENDER_SCALES: readonly number[] = Object.freeze([1, 0.85, 0.7]);
+
+/** Frame time above which samples count as overload (60fps target, ~55fps floor). */
+const LOAD_BUDGET_SECONDS = 1 / 55;
+
+/**
+ * Frame time below which samples count as headroom. The narrow band between
+ * this and {@link LOAD_BUDGET_SECONDS} is neutral: neither streak accumulates,
+ * which keeps vsync-paced jitter from drifting the scale either way.
+ */
+const RECOVERY_HEADROOM_SECONDS = 1 / 57;
+
+/** Sustained overload seconds before stepping the render scale down one rung. */
+const SCALE_DOWN_SECONDS = 1;
+
+/** Sustained headroom seconds before restoring a rung (hysteresis against flapping). */
+const SCALE_UP_SECONDS = 4;
+
+/** Samples longer than this are treated as stalls (tab switches), never as load. */
+const MAX_FRAME_SAMPLE_SECONDS = 0.25;
+
 /** Blendable post-processing look for one era at one time option. */
 export interface PostFxState {
   /** Renderer `toneMappingExposure` (ACES stays fixed; exposure blends). */
@@ -125,6 +158,18 @@ export interface PostFxController {
   readonly usesBloom: boolean;
   /** CSS vignette layer, or `null` when no container/document is available. */
   readonly vignetteElement: HTMLElement | null;
+  /** Current adaptive render scale (1 = the app's authored resolution). */
+  readonly renderScale: number;
+  /** Renderer pixel ratio captured before adaptive scaling (the ceiling). */
+  readonly baselinePixelRatio: number;
+  /**
+   * Feed the latest frame delta into the adaptive scaler: sustained overload
+   * steps the render scale down one rung (whole frame + post chain at a
+   * smaller internal resolution); sustained headroom restores it, with a
+   * neutral dead band and hysteresis on both sides so it never flaps. No-op
+   * without a renderer.
+   */
+  noteFrameTime(deltaSeconds: number): void;
   /** Apply an era grade (exposure, bloom uniforms, vignette opacity). */
   apply(next: PostFxState): void;
   /** Switch quality tier; dropping below `high` tears the bloom chain down. */
@@ -152,13 +197,24 @@ function vignetteGradient(vignette: number): string {
 /**
  * Create the post-processing controller. The bloom chain is built lazily on
  * the first `high`-quality render (so a missing WebGL context can never throw
- * during construction) and is torn down whenever quality drops.
+ * during construction) and is torn down whenever quality drops. The
+ * controller also owns the app's adaptive render scaler: call
+ * {@link PostFxController.noteFrameTime} once per frame to keep the scene
+ * inside its 60fps budget under load.
  */
 export function createPostFx(options: PostFxOptions = {}): PostFxController {
   const renderer = options.renderer ?? null;
   let quality: AtmosphereQuality = options.quality ?? 'high';
   let disposed = false;
   const applied = createPostFxState();
+
+  // Adaptive render scaler state (see `noteFrameTime`). The baseline is
+  // refreshed from the renderer whenever we are unscaled, so an app-level
+  // pixel-ratio change (resize/DPR event) stays the ceiling we scale from.
+  let scaleIndex = 0;
+  let overloadSeconds = 0;
+  let recoverySeconds = 0;
+  let baselinePixelRatio = renderer ? renderer.getPixelRatio() : 1;
 
   let composer: EffectComposer | null = null;
   let renderPass: RenderPass | null = null;
@@ -253,6 +309,12 @@ export function createPostFx(options: PostFxOptions = {}): PostFxController {
     composer.setSize(size.x, size.y);
   };
 
+  const applyRenderScale = (): void => {
+    if (!renderer) return;
+    renderer.setPixelRatio(baselinePixelRatio * POSTFX_RENDER_SCALES[scaleIndex]);
+    if (composer) syncSize();
+  };
+
   // Prime the grade so a controller is usable before the first apply().
   if (renderer) renderer.toneMappingExposure = applied.exposure;
   if (vignetteElement) vignetteElement.style.background = vignetteGradient(applied.vignette);
@@ -266,6 +328,50 @@ export function createPostFx(options: PostFxOptions = {}): PostFxController {
       return composer !== null && bloomPass !== null && outputPass !== null;
     },
     vignetteElement,
+    get renderScale(): number {
+      return POSTFX_RENDER_SCALES[scaleIndex];
+    },
+    get baselinePixelRatio(): number {
+      return baselinePixelRatio;
+    },
+
+    noteFrameTime(deltaSeconds: number): void {
+      if (disposed || !renderer) return;
+      if (
+        !Number.isFinite(deltaSeconds) ||
+        deltaSeconds <= 0 ||
+        deltaSeconds > MAX_FRAME_SAMPLE_SECONDS
+      ) {
+        return;
+      }
+      // While unscaled, keep tracking the ratio the app authored (it may
+      // change with device-pixel-ratio/resize events). While scaled,
+      // `baselinePixelRatio` stays the pre-scale ceiling.
+      if (scaleIndex === 0) baselinePixelRatio = renderer.getPixelRatio();
+
+      if (deltaSeconds > LOAD_BUDGET_SECONDS) {
+        overloadSeconds += deltaSeconds;
+        recoverySeconds = 0;
+      } else if (deltaSeconds < RECOVERY_HEADROOM_SECONDS) {
+        recoverySeconds += deltaSeconds;
+        overloadSeconds = 0;
+      }
+
+      if (
+        overloadSeconds >= SCALE_DOWN_SECONDS &&
+        scaleIndex < POSTFX_RENDER_SCALES.length - 1
+      ) {
+        overloadSeconds = 0;
+        recoverySeconds = 0;
+        scaleIndex += 1;
+        applyRenderScale();
+      } else if (recoverySeconds >= SCALE_UP_SECONDS && scaleIndex > 0) {
+        overloadSeconds = 0;
+        recoverySeconds = 0;
+        scaleIndex -= 1;
+        applyRenderScale();
+      }
+    },
 
     apply(next: PostFxState): void {
       applied.exposure = finiteOr(next.exposure, applied.exposure);
@@ -313,6 +419,10 @@ export function createPostFx(options: PostFxOptions = {}): PostFxController {
     dispose(): void {
       if (disposed) return;
       disposed = true;
+      if (renderer && scaleIndex > 0) renderer.setPixelRatio(baselinePixelRatio);
+      scaleIndex = 0;
+      overloadSeconds = 0;
+      recoverySeconds = 0;
       teardownComposer();
       vignetteElement?.remove();
       vignetteElement = null;

@@ -39,7 +39,8 @@ export interface SkyState {
 
 /**
  * Daylight sky per era:
- * - 1945 sooty warm haze under a low, dimmed coal-smoke sun;
+ * - 1945 sooty warm haze under a low, dimmed coal-smoke sun (disc intensity
+ *   trimmed alongside the era's soot-softened key light);
  * - 1965 warm sunlight over a mild smog band;
  * - 1985 smog-orange horizon under muted gray-blue;
  * - 2005 crisp deep blue with clean white sun;
@@ -52,7 +53,7 @@ export const SKY_DAY_STATES: Readonly<Record<EraYear, SkyState>> = Object.freeze
     ground: new THREE.Color('#6b6154'),
     sunCore: new THREE.Color('#ffdca6'),
     sunHalo: new THREE.Color('#caa472'),
-    sunIntensity: 0.7,
+    sunIntensity: 0.6,
     sunElevationDeg: 24,
     sunAzimuthDeg: 128,
     starOpacity: 0,

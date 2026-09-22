@@ -170,7 +170,7 @@ export interface AtmosphereModule extends EraTransformable {
   setQuality(quality: AtmosphereQuality): void;
   /** Register with an era registry; returns the unregister function. */
   register(registry: EraTransformRegistry): () => void;
-  /** Advance weather particle simulation. */
+  /** Advance weather particles and feed the post module's adaptive scaler. */
   update(deltaSeconds: number, camera?: THREE.Camera | null): void;
   /** Render through the era post chain (bloom on `high`, direct otherwise). */
   renderFrame(scene: THREE.Scene, camera: THREE.Camera, deltaSeconds?: number): void;
@@ -229,13 +229,20 @@ export interface AtmosphereCoreState {
   streetlightIntensity: number;
 }
 
+/**
+ * Daylight lighting/fog/emissive seeds. Polish-pass tuning: 1945 runs a
+ * dimmer coal-smoke key against denser soot haze (fog opens later and closes
+ * sooner), and the 1985 smog band was tightened the same way — the era
+ * clarity ordering asserted by the atmosphere tests is preserved, and every
+ * value still crossfades linearly so morphs cannot pop.
+ */
 const DAY_SEEDS: Record<EraYear, EraCoreSeed> = {
   1945: {
-    keyColor: '#ffd2a0', keyIntensity: 1.4,
+    keyColor: '#ffd2a0', keyIntensity: 1.3,
     fillColor: '#b3a794', fillIntensity: 0.4,
     ambientColor: '#a49a86', ambientIntensity: 0.5,
     hemisphereSkyColor: '#a89e8c', hemisphereGroundColor: '#413a2f', hemisphereIntensity: 0.6,
-    fogColor: '#ab9d80', fogNear: 25, fogFar: 200,
+    fogColor: '#ab9d80', fogNear: 20, fogFar: 175,
     windowColor: '#ff9d4e', windowIntensity: 0.5,
     streetlightColor: '#ffb46a', streetlightIntensity: 0.55,
     neonIntensity: 1.0,
@@ -255,7 +262,7 @@ const DAY_SEEDS: Record<EraYear, EraCoreSeed> = {
     fillColor: '#c1cede', fillIntensity: 0.5,
     ambientColor: '#b7c2d3', ambientIntensity: 0.6,
     hemisphereSkyColor: '#b9c3d6', hemisphereGroundColor: '#575043', hemisphereIntensity: 0.7,
-    fogColor: '#cfa079', fogNear: 38, fogFar: 260,
+    fogColor: '#cfa079', fogNear: 34, fogFar: 248,
     windowColor: '#ffd9b0', windowIntensity: 0.6,
     streetlightColor: '#d8ecff', streetlightIntensity: 1.0,
     neonIntensity: 1.0,
@@ -282,13 +289,18 @@ const DAY_SEEDS: Record<EraYear, EraCoreSeed> = {
   },
 };
 
+/**
+ * Night lighting/fog/emissive seeds. The smoggiest nights (1945 soot,
+ * 1985 smog-orange) were pulled in tighter so distance resolves earlier
+ * during morphs instead of revealing blending geometry at the fog limit.
+ */
 const NIGHT_SEEDS: Record<EraYear, EraCoreSeed> = {
   1945: {
     keyColor: '#9fb2d8', keyIntensity: 0.35,
     fillColor: '#7d8298', fillIntensity: 0.22,
     ambientColor: '#3c4258', ambientIntensity: 0.3,
     hemisphereSkyColor: '#2f3550', hemisphereGroundColor: '#26201a', hemisphereIntensity: 0.4,
-    fogColor: '#4f4433', fogNear: 22, fogFar: 150,
+    fogColor: '#4f4433', fogNear: 20, fogFar: 140,
     windowColor: '#ffb46a', windowIntensity: 1.5,
     streetlightColor: '#ffb46a', streetlightIntensity: 1.6,
     neonIntensity: 1.9,
@@ -308,7 +320,7 @@ const NIGHT_SEEDS: Record<EraYear, EraCoreSeed> = {
     fillColor: '#7b839f', fillIntensity: 0.25,
     ambientColor: '#4d4360', ambientIntensity: 0.35,
     hemisphereSkyColor: '#3a3c60', hemisphereGroundColor: '#2c2632', hemisphereIntensity: 0.45,
-    fogColor: '#6b4a3c', fogNear: 34, fogFar: 190,
+    fogColor: '#6b4a3c', fogNear: 30, fogFar: 175,
     windowColor: '#ffd9b0', windowIntensity: 1.9,
     streetlightColor: '#d8ecff', streetlightIntensity: 2.0,
     neonIntensity: 2.4,
@@ -715,6 +727,9 @@ export function createAtmosphere(options: CreateAtmosphereOptions): AtmosphereMo
 
     update(deltaSeconds: number, camera?: THREE.Camera | null): void {
       if (disposed) return;
+      // Adaptive post/render scaling: sustained overload steps the render
+      // scale down (and restores it with headroom) before any detail lever.
+      postFx.noteFrameTime(deltaSeconds);
       weather.update(deltaSeconds, camera);
     },
 

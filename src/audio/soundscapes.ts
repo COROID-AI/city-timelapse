@@ -150,7 +150,7 @@ const ERA_1945: EraSoundscape = {
   patterns: [
     { id: 'streetcar-bell', voice: 'streetcar-bell', minIntervalSeconds: 7, maxIntervalSeconds: 12, gain: 0.55, position: [-10, 0] },
     { id: 'old-horn', voice: 'old-horn', minIntervalSeconds: 9, maxIntervalSeconds: 16, gain: 0.5, position: [4, 2] },
-    { id: 'radio-blip', voice: 'radio-blip', minIntervalSeconds: 6, maxIntervalSeconds: 11, gain: 0.6, position: [14, 8] },
+    { id: 'radio-blip', voice: 'radio-blip', minIntervalSeconds: 6, maxIntervalSeconds: 11, gain: 0.5, position: [14, 8] },
   ],
 };
 
@@ -215,7 +215,7 @@ const ERA_1985: EraSoundscape = {
     },
   ],
   patterns: [
-    { id: 'arcade-bleep', voice: 'arcade-bleep', minIntervalSeconds: 3.5, maxIntervalSeconds: 7, gain: 0.45, position: [10, -4] },
+    { id: 'arcade-bleep', voice: 'arcade-bleep', minIntervalSeconds: 5, maxIntervalSeconds: 10, gain: 0.4, position: [10, -4] },
     { id: 'synth-stab', voice: 'synth-stab', minIntervalSeconds: 8, maxIntervalSeconds: 14, gain: 0.4, position: [-8, 10] },
   ],
 };
@@ -226,7 +226,7 @@ const ERA_1985: EraSoundscape = {
 
 const ERA_2005: EraSoundscape = {
   year: 2005,
-  beds: { traffic: 0.55, footsteps: 0.42, chatter: 0.48 },
+  beds: { traffic: 0.5, footsteps: 0.42, chatter: 0.48 },
   trafficFilterHz: 1000,
   chatterFilterHz: 1600,
   textures: [

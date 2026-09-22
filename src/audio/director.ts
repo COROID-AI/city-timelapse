@@ -13,7 +13,7 @@
  *   timeline core, follows its continuous blend on every
  *   {@link AudioDirector.update} tick (crossfading era buses, re-balancing the
  *   traffic/footsteps/chatter beds and their filter colors), and plays a
- *   whoosh + era chime whenever the selected year changes.
+ *   soft whoosh + trailing era chime whenever the selected year changes.
  * - **Content hooks** — answers the documented hook events in
  *   `src/audio/hooks.ts` (horns, neon hum, doors, ringtones…) with pooled,
  *   distance-ducked one-shots.
@@ -95,6 +95,14 @@ const PATTERN_MIN_WEIGHT = 0.15;
 
 /** Ignore spatial updates smaller than this (camera micro-movement). */
 const SPATIAL_EPSILON = 0.005;
+
+/**
+ * Delay of the era chime behind the whoosh in a transition cue. The chime
+ * trails the sweep instead of stacking on it, so year changes ease out with
+ * no piled-up transient (the cue's balance: quieter whoosh, softer chime,
+ * staggered landing).
+ */
+const CUE_CHIME_DELAY_SECONDS = 0.22;
 
 /** Fixed number of pooled one-shot voice chains. */
 export const DEFAULT_VOICE_POOL_SIZE = 8;
@@ -506,11 +514,12 @@ export class AudioDirector {
     const pool = this.#pool;
     if (!this.#unlocked || this.#muted || !pool) return;
     if (this.#white) {
-      this.#playShot('whoosh', { gain: 0.5, noiseBuffer: this.#white });
+      this.#playShot('whoosh', { gain: 0.42, noiseBuffer: this.#white });
     }
     this.#playShot('era-chime', {
-      gain: 0.55,
+      gain: 0.5,
       baseFrequencyHz: ERA_CHIME_FREQUENCY[snapshot.selectedYear],
+      whenSeconds: CUE_CHIME_DELAY_SECONDS,
     });
   }
 

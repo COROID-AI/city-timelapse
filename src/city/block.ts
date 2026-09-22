@@ -33,6 +33,12 @@
  * storefront row, the vehicle fleet, street hero props, and the crowd, with
  * stable namespaced ids, and `calloutProvider` resolves them to era-aware
  * copy from the content modules at click time.
+ *
+ * Draw-prep polish: after the initial frame sync the rigid skeleton (block
+ * root, street root, buildings container, storefront row groups) has its
+ * local matrices frozen, so per-frame matrix work is spent only on the
+ * animated instanced batches (fleet, crowd, weather) — instancing, batching,
+ * and authored detail stay untouched.
  */
 
 import * as THREE from 'three';
@@ -384,6 +390,24 @@ export function createCityBlock(options: CityBlockOptions): CityBlock {
   // whole block so no module waits for the first transition to sync.
   eraSystem.driver.sync();
 
+  // --- Static skeleton freeze (draw-prep polish) --------------------------
+  // Every transform frozen here is rigid: the block root, the street root
+  // translated onto the centerline frame, the buildings container, and each
+  // storefront row group are placed once and never move again (era morphs and
+  // ambience animate their *children*). Freezing their local matrices removes
+  // per-frame recomposition for the whole static city skeleton, keeping the
+  // frame budget on the animated instanced batches and the draw calls they
+  // issue. `updateMatrix()` primes `matrixWorldNeedsUpdate` so the first
+  // render computes the world matrices exactly once.
+  const freezeStaticGroup = (object: THREE.Object3D): void => {
+    object.updateMatrix();
+    object.matrixAutoUpdate = false;
+  };
+  freezeStaticGroup(root);
+  freezeStaticGroup(street.root);
+  freezeStaticGroup(buildings.root);
+  for (const row of rows) freezeStaticGroup(row.module.group);
+
   // --- Pickables ----------------------------------------------------------
   const pickables: PickableDescriptor[] = [];
   const pushBuilding = (pick: BuildingPickDescriptor): void => {
@@ -506,6 +530,9 @@ export function createCityBlock(options: CityBlockOptions): CityBlock {
               x: event.position[0],
               y: event.position[1],
               z: event.position[2],
+              // Traffic horns fire often; trimmed at the bridge so they
+              // punctuate the era mix instead of riding on top of it.
+              gain: 0.8,
             });
           }
         }),
