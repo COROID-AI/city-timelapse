@@ -346,7 +346,7 @@ export class VoicePool {
     }
     slot.filter.Q.setValueAtTime(spec.filterQ ?? 1, now);
     decayEnvelope(slot.input.gain, now, spec.gain, duration, spec.attackSeconds ?? 0.008);
-    this.#finish(oscillator, slot, now + duration);
+    this.#finish(oscillator, slot);
     oscillator.connect(slot.input);
     oscillator.start(now);
     oscillator.stop(now + duration + 0.02);
@@ -377,7 +377,7 @@ export class VoicePool {
     }
     slot.filter.Q.setValueAtTime(spec.filterQ ?? 1, now);
     decayEnvelope(slot.input.gain, now, spec.gain, duration, spec.attackSeconds ?? 0.01);
-    this.#finish(source, slot, now + duration);
+    this.#finish(source, slot);
     source.connect(slot.input);
     source.start(now);
     source.stop(now + duration + 0.02);
@@ -408,7 +408,15 @@ export class VoicePool {
     return null;
   }
 
-  #finish(source: AudioScheduledSourceLike, slot: VoiceSlot, endTime: number): void {
+  /**
+   * Wire the slot's release to the source's `onended`.
+   *
+   * Only the handler is installed here — the source is connected, started,
+   * and *then* scheduled to stop by the caller, because per the Web Audio
+   * spec `stop()` before `start()` throws `InvalidStateError`, which would
+   * abort the shot before it ever sounds and leak the busy pool slot.
+   */
+  #finish(source: AudioScheduledSourceLike, slot: VoiceSlot): void {
     source.onended = () => {
       source.disconnect();
       if (slot.busy) {
@@ -416,6 +424,5 @@ export class VoicePool {
         this.#live = Math.max(0, this.#live - 1);
       }
     };
-    source.stop(endTime);
   }
 }

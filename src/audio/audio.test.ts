@@ -127,6 +127,14 @@ class FakeAudioSource extends FakeAudioNode implements AudioScheduledSourceLike 
   }
 
   stop(when?: number): void {
+    // Real AudioScheduledSourceNode throws when stop() precedes start();
+    // mirror that invariant so unit tests catch ordering regressions.
+    if (!this.started) {
+      throw new DOMException(
+        "Failed to execute 'stop' on 'AudioScheduledSourceNode': cannot call stop without calling start first.",
+        'InvalidStateError',
+      );
+    }
     this.stoppedAt = when ?? this.ctx.currentTime;
   }
 }
