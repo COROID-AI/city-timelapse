@@ -1,0 +1,478 @@
+{
+  "generatedAt": "2026-09-21T13:35:05.042Z",
+  "qualityTier": "low",
+  "layerOrder": [
+    "layout",
+    "atmosphere",
+    "buildings",
+    "storefronts",
+    "props",
+    "vehicles",
+    "pedestrians"
+  ],
+  "mountedLayers": [
+    "layout",
+    "atmosphere",
+    "buildings",
+    "storefronts",
+    "props",
+    "vehicles",
+    "pedestrians"
+  ],
+  "pendingLayers": [],
+  "note": "Every composed content layer ships in this revision, so buildings and pedestrians carry real per-era statistics here alongside atmosphere, storefronts, props and vehicles.",
+  "timingsMs": {
+    "1945": 183,
+    "1965": 11751,
+    "1985": 69613,
+    "2005": 26620,
+    "2025": 37013
+  },
+  "censuses": [
+    {
+      "eraId": "1945",
+      "year": 1945,
+      "eraLabel": "Postwar Recovery",
+      "mountedLayers": [
+        "layout",
+        "atmosphere",
+        "buildings",
+        "storefronts",
+        "props",
+        "vehicles",
+        "pedestrians"
+      ],
+      "pendingLayers": [],
+      "categories": {
+        "atmosphere": {
+          "plumeEmitters": 3,
+          "plumeBaseline": 3,
+          "plumeSources": 0,
+          "plumeSourcesPublished": 0,
+          "ambientBirds": 14
+        },
+        "buildings": {
+          "buildingCount": 13,
+          "totalFloors": 43,
+          "maxHeight": 18,
+          "windowCount": 408,
+          "roofItemCount": 47,
+          "vacantLotCount": 3,
+          "constructionSiteCount": 0
+        },
+        "storefronts": {
+          "units": 68,
+          "meshes": 500,
+          "signs": 68,
+          "awnings": 136,
+          "advertising": 12,
+          "graffiti": 0,
+          "litMeshes": 0,
+          "textures": 84
+        },
+        "props": {
+          "propCount": 76,
+          "instanceCount": 416,
+          "drawCalls": 86,
+          "recipesUsed": 19,
+          "pointLights": 0,
+          "anchorsCovered": 76
+        },
+        "vehicles": {
+          "movingInstances": 14,
+          "parkedInstances": 37,
+          "movingVariants": 9,
+          "parkedVariants": 18,
+          "meshes": 490,
+          "markingMeshes": 1
+        },
+        "pedestrians": {
+          "pedestrianCount": 8,
+          "walkerCount": 7,
+          "waiterCount": 1,
+          "adultCount": 7,
+          "childCount": 1
+        }
+      },
+      "objectCounts": {
+        "atmosphere": 17,
+        "buildings": 110,
+        "storefronts": 570,
+        "props": 89,
+        "vehicles": 495,
+        "pedestrians": 10
+      },
+      "fingerprints": {
+        "atmosphere": "plumeEmitters=3,plumeBaseline=3,plumeSources=0,plumeSourcesPublished=0,ambientBirds=14",
+        "buildings": "buildingCount=13,totalFloors=43,maxHeight=18,windowCount=408,roofItemCount=47,vacantLotCount=3,constructionSiteCount=0",
+        "storefronts": "units=68,meshes=500,signs=68,awnings=136,advertising=12,graffiti=0,litMeshes=0,textures=84",
+        "props": "propCount=76,instanceCount=416,drawCalls=86,recipesUsed=19,pointLights=0,anchorsCovered=76",
+        "vehicles": "movingInstances=14,parkedInstances=37,movingVariants=9,parkedVariants=18,meshes=490,markingMeshes=1",
+        "pedestrians": "pedestrianCount=8,walkerCount=7,waiterCount=1,adultCount=7,childCount=1"
+      },
+      "combinedFingerprint": "plumeEmitters=3,plumeBaseline=3,plumeSources=0,plumeSourcesPublished=0,ambientBirds=14||buildingCount=13,totalFloors=43,maxHeight=18,windowCount=408,roofItemCount=47,vacantLotCount=3,constructionSiteCount=0||units=68,meshes=500,signs=68,awnings=136,advertising=12,graffiti=0,litMeshes=0,textures=84||propCount=76,instanceCount=416,drawCalls=86,recipesUsed=19,pointLights=0,anchorsCovered=76||movingInstances=14,parkedInstances=37,movingVariants=9,parkedVariants=18,meshes=490,markingMeshes=1||pedestrianCount=8,walkerCount=7,waiterCount=1,adultCount=7,childCount=1",
+      "bedId": "1945-home-front",
+      "inspection": {
+        "count": 512,
+        "anchorCount": 316,
+        "objectCount": 196
+      }
+    },
+    {
+      "eraId": "1965",
+      "year": 1965,
+      "eraLabel": "Mid-Century Boom",
+      "mountedLayers": [
+        "layout",
+        "atmosphere",
+        "buildings",
+        "storefronts",
+        "props",
+        "vehicles",
+        "pedestrians"
+      ],
+      "pendingLayers": [],
+      "categories": {
+        "atmosphere": {
+          "plumeEmitters": 16,
+          "plumeBaseline": 2,
+          "plumeSources": 14,
+          "plumeSourcesPublished": 14,
+          "ambientBirds": 9
+        },
+        "buildings": {
+          "buildingCount": 15,
+          "totalFloors": 116,
+          "maxHeight": 46.4,
+          "windowCount": 1392,
+          "roofItemCount": 24,
+          "vacantLotCount": 0,
+          "constructionSiteCount": 1
+        },
+        "storefronts": {
+          "units": 68,
+          "meshes": 506,
+          "signs": 68,
+          "awnings": 136,
+          "advertising": 14,
+          "graffiti": 16,
+          "litMeshes": 144,
+          "textures": 99
+        },
+        "props": {
+          "propCount": 76,
+          "instanceCount": 404,
+          "drawCalls": 91,
+          "recipesUsed": 20,
+          "pointLights": 0,
+          "anchorsCovered": 76
+        },
+        "vehicles": {
+          "movingInstances": 21,
+          "parkedInstances": 26,
+          "movingVariants": 15,
+          "parkedVariants": 15,
+          "meshes": 499,
+          "markingMeshes": 2
+        },
+        "pedestrians": {
+          "pedestrianCount": 16,
+          "walkerCount": 13,
+          "waiterCount": 3,
+          "adultCount": 14,
+          "childCount": 2
+        }
+      },
+      "objectCounts": {
+        "atmosphere": 16,
+        "buildings": 89,
+        "storefronts": 576,
+        "props": 181,
+        "vehicles": 504,
+        "pedestrians": 10
+      },
+      "fingerprints": {
+        "atmosphere": "plumeEmitters=16,plumeBaseline=2,plumeSources=14,plumeSourcesPublished=14,ambientBirds=9",
+        "buildings": "buildingCount=15,totalFloors=116,maxHeight=46.4,windowCount=1392,roofItemCount=24,vacantLotCount=0,constructionSiteCount=1",
+        "storefronts": "units=68,meshes=506,signs=68,awnings=136,advertising=14,graffiti=16,litMeshes=144,textures=99",
+        "props": "propCount=76,instanceCount=404,drawCalls=91,recipesUsed=20,pointLights=0,anchorsCovered=76",
+        "vehicles": "movingInstances=21,parkedInstances=26,movingVariants=15,parkedVariants=15,meshes=499,markingMeshes=2",
+        "pedestrians": "pedestrianCount=16,walkerCount=13,waiterCount=3,adultCount=14,childCount=2"
+      },
+      "combinedFingerprint": "plumeEmitters=16,plumeBaseline=2,plumeSources=14,plumeSourcesPublished=14,ambientBirds=9||buildingCount=15,totalFloors=116,maxHeight=46.4,windowCount=1392,roofItemCount=24,vacantLotCount=0,constructionSiteCount=1||units=68,meshes=506,signs=68,awnings=136,advertising=14,graffiti=16,litMeshes=144,textures=99||propCount=76,instanceCount=404,drawCalls=91,recipesUsed=20,pointLights=0,anchorsCovered=76||movingInstances=21,parkedInstances=26,movingVariants=15,parkedVariants=15,meshes=499,markingMeshes=2||pedestrianCount=16,walkerCount=13,waiterCount=3,adultCount=14,childCount=2",
+      "bedId": "1965-mid-century-boom",
+      "inspection": {
+        "count": 512,
+        "anchorCount": 316,
+        "objectCount": 196
+      }
+    },
+    {
+      "eraId": "1985",
+      "year": 1985,
+      "eraLabel": "Neon Downtown",
+      "mountedLayers": [
+        "layout",
+        "atmosphere",
+        "buildings",
+        "storefronts",
+        "props",
+        "vehicles",
+        "pedestrians"
+      ],
+      "pendingLayers": [],
+      "categories": {
+        "atmosphere": {
+          "plumeEmitters": 24,
+          "plumeBaseline": 3,
+          "plumeSources": 21,
+          "plumeSourcesPublished": 21,
+          "ambientBirds": 3
+        },
+        "buildings": {
+          "buildingCount": 12,
+          "totalFloors": 189,
+          "maxHeight": 72.6,
+          "windowCount": 2000,
+          "roofItemCount": 60,
+          "vacantLotCount": 2,
+          "constructionSiteCount": 2
+        },
+        "storefronts": {
+          "units": 68,
+          "meshes": 652,
+          "signs": 68,
+          "awnings": 136,
+          "advertising": 16,
+          "graffiti": 46,
+          "litMeshes": 282,
+          "textures": 131
+        },
+        "props": {
+          "propCount": 76,
+          "instanceCount": 420,
+          "drawCalls": 94,
+          "recipesUsed": 21,
+          "pointLights": 4,
+          "anchorsCovered": 76
+        },
+        "vehicles": {
+          "movingInstances": 33,
+          "parkedInstances": 31,
+          "movingVariants": 14,
+          "parkedVariants": 16,
+          "meshes": 502,
+          "markingMeshes": 3
+        },
+        "pedestrians": {
+          "pedestrianCount": 21,
+          "walkerCount": 17,
+          "waiterCount": 4,
+          "adultCount": 18,
+          "childCount": 3
+        }
+      },
+      "objectCounts": {
+        "atmosphere": 18,
+        "buildings": 134,
+        "storefronts": 722,
+        "props": 193,
+        "vehicles": 507,
+        "pedestrians": 10
+      },
+      "fingerprints": {
+        "atmosphere": "plumeEmitters=24,plumeBaseline=3,plumeSources=21,plumeSourcesPublished=21,ambientBirds=3",
+        "buildings": "buildingCount=12,totalFloors=189,maxHeight=72.6,windowCount=2000,roofItemCount=60,vacantLotCount=2,constructionSiteCount=2",
+        "storefronts": "units=68,meshes=652,signs=68,awnings=136,advertising=16,graffiti=46,litMeshes=282,textures=131",
+        "props": "propCount=76,instanceCount=420,drawCalls=94,recipesUsed=21,pointLights=4,anchorsCovered=76",
+        "vehicles": "movingInstances=33,parkedInstances=31,movingVariants=14,parkedVariants=16,meshes=502,markingMeshes=3",
+        "pedestrians": "pedestrianCount=21,walkerCount=17,waiterCount=4,adultCount=18,childCount=3"
+      },
+      "combinedFingerprint": "plumeEmitters=24,plumeBaseline=3,plumeSources=21,plumeSourcesPublished=21,ambientBirds=3||buildingCount=12,totalFloors=189,maxHeight=72.6,windowCount=2000,roofItemCount=60,vacantLotCount=2,constructionSiteCount=2||units=68,meshes=652,signs=68,awnings=136,advertising=16,graffiti=46,litMeshes=282,textures=131||propCount=76,instanceCount=420,drawCalls=94,recipesUsed=21,pointLights=4,anchorsCovered=76||movingInstances=33,parkedInstances=31,movingVariants=14,parkedVariants=16,meshes=502,markingMeshes=3||pedestrianCount=21,walkerCount=17,waiterCount=4,adultCount=18,childCount=3",
+      "bedId": "1985-neon-downtown",
+      "inspection": {
+        "count": 512,
+        "anchorCount": 316,
+        "objectCount": 196
+      }
+    },
+    {
+      "eraId": "2005",
+      "year": 2005,
+      "eraLabel": "Digital Turn",
+      "mountedLayers": [
+        "layout",
+        "atmosphere",
+        "buildings",
+        "storefronts",
+        "props",
+        "vehicles",
+        "pedestrians"
+      ],
+      "pendingLayers": [],
+      "categories": {
+        "atmosphere": {
+          "plumeEmitters": 26,
+          "plumeBaseline": 2,
+          "plumeSources": 24,
+          "plumeSourcesPublished": 24,
+          "ambientBirds": 11
+        },
+        "buildings": {
+          "buildingCount": 13,
+          "totalFloors": 105,
+          "maxHeight": 44.4,
+          "windowCount": 1052,
+          "roofItemCount": 22,
+          "vacantLotCount": 2,
+          "constructionSiteCount": 1
+        },
+        "storefronts": {
+          "units": 68,
+          "meshes": 573,
+          "signs": 68,
+          "awnings": 136,
+          "advertising": 15,
+          "graffiti": 3,
+          "litMeshes": 146,
+          "textures": 89
+        },
+        "props": {
+          "propCount": 76,
+          "instanceCount": 433,
+          "drawCalls": 104,
+          "recipesUsed": 21,
+          "pointLights": 0,
+          "anchorsCovered": 76
+        },
+        "vehicles": {
+          "movingInstances": 37,
+          "parkedInstances": 35,
+          "movingVariants": 20,
+          "parkedVariants": 19,
+          "meshes": 636,
+          "markingMeshes": 4
+        },
+        "pedestrians": {
+          "pedestrianCount": 23,
+          "walkerCount": 19,
+          "waiterCount": 4,
+          "adultCount": 18,
+          "childCount": 5
+        }
+      },
+      "objectCounts": {
+        "atmosphere": 17,
+        "buildings": 85,
+        "storefronts": 643,
+        "props": 206,
+        "vehicles": 641,
+        "pedestrians": 10
+      },
+      "fingerprints": {
+        "atmosphere": "plumeEmitters=26,plumeBaseline=2,plumeSources=24,plumeSourcesPublished=24,ambientBirds=11",
+        "buildings": "buildingCount=13,totalFloors=105,maxHeight=44.4,windowCount=1052,roofItemCount=22,vacantLotCount=2,constructionSiteCount=1",
+        "storefronts": "units=68,meshes=573,signs=68,awnings=136,advertising=15,graffiti=3,litMeshes=146,textures=89",
+        "props": "propCount=76,instanceCount=433,drawCalls=104,recipesUsed=21,pointLights=0,anchorsCovered=76",
+        "vehicles": "movingInstances=37,parkedInstances=35,movingVariants=20,parkedVariants=19,meshes=636,markingMeshes=4",
+        "pedestrians": "pedestrianCount=23,walkerCount=19,waiterCount=4,adultCount=18,childCount=5"
+      },
+      "combinedFingerprint": "plumeEmitters=26,plumeBaseline=2,plumeSources=24,plumeSourcesPublished=24,ambientBirds=11||buildingCount=13,totalFloors=105,maxHeight=44.4,windowCount=1052,roofItemCount=22,vacantLotCount=2,constructionSiteCount=1||units=68,meshes=573,signs=68,awnings=136,advertising=15,graffiti=3,litMeshes=146,textures=89||propCount=76,instanceCount=433,drawCalls=104,recipesUsed=21,pointLights=0,anchorsCovered=76||movingInstances=37,parkedInstances=35,movingVariants=20,parkedVariants=19,meshes=636,markingMeshes=4||pedestrianCount=23,walkerCount=19,waiterCount=4,adultCount=18,childCount=5",
+      "bedId": "2005-digital-turn",
+      "inspection": {
+        "count": 512,
+        "anchorCount": 316,
+        "objectCount": 196
+      }
+    },
+    {
+      "eraId": "2025",
+      "year": 2025,
+      "eraLabel": "Electric Present",
+      "mountedLayers": [
+        "layout",
+        "atmosphere",
+        "buildings",
+        "storefronts",
+        "props",
+        "vehicles",
+        "pedestrians"
+      ],
+      "pendingLayers": [],
+      "categories": {
+        "atmosphere": {
+          "plumeEmitters": 27,
+          "plumeBaseline": 3,
+          "plumeSources": 24,
+          "plumeSourcesPublished": 24,
+          "ambientBirds": 16
+        },
+        "buildings": {
+          "buildingCount": 12,
+          "totalFloors": 234,
+          "maxHeight": 93.80000000000001,
+          "windowCount": 2156,
+          "roofItemCount": 25,
+          "vacantLotCount": 1,
+          "constructionSiteCount": 3
+        },
+        "storefronts": {
+          "units": 68,
+          "meshes": 598,
+          "signs": 68,
+          "awnings": 136,
+          "advertising": 13,
+          "graffiti": 18,
+          "litMeshes": 143,
+          "textures": 104
+        },
+        "props": {
+          "propCount": 76,
+          "instanceCount": 469,
+          "drawCalls": 117,
+          "recipesUsed": 22,
+          "pointLights": 0,
+          "anchorsCovered": 76
+        },
+        "vehicles": {
+          "movingInstances": 24,
+          "parkedInstances": 41,
+          "movingVariants": 14,
+          "parkedVariants": 13,
+          "meshes": 461,
+          "markingMeshes": 6
+        },
+        "pedestrians": {
+          "pedestrianCount": 24,
+          "walkerCount": 20,
+          "waiterCount": 4,
+          "adultCount": 17,
+          "childCount": 7
+        }
+      },
+      "objectCounts": {
+        "atmosphere": 17,
+        "buildings": 99,
+        "storefronts": 668,
+        "props": 225,
+        "vehicles": 466,
+        "pedestrians": 10
+      },
+      "fingerprints": {
+        "atmosphere": "plumeEmitters=27,plumeBaseline=3,plumeSources=24,plumeSourcesPublished=24,ambientBirds=16",
+        "buildings": "buildingCount=12,totalFloors=234,maxHeight=93.80000000000001,windowCount=2156,roofItemCount=25,vacantLotCount=1,constructionSiteCount=3",
+        "storefronts": "units=68,meshes=598,signs=68,awnings=136,advertising=13,graffiti=18,litMeshes=143,textures=104",
+        "props": "propCount=76,instanceCount=469,drawCalls=117,recipesUsed=22,pointLights=0,anchorsCovered=76",
+        "vehicles": "movingInstances=24,parkedInstances=41,movingVariants=14,parkedVariants=13,meshes=461,markingMeshes=6",
+        "pedestrians": "pedestrianCount=24,walkerCount=20,waiterCount=4,adultCount=17,childCount=7"
+      },
+      "combinedFingerprint": "plumeEmitters=27,plumeBaseline=3,plumeSources=24,plumeSourcesPublished=24,ambientBirds=16||buildingCount=12,totalFloors=234,maxHeight=93.80000000000001,windowCount=2156,roofItemCount=25,vacantLotCount=1,constructionSiteCount=3||units=68,meshes=598,signs=68,awnings=136,advertising=13,graffiti=18,litMeshes=143,textures=104||propCount=76,instanceCount=469,drawCalls=117,recipesUsed=22,pointLights=0,anchorsCovered=76||movingInstances=24,parkedInstances=41,movingVariants=14,parkedVariants=13,meshes=461,markingMeshes=6||pedestrianCount=24,walkerCount=20,waiterCount=4,adultCount=17,childCount=7",
+      "bedId": "2025-electric-present",
+      "inspection": {
+        "count": 512,
+        "anchorCount": 316,
+        "objectCount": 196
+      }
+    }
+  ]
+}

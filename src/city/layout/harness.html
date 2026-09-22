@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>City block layout harness</title>
+    <!--
+      Self-contained verification page for the canonical block layout.
+
+      It imports only this layout module plus three.js and mounts the generated
+      block meshes directly: no render pipeline, no composed application, no
+      remote asset. The page publishes everything the browser suite asserts on
+      `window.__layoutHarness`, and echoes the same numbers into the document
+      body `data-layout-*` attributes for cheap selectors.
+    -->
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #10131a;
+        color: #e7e6e1;
+      }
+      body {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem 1.5rem;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #262c38;
+        background: #151a23;
+      }
+      h1 {
+        font-size: 0.95rem;
+        margin: 0;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      p {
+        margin: 0;
+        font-size: 0.8rem;
+        color: #b6bcc8;
+      }
+      button {
+        font: inherit;
+        font-size: 0.75rem;
+        padding: 0.35rem 0.6rem;
+        color: #e7e6e1;
+        background: #1e2531;
+        border: 1px solid #333c4b;
+        border-radius: 0.35rem;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #263040;
+      }
+      .viewport {
+        position: relative;
+        min-height: 0;
+      }
+      .viewport canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .viewport[data-webgl='false']::after {
+        content: 'WebGL unavailable: layout data is still published for assertions.';
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: #8b93a1;
+        font-size: 0.8rem;
+      }
+      .report {
+        margin: 0;
+        max-height: 30vh;
+        overflow: auto;
+        padding: 0.75rem 1rem;
+        border-top: 1px solid #262c38;
+        background: #151a23;
+        font-size: 0.72rem;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        color: #b6bcc8;
+      }
+    </style>
+  </head>
+  <body
+    data-layout-status="booting"
+    data-layout-webgl="unknown"
+    data-layout-seed=""
+    data-layout-hash=""
+    data-layout-triangles="0"
+    data-layout-budget="0"
+  >
+    <header>
+      <h1>City block layout harness</h1>
+      <p data-testid="layout-summary">Booting the canonical block…</p>
+      <button type="button" data-testid="layout-rebuild" data-seed="city-block">Rebuild canonical</button>
+      <button type="button" data-testid="layout-rebuild-alt" data-seed="city-block-alternate">
+        Rebuild alternate seed
+      </button>
+    </header>
+    <div class="viewport" id="viewport" data-testid="layout-viewport"></div>
+    <pre class="report" id="report" data-testid="layout-report"></pre>
+
+    <script type="module">
+      import * as THREE from 'three'
+      import { DEFAULT_LAYOUT_SEED, generateBlock, layoutHash, serializeLayout } from './index'
+      import { buildLayoutObject, disposeLayoutObject } from './buildMeshes'
+
+      const body = document.body
+      const viewport = document.getElementById('viewport')
+      const summaryNode = document.querySelector('[data-testid="layout-summary"]')
+      const reportNode = document.getElementById('report')
+
+      const state = {
+        seed: DEFAULT_LAYOUT_SEED,
+        layout: null,
+        built: null,
+        deterministic: false,
+        errors: [],
+        scene: null,
+        camera: null,
+        renderer: null,
+      }
+
+      function groupCounts(built) {
+        const counts = {}
+        for (const [group, entry] of Object.entries(built.summary.groups)) {
+          counts[group] = { meshCount: entry.meshCount, triangles: entry.triangles }
+        }
+        return counts
+      }
+
+      function buildScene() {
+        const scene = new THREE.Scene()
+        scene.background = new THREE.Color(0x0d1016)
+        scene.fog = new THREE.Fog(0x0d1016, 260, 520)
+
+        const camera = new THREE.PerspectiveCamera(42, 1, 0.5, 900)
+        camera.position.set(150, 118, 168)
+        camera.lookAt(0, 12, 0)
+
+        scene.add(new THREE.HemisphereLight(0xdfe7ff, 0x2b2b2b, 1.1))
+        const sun = new THREE.DirectionalLight(0xfff2dc, 1.6)
+        sun.position.set(-120, 180, 90)
+        scene.add(sun)
+        const fill = new THREE.DirectionalLight(0x9fb6ff, 0.45)
+        fill.position.set(140, 90, -140)
+        scene.add(fill)
+
+        return { scene, camera }
+      }
+
+      function attachRenderer() {
+        try {
+          const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+          viewport.appendChild(renderer.domElement)
+          state.renderer = renderer
+          state.webgl = true
+          return true
+        } catch (error) {
+          state.webgl = false
+          state.errors.push(`webgl: ${error && error.message ? error.message : String(error)}`)
+          return false
+        }
+      }
+
+      function resize() {
+        const width = Math.max(viewport.clientWidth, 1)
+        const height = Math.max(viewport.clientHeight, 1)
+        if (state.renderer) {
+          state.renderer.setSize(width, height, false)
+        }
+        if (state.camera) {
+          state.camera.aspect = width / height
+          state.camera.updateProjectionMatrix()
+        }
+      }
+
+      function mount(seed) {
+        if (state.built && state.scene) {
+          state.scene.remove(state.built.root)
+          disposeLayoutObject(state.built)
+        }
+
+        const layout = generateBlock(seed)
+        const hash = layoutHash(layout)
+        const replay = generateBlock(seed)
+        state.deterministic = serializeLayout(replay) === serializeLayout(layout) && layoutHash(replay) === hash
+        state.seed = seed
+        state.layout = layout
+
+        const built = buildLayoutObject(layout)
+        state.built = built
+        if (state.scene) {
+          state.scene.add(built.root)
+        }
+
+        const stats = layout.stats
+        body.dataset['layoutStatus'] = 'ready'
+        body.dataset['layoutSeed'] = String(seed)
+        body.dataset['layoutHash'] = hash
+        body.dataset['layoutTriangles'] = String(stats.triangleCount)
+        body.dataset['layoutBudget'] = String(stats.triangleBudget)
+
+        if (summaryNode) {
+          summaryNode.textContent = [
+            `seed "${seed}"`,
+            `${stats.meshCount} meshes`,
+            `${stats.triangleCount} triangles / ${stats.triangleBudget} budget`,
+            `${stats.parcelCount} parcels`,
+            `${stats.storefrontBayCount} storefront bays`,
+            `${stats.vehicleSplineCount + stats.pedestrianSplineCount} splines`,
+            `${stats.crossingCount} crossings`,
+            `${stats.anchorCount} anchors`,
+            `deterministic ${state.deterministic ? 'yes' : 'NO'}`,
+          ].join(' \u00b7 ')
+        }
+
+        if (reportNode) {
+          const groupLines = Object.entries(groupCounts(built)).map(
+            ([group, entry]) => `  ${group.padEnd(16)} ${String(entry.meshCount).padStart(3)} meshes ${String(entry.triangles).padStart(5)} tris`,
+          )
+          const anchorLines = Object.entries(stats.anchorsByKind).map(
+            ([kind, count]) => `  ${kind.padEnd(18)} ${String(count).padStart(3)}`,
+          )
+          reportNode.textContent = [
+            `layout version ${layout.version}  seed ${layout.seed}  tier ${layout.tier}  detail ${layout.detail}`,
+            `hash ${hash}`,
+            `coordinate system: 1 unit = ${layout.coordinateSystem.metresPerUnit} m, up ${layout.coordinateSystem.up}, north ${layout.coordinateSystem.north}`,
+            'mesh groups:',
+            ...groupLines,
+            'anchors by kind:',
+            ...anchorLines,
+            'splines:',
+            ...layout.vehicleSplines
+              .concat(layout.pedestrianSplines)
+              .map(
+                (spline) =>
+                  `  ${spline.name.padEnd(38)} ${String(spline.sampleCount).padStart(4)} samples ${spline.length.toFixed(1)} m`,
+              ),
+            `utility lines: ${layout.utilityLines.length}`,
+          ].join('\n')
+        }
+
+        return {
+          seed,
+          hash,
+          deterministic: state.deterministic,
+          triangleCount: stats.triangleCount,
+          triangleBudget: stats.triangleBudget,
+          meshCount: stats.meshCount,
+          groups: groupCounts(built),
+          meshes: built.summary.names,
+        }
+      }
+
+      const { scene, camera } = buildScene()
+      state.scene = scene
+      state.camera = camera
+      attachRenderer()
+      body.dataset['layoutWebgl'] = String(state.webgl)
+      if (viewport) {
+        viewport.dataset['webgl'] = String(state.webgl)
+      }
+      resize()
+      const first = mount(DEFAULT_LAYOUT_SEED)
+
+      if (state.renderer) {
+        state.renderer.setAnimationLoop(() => {
+          if (state.built) {
+            state.built.root.rotation.y += 0.0012
+          }
+          state.renderer.render(scene, camera)
+        })
+      }
+
+      window.addEventListener('resize', resize)
+      for (const button of document.querySelectorAll('[data-testid^="layout-rebuild"]')) {
+        button.addEventListener('click', () => {
+          mount(button.dataset['seed'] || DEFAULT_LAYOUT_SEED)
+        })
+      }
+
+      window.__layoutHarness = {
+        first,
+        get webgl() {
+          return state.webgl
+        },
+        get errors() {
+          return [...state.errors]
+        },
+        get snapshot() {
+          const layout = state.layout
+          if (!layout || !state.built) {
+            return null
+          }
+          return {
+            seed: state.seed,
+            hash: layoutHash(layout),
+            deterministic: state.deterministic,
+            version: layout.version,
+            tier: layout.tier,
+            detail: layout.detail,
+            triangleCount: layout.stats.triangleCount,
+            triangleBudget: layout.stats.triangleBudget,
+            meshCount: layout.stats.meshCount,
+            groups: groupCounts(state.built),
+            meshes: state.built.summary.names,
+            parcels: layout.parcels.map((parcel) => ({
+              id: parcel.id,
+              facing: [...parcel.facing],
+              corner: parcel.corner,
+              bays: parcel.bays.length,
+              footprintArea: parcel.footprint.area,
+              floors: parcel.capacity.floors,
+              maxHeight: parcel.capacity.maxHeight,
+            })),
+            anchors: {
+              total: layout.anchors.length,
+              byKind: layout.stats.anchorsByKind,
+              names: layout.anchors.map((anchor) => anchor.name),
+            },
+            splines: layout.vehicleSplines.concat(layout.pedestrianSplines).map((spline) => ({
+              name: spline.name,
+              kind: spline.kind,
+              role: spline.role,
+              closed: spline.closed,
+              sampleCount: spline.sampleCount,
+              sampleSpacing: spline.sampleSpacing,
+              length: spline.length,
+            })),
+            crossings: layout.crossings.map((crossing) => ({
+              name: crossing.name,
+              spline: crossing.spline,
+              waitingPoints: crossing.waitingPoints.length,
+              crossingPoints: crossing.crossingPoints.length,
+            })),
+            utilityLines: layout.utilityLines.length,
+          }
+        },
+        rebuild(seed) {
+          return mount(seed || DEFAULT_LAYOUT_SEED)
+        },
+      }
+    </script>
+  </body>
+</html>

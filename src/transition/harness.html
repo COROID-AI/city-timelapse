@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Staged era transition director harness</title>
+    <!--
+      Self-contained verification page for the transition director.
+
+      It imports the director, its schedule and the two contracts the director
+      itself consumes — the era registry (`../../era`) and the era store
+      (`../../state/eraStore`) — and nothing else: no composed application, no
+      scene pipeline, no audio engine, no React. The layers are the schedule's
+      stub adapters, the camera and audio are recording stubs, the clock is the
+      director's own manual clock (driven here by animation frames), and the
+      progress readout is a stub indicator driven by the director's snapshot.
+
+      Everything the browser suite asserts is published on
+      `window.__transitionHarness` and mirrored into `data-transition-*`
+      attributes on the document body. One stub layer (`buildings`) deliberately
+      nudges the camera on every application, so the suite can prove the
+      director's camera continuity rather than merely assert it.
+    -->
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 1rem 1.2rem 2rem;
+        background: #0f141b;
+        color: #d7dce4;
+      }
+      h1 {
+        font-size: 1rem;
+        margin: 0 0 0.4rem;
+        letter-spacing: 0.02em;
+      }
+      h2 {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: #8b93a1;
+        margin: 0 0 0.5rem;
+      }
+      header p {
+        margin: 0 0 0.7rem;
+        color: #9aa3b2;
+        font-size: 0.75rem;
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin-bottom: 0.9rem;
+      }
+      button {
+        font: inherit;
+        font-size: 0.72rem;
+        padding: 0.32rem 0.6rem;
+        border-radius: 0.35rem;
+        border: 1px solid #2b3442;
+        background: #171e28;
+        color: #d7dce4;
+        cursor: pointer;
+      }
+      button:hover {
+        border-color: #3d4a5c;
+      }
+      button[aria-pressed='true'] {
+        background: #24384f;
+        border-color: #4a7fb0;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 0.9rem;
+      }
+      section {
+        border: 1px solid #212936;
+        border-radius: 0.5rem;
+        padding: 0.8rem 0.9rem;
+        background: #131922;
+      }
+      .bar {
+        position: relative;
+        height: 0.7rem;
+        border-radius: 0.35rem;
+        background: #1d2531;
+        overflow: hidden;
+      }
+      .bar > span {
+        display: block;
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #3f7fbf, #7fc4ff);
+        transition: width 90ms linear;
+      }
+      #indicator p {
+        margin: 0.45rem 0 0;
+        font-size: 0.72rem;
+        color: #9aa3b2;
+      }
+      #indicator[data-state='complete'] .bar > span {
+        background: linear-gradient(90deg, #3f8f63, #7fe0a8);
+      }
+      ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      li {
+        display: grid;
+        grid-template-columns: 9.5rem 1fr 3.2rem;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.3rem;
+        font-size: 0.7rem;
+        color: #aeb6c4;
+      }
+      li[data-applied='true'] {
+        color: #d7dce4;
+      }
+      li .bar {
+        height: 0.45rem;
+      }
+      pre {
+        margin: 0;
+        font-size: 0.68rem;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        color: #b6bcc8;
+      }
+      .report {
+        margin-top: 0.9rem;
+        max-height: 22vh;
+        overflow: auto;
+        border: 1px solid #212936;
+        border-radius: 0.5rem;
+        padding: 0.7rem 0.9rem;
+        background: #141a22;
+      }
+    </style>
+  </head>
+  <body
+    data-transition-status="booting"
+    data-transition-active="false"
+    data-transition-from=""
+    data-transition-to=""
+    data-transition-progress=""
+    data-transition-frames="0"
+    data-transition-reduced="false"
+    data-transition-crossfades="0"
+    data-transition-camera-restorations="0"
+    data-transition-camera-unchanged="true"
+  >
+    <header>
+      <h1>Staged era transition director harness</h1>
+      <p data-testid="transition-summary">Booting the transition director…</p>
+      <div class="controls" data-testid="transition-controls">
+        <span class="controls" id="era-controls"></span>
+        <span class="controls">
+          <button type="button" data-testid="toggle-play" id="toggle-play">Play</button>
+          <button type="button" data-testid="step" id="step">Step 0.5 s</button>
+          <button type="button" data-testid="toggle-reduced" id="toggle-reduced" aria-pressed="false">
+            Reduced motion: off
+          </button>
+        </span>
+      </div>
+    </header>
+
+    <div class="grid">
+      <section>
+        <h2>Stub progress indicator</h2>
+        <div
+          id="indicator"
+          data-testid="stub-progress-indicator"
+          data-state="idle"
+          data-progress=""
+          data-last-progress=""
+          data-completions="0"
+        >
+          <div class="bar"><span id="indicator-fill"></span></div>
+          <p id="indicator-text">idle</p>
+        </div>
+      </section>
+
+      <section>
+        <h2>Camera (stub port)</h2>
+        <pre id="camera-readout" data-testid="camera-readout"></pre>
+      </section>
+
+      <section>
+        <h2>Staged layers (stub adapters)</h2>
+        <ul id="stub-layers" data-testid="stub-layers"></ul>
+      </section>
+    </div>
+
+    <pre class="report" id="report" data-testid="transition-report"></pre>
+
+    <script type="module">
+      import { ERA_IDS, getEra } from '../era'
+      import { createEraStore } from '../state/eraStore'
+      import { createManualClock, createTransitionDirector } from './director'
+      import { DEFAULT_TRANSITION_SCHEDULE, resolveSchedule } from './schedule'
+      import { SOUNDSCAPE_STAGE_ID, STAGE_LABELS, TRANSITION_STAGE_ORDER } from './types'
+
+      const body = document.body
+      const indicator = document.getElementById('indicator')
+      const indicatorFill = document.getElementById('indicator-fill')
+      const indicatorText = document.getElementById('indicator-text')
+      const layersNode = document.getElementById('stub-layers')
+      const cameraNode = document.getElementById('camera-readout')
+      const reportNode = document.getElementById('report')
+      const summaryNode = document.querySelector('[data-testid="transition-summary"]')
+
+      const errors = []
+      window.addEventListener('error', (event) => {
+        errors.push(String(event.message ?? event.error ?? 'unknown error'))
+      })
+      window.addEventListener('unhandledrejection', (event) => {
+        errors.push(`unhandled rejection: ${String(event.reason)}`)
+      })
+
+      /* ------------------------------------------------------------------ *
+       * Stub ports: the director's own contract, no other module involved.
+       * ------------------------------------------------------------------ */
+
+      function cloneCamera(state) {
+        return {
+          mode: state.mode,
+          target: [state.target[0], state.target[1], state.target[2]],
+          orbit: { azimuth: state.orbit.azimuth, polar: state.orbit.polar, radius: state.orbit.radius },
+          street: {
+            position: [state.street.position[0], state.street.position[1], state.street.position[2]],
+            heading: state.street.heading,
+            pitch: state.street.pitch,
+          },
+          fov: state.fov,
+          near: state.near,
+          far: state.far,
+        }
+      }
+
+      /** The viewer's framing, held outside the director so it can be trampled. */
+      let liveCamera = {
+        mode: 'orbit',
+        target: [0, 4, 0],
+        orbit: { azimuth: Math.PI * 0.25, polar: 1.05, radius: 46 },
+        street: { position: [0, 1.75, 26], heading: 0, pitch: 0 },
+        fov: 46,
+        near: 0.1,
+        far: 400,
+      }
+
+      const cameraPort = {
+        captures: 0,
+        restores: 0,
+        mutations: 0,
+        capture() {
+          cameraPort.captures += 1
+          return cloneCamera(liveCamera)
+        },
+        restore(state) {
+          cameraPort.restores += 1
+          liveCamera = cloneCamera(state)
+        },
+        nudge(amount = 0.04) {
+          cameraPort.mutations += 1
+          liveCamera = {
+            ...liveCamera,
+            orbit: { ...liveCamera.orbit, azimuth: liveCamera.orbit.azimuth + amount },
+          }
+        },
+      }
+
+      const audioPort = {
+        crossfades: [],
+        cues: [],
+        crossfadeToSoundscape(request) {
+          audioPort.crossfades.push({
+            eraId: request.eraId,
+            bedId: request.soundscape.descriptor,
+            seconds: request.seconds,
+          })
+        },
+        playCue(request) {
+          audioPort.cues.push({
+            eraId: request.eraId,
+            cueId: request.cue.id,
+            gain: request.gain,
+            delaySeconds: request.delaySeconds,
+          })
+        },
+      }
+
+      const motionPort = {
+        reduced: false,
+        isReducedMotion() {
+          return motionPort.reduced
+        },
+        set(value) {
+          motionPort.reduced = value === true
+        },
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Stub layer adapters, one per scheduled stage.
+       * ------------------------------------------------------------------ */
+
+      const schedule = resolveSchedule(DEFAULT_TRANSITION_SCHEDULE)
+      const stubLayers = new Map()
+      const applicationOrder = []
+      let appliedApplications = 0
+
+      function createStubLayer(id) {
+        const record = { id, eraId: null, progress: 0, applications: [], firstIndex: -1 }
+        stubLayers.set(id, record)
+
+        function recordApplication(kind, from, to, t) {
+          appliedApplications += 1
+          if (record.firstIndex === -1) {
+            record.firstIndex = appliedApplications
+            applicationOrder.push(id)
+          }
+          record.applications.push({ kind, from, to, t })
+          record.eraId = kind === 'era' ? to : t >= 1 ? to : null
+          record.progress = t
+          // One deliberate misbehaviour: this stage keeps nudging the camera
+          // while the director applies its frame, so the browser proof can show
+          // that the viewer's framing survives anyway.
+          if (id === 'buildings') {
+            cameraPort.nudge()
+          }
+        }
+
+        return {
+          id,
+          label: STAGE_LABELS[id],
+          applyEra(request) {
+            recordApplication('era', request.eraId, request.eraId, 1)
+            return { eraId: request.eraId }
+          },
+          applyEraTransition(request) {
+            recordApplication('transition', request.from, request.to, request.t)
+            return { eraId: request.t >= 1 ? request.to : null }
+          },
+        }
+      }
+
+      const layers = TRANSITION_STAGE_ORDER.map((id) => createStubLayer(id))
+
+      /* ------------------------------------------------------------------ *
+       * Director, clock and the animation-frame driver.
+       * ------------------------------------------------------------------ */
+
+      const store = createEraStore('1945')
+      const clock = createManualClock(0)
+      const director = createTransitionDirector({
+        store,
+        layers,
+        audio: audioPort,
+        camera: cameraPort,
+        motion: motionPort,
+        clock,
+        crossfadeSeconds: 1.2,
+        cueLimit: 3,
+      })
+
+      const trace = []
+      director.subscribe((snapshot) => {
+        trace.push({
+          event: snapshot.lastEvent,
+          progress: snapshot.progress,
+          active: snapshot.active,
+          frames: snapshot.frames,
+          retargets: snapshot.retargetCount,
+        })
+      })
+
+      let playing = false
+      let frameHandle = 0
+      let lastFrameMs = 0
+
+      function animationFrame(nowMs) {
+        if (!playing) {
+          return
+        }
+        const delta = lastFrameMs === 0 ? 0 : Math.min(0.25, (nowMs - lastFrameMs) / 1000)
+        lastFrameMs = nowMs
+        clock.advance(delta)
+        director.tick()
+        render()
+        if (!director.active) {
+          // The switch is done: stop the live loop so the trace and the indicator
+          // keep the finished switch's values.
+          pause()
+          return
+        }
+        frameHandle = requestAnimationFrame(animationFrame)
+      }
+
+      function play() {
+        if (playing) {
+          return
+        }
+        playing = true
+        lastFrameMs = 0
+        frameHandle = requestAnimationFrame(animationFrame)
+        render()
+      }
+
+      function pause() {
+        playing = false
+        if (frameHandle !== 0) {
+          cancelAnimationFrame(frameHandle)
+          frameHandle = 0
+        }
+        render()
+      }
+
+      function step(seconds) {
+        clock.advance(Number(seconds) || 0)
+        director.tick()
+        render()
+      }
+
+      function setReducedMotion(value) {
+        motionPort.set(value)
+        render()
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Stub progress indicator and readouts.
+       * ------------------------------------------------------------------ */
+
+      let completions = 0
+      let lastIndicatorState = 'idle'
+      let countedCompletion = null
+
+      function updateIndicator(snapshot) {
+        if (snapshot.active) {
+          lastIndicatorState = 'running'
+          indicator.dataset.state = 'running'
+          indicator.dataset.progress = snapshot.progress.toFixed(4)
+          indicator.dataset.lastProgress = snapshot.progress.toFixed(4)
+          indicatorFill.style.width = `${(snapshot.progress * 100).toFixed(1)}%`
+          indicatorText.textContent = `${snapshot.lastEvent} · ${(snapshot.progress * 100).toFixed(1)}%`
+          return
+        }
+        if (snapshot.lastEvent === 'complete' && snapshot.lastCompletion !== null) {
+          if (snapshot.lastCompletion !== countedCompletion) {
+            countedCompletion = snapshot.lastCompletion
+            completions += 1
+            indicator.dataset.completions = String(completions)
+          }
+          indicator.dataset.state = 'complete'
+          // The indicator is cleared the moment the completion signal arrives.
+          indicator.dataset.progress = ''
+          indicator.dataset.lastProgress = '1'
+          indicatorFill.style.width = '100%'
+          indicatorText.textContent = `complete · cleared (${snapshot.lastCompletion.fromEra} → ${snapshot.lastCompletion.toEra})`
+          return
+        }
+        if (lastIndicatorState === 'idle') {
+          indicator.dataset.state = 'idle'
+          indicator.dataset.progress = ''
+          indicatorFill.style.width = '0%'
+          indicatorText.textContent = 'idle'
+        }
+      }
+
+      function renderLayers(snapshot) {
+        const frameById = new Map(snapshot.layerFrames.map((frame) => [frame.id, frame]))
+        for (const record of stubLayers.values()) {
+          let row = layersNode.querySelector(`[data-stage="${record.id}"]`)
+          if (row === null) {
+            row = document.createElement('li')
+            row.dataset['stage'] = record.id
+            row.setAttribute('data-testid', 'stub-layer')
+            row.setAttribute('data-stage', record.id)
+            row.innerHTML = `<span>${record.id}</span><div class="bar"><span></span></div><span class="value"></span>`
+            layersNode.append(row)
+          }
+          const frame = frameById.get(record.id)
+          const progress = frame === undefined ? 0 : frame.progress
+          row.dataset['applied'] = String(record.applications.length > 0)
+          row.dataset['progress'] = progress.toFixed(4)
+          row.dataset['era'] = record.eraId ?? ''
+          row.querySelector('.bar > span').style.width = `${(progress * 100).toFixed(1)}%`
+          row.querySelector('.value').textContent = record.eraId ?? `${Math.round(progress * 100)}%`
+        }
+      }
+
+      function render() {
+        const snapshot = director.getSnapshot()
+        const storeState = store.getState()
+
+        updateIndicator(snapshot)
+        renderLayers(snapshot)
+
+        body.dataset['transitionStatus'] = 'ready'
+        body.dataset['transitionActive'] = String(snapshot.active)
+        body.dataset['transitionFrom'] = snapshot.fromEra
+        body.dataset['transitionTo'] = snapshot.toEra
+        body.dataset['transitionProgress'] = snapshot.active ? snapshot.progress.toFixed(4) : ''
+        body.dataset['transitionFrames'] = String(snapshot.frames)
+        body.dataset['transitionReduced'] = String(snapshot.reducedMotion)
+        body.dataset['transitionCrossfades'] = String(snapshot.audio.crossfades)
+        body.dataset['transitionCameraRestorations'] = String(snapshot.camera.restorations)
+        body.dataset['transitionCameraUnchanged'] = String(snapshot.camera.unchanged)
+
+        summaryNode.textContent = snapshot.active
+          ? `${snapshot.fromEra} → ${snapshot.toEra} · ${(snapshot.progress * 100).toFixed(1)}% (stages started ${snapshot.layerFrames.filter((f) => f.started).length}/${snapshot.layerFrames.length})`
+          : `settled on ${storeState.selectedEra} · ${getEra(storeState.selectedEra).label}`
+
+        cameraNode.textContent = JSON.stringify(cloneCamera(liveCamera), null, 1)
+
+        reportNode.textContent = [
+          `schedule: ${schedule.entries
+            .map((entry) => `${entry.id}@${entry.startSeconds}s+${entry.durationSeconds}s`)
+            .join('  ')}`,
+          `duration: ${schedule.durationSeconds}s`,
+          `store: from=${storeState.fromEra} to=${storeState.toEra} progress=${storeState.progress.toFixed(4)}`,
+          `director: active=${snapshot.active} progress=${snapshot.progress.toFixed(4)} frames=${snapshot.frames} retargets=${snapshot.retargetCount}`,
+          `audio: crossfades=${audioPort.crossfades.length} cues=${audioPort.cues.length} last=${snapshot.audio.lastCrossfadeEraId ?? '-'}`,
+          `camera: captures=${cameraPort.captures} restores=${cameraPort.restores} mutations=${cameraPort.mutations} unchanged=${snapshot.camera.unchanged}`,
+          `layers: ${[...stubLayers.values()]
+            .map((record) => `${record.id}:${record.eraId ?? '-'}#${record.applications.length}`)
+            .join(' ')}`,
+        ].join('\n')
+      }
+
+      /* ------------------------------------------------------------------ *
+       * Controls and the published harness API.
+       * ------------------------------------------------------------------ */
+
+      const eraControls = document.getElementById('era-controls')
+      for (const eraId of ERA_IDS) {
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.setAttribute('data-testid', 'era-stop')
+        button.setAttribute('data-era-id', eraId)
+        button.textContent = String(getEra(eraId).year)
+        button.addEventListener('click', () => {
+          store.getState().selectEra(eraId)
+          render()
+        })
+        eraControls.append(button)
+      }
+
+      const playButton = document.getElementById('toggle-play')
+      playButton.addEventListener('click', () => {
+        if (playing) {
+          pause()
+        } else {
+          play()
+        }
+        playButton.setAttribute('aria-pressed', String(playing))
+        playButton.textContent = playing ? 'Pause' : 'Play'
+      })
+
+      document.getElementById('step').addEventListener('click', () => {
+        step(0.5)
+      })
+
+      const reducedButton = document.getElementById('toggle-reduced')
+      reducedButton.addEventListener('click', () => {
+        setReducedMotion(!motionPort.reduced)
+        reducedButton.setAttribute('aria-pressed', String(motionPort.reduced))
+        reducedButton.textContent = `Reduced motion: ${motionPort.reduced ? 'on' : 'off'}`
+      })
+
+      function snapshotForAssertions() {
+        const snapshot = director.getSnapshot()
+        return {
+          active: snapshot.active,
+          fromEra: snapshot.fromEra,
+          toEra: snapshot.toEra,
+          selectedEra: snapshot.selectedEra,
+          progress: snapshot.progress,
+          storeProgress: snapshot.storeProgress,
+          transitioning: snapshot.transitioning,
+          elapsedSeconds: snapshot.elapsedSeconds,
+          durationSeconds: snapshot.durationSeconds,
+          reducedMotion: snapshot.reducedMotion,
+          frames: snapshot.frames,
+          retargetCount: snapshot.retargetCount,
+          stageOrder: [...snapshot.stageOrder],
+          registeredLayers: [...snapshot.registeredLayers],
+          pendingStages: [...snapshot.pendingStages],
+          layerFrames: snapshot.layerFrames.map((frame) => ({
+            id: frame.id,
+            progress: frame.progress,
+            started: frame.started,
+            complete: frame.complete,
+          })),
+          layerStates: snapshot.layerStates.map((state) => ({
+            id: state.id,
+            kind: state.kind,
+            from: state.from,
+            to: state.to,
+            t: state.t,
+            eraId: state.eraId,
+          })),
+          camera: {
+            tracked: snapshot.camera.tracked,
+            unchanged: snapshot.camera.unchanged,
+            restorations: snapshot.camera.restorations,
+          },
+          audio: {
+            crossfades: snapshot.audio.crossfades,
+            lastCrossfadeEraId: snapshot.audio.lastCrossfadeEraId,
+            cueIds: [...snapshot.audio.cueIds],
+          },
+          lastCompletion: snapshot.lastCompletion,
+          lastEvent: snapshot.lastEvent,
+        }
+      }
+
+      window.__transitionHarness = {
+        errors,
+        schedule: schedule.entries.map((entry) => ({ ...entry })),
+        durationSeconds: schedule.durationSeconds,
+        soundscapeStageId: SOUNDSCAPE_STAGE_ID,
+        snapshot: snapshotForAssertions,
+        setEra(eraId) {
+          store.getState().selectEra(eraId)
+          render()
+          return snapshotForAssertions()
+        },
+        step,
+        play,
+        pause,
+        setReducedMotion,
+        isPlaying: () => playing,
+        camera: () => cloneCamera(liveCamera),
+        cameraCounters: () => ({
+          captures: cameraPort.captures,
+          restores: cameraPort.restores,
+          mutations: cameraPort.mutations,
+        }),
+        moveCamera(amount = 0.4) {
+          cameraPort.nudge(amount)
+          render()
+          return cloneCamera(liveCamera)
+        },
+        layers: () =>
+          [...stubLayers.values()].map((record) => ({
+            id: record.id,
+            eraId: record.eraId,
+            progress: record.progress,
+            applications: record.applications.length,
+          })),
+        firstFrameOrder: () => [...applicationOrder],
+        audio: () => ({
+          crossfades: audioPort.crossfades.map((entry) => ({ ...entry })),
+          cues: audioPort.cues.map((entry) => ({ ...entry })),
+        }),
+        trace: () => trace.map((entry) => ({ ...entry })),
+        clearTrace() {
+          trace.length = 0
+        },
+        indicator: () => ({
+          state: indicator.dataset.state,
+          progress: indicator.dataset.progress,
+          lastProgress: indicator.dataset.lastProgress,
+          completions: Number(indicator.dataset.completions ?? '0'),
+        }),
+        store: () => {
+          const state = store.getState()
+          return {
+            selectedEra: state.selectedEra,
+            fromEra: state.fromEra,
+            toEra: state.toEra,
+            progress: state.progress,
+          }
+        },
+        report: () => reportNode.textContent,
+      }
+
+      render()
+    </script>
+  </body>
+</html>

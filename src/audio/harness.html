@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <title>Audio engine harness · City Time Period Timelapse</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0d1014;
+        --panel: #171c23;
+        --panel-line: #2a323d;
+        --text: #eef3fa;
+        --muted: #aebccb;
+        --accent: #7ccbff;
+        --accent-strong: #7ccbff;
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 2rem clamp(1rem, 4vw, 3rem) 4rem;
+        background: radial-gradient(circle at 15% 0%, #1c2531 0%, var(--bg) 55%);
+        color: var(--text);
+        line-height: 1.5;
+      }
+
+      header {
+        max-width: 62rem;
+        margin: 0 auto 1.5rem;
+      }
+
+      h1 {
+        margin: 0 0 0.35rem;
+        font-size: clamp(1.4rem, 2.6vw, 2rem);
+        letter-spacing: -0.01em;
+      }
+
+      header p {
+        margin: 0;
+        color: var(--muted);
+        max-width: 52rem;
+      }
+
+      main {
+        max-width: 62rem;
+        margin: 0 auto;
+        display: grid;
+        gap: 1rem;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--panel-line);
+        border-radius: 0.85rem;
+        padding: 1rem 1.15rem 1.15rem;
+      }
+
+      .panel h2 {
+        margin: 0 0 0.75rem;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--muted);
+      }
+
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem 1rem;
+        align-items: center;
+      }
+
+      button {
+        font: inherit;
+        padding: 0.5rem 0.95rem;
+        border-radius: 0.5rem;
+        border: 1px solid #9ad6ff;
+        background: #7ccbff;
+        color: #06131d;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      button.secondary {
+        background: #2b3641;
+        border-color: #46525f;
+        color: var(--text);
+      }
+
+      button:hover {
+        filter: brightness(1.08);
+      }
+
+      select {
+        font: inherit;
+        padding: 0.45rem 0.6rem;
+        border-radius: 0.5rem;
+        border: 1px solid var(--panel-line);
+        background: #10151b;
+        color: var(--text);
+      }
+
+      .slider {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .slider input[type='range'] {
+        width: 8.5rem;
+        accent-color: var(--accent);
+      }
+
+      .slider output {
+        color: var(--text);
+        font-variant-numeric: tabular-nums;
+        min-width: 3.5rem;
+      }
+
+      .check {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .status {
+        margin: 0.85rem 0 0;
+        font-size: 0.95rem;
+        color: var(--text);
+      }
+
+      .hint {
+        margin: 0.7rem 0 0;
+        font-size: 0.82rem;
+        color: var(--muted);
+        min-height: 1.2em;
+      }
+
+      .state {
+        display: grid;
+        grid-template-columns: minmax(6rem, auto) 1fr;
+        gap: 0.25rem 1rem;
+        margin: 0;
+        font-size: 0.9rem;
+      }
+
+      .state dt {
+        color: var(--muted);
+      }
+
+      .state dd {
+        margin: 0;
+        font-variant-numeric: tabular-nums;
+      }
+
+      pre {
+        margin: 1rem 0 0;
+        padding: 0.85rem;
+        background: #0b0f13;
+        border: 1px solid var(--panel-line);
+        border-radius: 0.6rem;
+        font-size: 0.78rem;
+        max-height: 16rem;
+        overflow: auto;
+      }
+
+      code {
+        color: var(--accent);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Audio engine harness</h1>
+      <p>
+        Self-contained browser harness for <code>src/audio</code>. It imports only this module,
+        so the gesture unlock, the ambience crossfade and the synthesised one-shot library can be
+        verified in a real browser without booting the composed application.
+      </p>
+    </header>
+
+    <main>
+      <section class="panel">
+        <h2>Transport</h2>
+        <div class="row">
+          <button id="unlock" type="button" data-testid="unlock-button">Unlock audio</button>
+          <button id="mute" type="button" class="secondary" data-testid="mute-button">Mute</button>
+          <label class="check">
+            <input id="auto-unlock" type="checkbox" data-testid="auto-unlock-checkbox" />
+            unlock on first gesture
+          </label>
+        </div>
+        <p class="status" id="audio-status" data-testid="audio-status" role="status">
+          Loading engine…
+        </p>
+      </section>
+
+      <section class="panel">
+        <h2>Ambience bed</h2>
+        <div class="row">
+          <select id="bed" data-testid="bed-select" aria-label="Ambience bed"></select>
+          <label class="slider">
+            fade
+            <input
+              id="bed-fade"
+              data-testid="bed-fade"
+              type="range"
+              min="0"
+              max="4"
+              step="0.25"
+              value="1.5"
+            />
+            <output id="bed-fade-value">1.50 s</output>
+          </label>
+          <button id="crossfade" type="button" data-testid="crossfade-button">Crossfade bed</button>
+        </div>
+        <p class="hint" id="bed-hint" data-testid="bed-hint"></p>
+      </section>
+
+      <section class="panel">
+        <h2>One-shot SFX</h2>
+        <div class="row">
+          <select id="one-shot" data-testid="one-shot-select" aria-label="One-shot"></select>
+          <label class="slider">
+            gain
+            <input
+              id="one-shot-gain"
+              data-testid="one-shot-gain"
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value="0.9"
+            />
+            <output id="one-shot-gain-value">0.90</output>
+          </label>
+          <label class="slider">
+            pan
+            <input
+              id="one-shot-pan"
+              data-testid="one-shot-pan"
+              type="range"
+              min="-1"
+              max="1"
+              step="0.05"
+              value="0"
+            />
+            <output id="one-shot-pan-value">0.00</output>
+          </label>
+          <button id="trigger" type="button" data-testid="trigger-button">Trigger</button>
+        </div>
+        <p class="hint" id="one-shot-hint" data-testid="one-shot-hint"></p>
+      </section>
+
+      <section class="panel">
+        <h2>Mixer</h2>
+        <div class="row" id="mixer"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Engine state</h2>
+        <dl class="state">
+          <dt>context</dt>
+          <dd id="state-context" data-testid="state-context">-</dd>
+          <dt>rms</dt>
+          <dd id="state-rms" data-testid="state-rms">-</dd>
+          <dt>bed</dt>
+          <dd id="state-bed" data-testid="state-bed">-</dd>
+          <dt>voices</dt>
+          <dd id="state-voices" data-testid="state-voices">-</dd>
+          <dt>retiring</dt>
+          <dd id="state-retiring" data-testid="state-retiring">-</dd>
+        </dl>
+        <pre id="audio-state" data-testid="audio-state">-</pre>
+      </section>
+    </main>
+
+    <script type="module">
+      // The harness imports only the audio module: no React, no scene pipeline.
+      import {
+        BUS_LABELS,
+        BUS_NAMES,
+        ONE_SHOT_DEFINITIONS,
+        ONE_SHOT_IDS,
+        createAudioEngine,
+        validateSoundscapeDescriptor,
+      } from './index.ts'
+
+      /**
+       * Reference sound design the harness offers. These are ordinary era-registry
+       * records: plain data in the documented descriptor shape, validated at load
+       * so a typo shows up here instead of producing a silent bed.
+       */
+      const BED_PRESETS = {
+        none: null,
+        traffic: {
+          id: 'traffic',
+          name: 'Traffic hum',
+          gain: 0.55,
+          fadeInSeconds: 1.5,
+          filter: {
+            type: 'lowpass',
+            frequency: 1100,
+            q: 0.4,
+            modulation: { rate: 0.07, depth: 260 },
+          },
+          layers: [
+            {
+              type: 'noise',
+              color: 'brown',
+              level: 0.5,
+              filter: { type: 'lowpass', frequency: 220, q: 0.7 },
+            },
+            {
+              type: 'noise',
+              color: 'pink',
+              level: 0.16,
+              filter: { type: 'bandpass', frequency: 900, q: 0.5 },
+            },
+            { type: 'oscillator', waveform: 'sine', frequency: 55, level: 0.14 },
+          ],
+        },
+        rain: {
+          id: 'rain',
+          name: 'Rain',
+          gain: 0.45,
+          fadeInSeconds: 1,
+          layers: [
+            {
+              type: 'noise',
+              color: 'white',
+              level: 0.35,
+              filter: { type: 'highpass', frequency: 700, q: 0.6 },
+            },
+            {
+              type: 'noise',
+              color: 'pink',
+              level: 0.3,
+              filter: { type: 'bandpass', frequency: 2400, q: 0.4 },
+            },
+          ],
+        },
+        wind: {
+          id: 'wind',
+          name: 'Wind',
+          gain: 0.4,
+          fadeInSeconds: 1.2,
+          filter: {
+            type: 'lowpass',
+            frequency: 900,
+            q: 0.5,
+            modulation: { rate: 0.05, depth: 500 },
+          },
+          layers: [
+            {
+              type: 'noise',
+              color: 'brown',
+              level: 0.55,
+              filter: { type: 'lowpass', frequency: 500, q: 0.8 },
+            },
+            {
+              type: 'oscillator',
+              waveform: 'sine',
+              frequency: 96,
+              level: 0.05,
+              vibrato: { rate: 0.09, depth: 120 },
+            },
+          ],
+        },
+        'city-drone': {
+          id: 'city-drone',
+          name: 'City drone',
+          gain: 0.4,
+          fadeInSeconds: 1.6,
+          layers: [
+            { type: 'oscillator', waveform: 'triangle', frequency: 110, level: 0.18 },
+            { type: 'oscillator', waveform: 'triangle', frequency: 165, level: 0.12, detune: 6 },
+            {
+              type: 'noise',
+              color: 'pink',
+              level: 0.12,
+              filter: { type: 'bandpass', frequency: 420, q: 0.6 },
+            },
+          ],
+        },
+        birds: {
+          id: 'birds',
+          name: 'Birds',
+          gain: 0.35,
+          fadeInSeconds: 1,
+          layers: [
+            {
+              type: 'oscillator',
+              waveform: 'triangle',
+              frequency: 3200,
+              level: 0.08,
+              vibrato: { rate: 7.5, depth: 420 },
+            },
+            {
+              type: 'noise',
+              color: 'white',
+              level: 0.06,
+              filter: { type: 'bandpass', frequency: 4200, q: 1.1 },
+            },
+          ],
+        },
+        'crowd-murmur': {
+          id: 'crowd-murmur',
+          name: 'Crowd murmur',
+          gain: 0.4,
+          fadeInSeconds: 1.2,
+          filter: {
+            type: 'bandpass',
+            frequency: 800,
+            q: 0.5,
+            modulation: { rate: 0.6, depth: 120 },
+          },
+          layers: [
+            {
+              type: 'noise',
+              color: 'pink',
+              level: 0.5,
+              filter: { type: 'bandpass', frequency: 700, q: 0.8 },
+            },
+            {
+              type: 'noise',
+              color: 'white',
+              level: 0.08,
+              filter: { type: 'bandpass', frequency: 1800, q: 1 },
+            },
+          ],
+        },
+      }
+
+      const scope = window
+
+      function mustGet(id) {
+        const element = document.getElementById(id)
+        if (element === null) {
+          throw new Error(`Audio harness markup is missing #${id}`)
+        }
+        return element
+      }
+
+      const elements = {
+        status: mustGet('audio-status'),
+        unlock: mustGet('unlock'),
+        mute: mustGet('mute'),
+        autoUnlock: mustGet('auto-unlock'),
+        bedSelect: mustGet('bed'),
+        bedFade: mustGet('bed-fade'),
+        bedFadeValue: mustGet('bed-fade-value'),
+        bedHint: mustGet('bed-hint'),
+        crossfade: mustGet('crossfade'),
+        oneShotSelect: mustGet('one-shot'),
+        oneShotGain: mustGet('one-shot-gain'),
+        oneShotGainValue: mustGet('one-shot-gain-value'),
+        oneShotPan: mustGet('one-shot-pan'),
+        oneShotPanValue: mustGet('one-shot-pan-value'),
+        trigger: mustGet('trigger'),
+        oneShotHint: mustGet('one-shot-hint'),
+        mixer: mustGet('mixer'),
+        stateContext: mustGet('state-context'),
+        stateRms: mustGet('state-rms'),
+        stateBed: mustGet('state-bed'),
+        stateVoices: mustGet('state-voices'),
+        stateRetiring: mustGet('state-retiring'),
+        stateJson: mustGet('audio-state'),
+      }
+
+      // Validate every preset up front: an invalid record must be visible, never silent.
+      const bedIssues = {}
+      const beds = []
+      for (const [key, descriptor] of Object.entries(BED_PRESETS)) {
+        if (descriptor === null) {
+          beds.push({ key, label: 'Silence (fade out)', descriptor: null })
+          continue
+        }
+        const result = validateSoundscapeDescriptor(descriptor)
+        if (!result.valid || result.value === null) {
+          bedIssues[key] = result.issues
+          continue
+        }
+        beds.push({ key, label: result.value.name, descriptor })
+      }
+
+      const engine = createAudioEngine()
+
+      for (const bed of beds) {
+        const option = document.createElement('option')
+        option.value = bed.key
+        option.textContent = bed.label
+        elements.bedSelect.append(option)
+      }
+      elements.bedSelect.value = 'traffic'
+
+      for (const id of ONE_SHOT_IDS) {
+        const option = document.createElement('option')
+        option.value = id
+        option.textContent = ONE_SHOT_DEFINITIONS[id].label
+        elements.oneShotSelect.append(option)
+      }
+      elements.oneShotSelect.value = 'siren'
+
+      for (const bus of BUS_NAMES) {
+        const label = document.createElement('label')
+        label.className = 'slider'
+        const output = document.createElement('output')
+        output.textContent = engine.getVolume(bus).toFixed(2)
+        const input = document.createElement('input')
+        input.type = 'range'
+        input.min = '0'
+        input.max = '1'
+        input.step = '0.05'
+        input.value = String(engine.getVolume(bus))
+        input.dataset.testid = `volume-${bus}`
+        input.setAttribute('aria-label', `${BUS_LABELS[bus]} volume`)
+        input.addEventListener('input', () => {
+          engine.setVolume(bus, Number(input.value))
+          output.textContent = Number(input.value).toFixed(2)
+          publish()
+        })
+        label.append(`${BUS_LABELS[bus]} `, input, output)
+        elements.mixer.append(label)
+      }
+
+      let gestureCount = 0
+      const countGesture = () => {
+        gestureCount += 1
+      }
+      scope.addEventListener('pointerdown', countGesture, true)
+      scope.addEventListener('keydown', countGesture, true)
+
+      let autoUnlockArmed = false
+      const unlockFromGesture = () => {
+        if (!autoUnlockArmed) {
+          return
+        }
+        autoUnlockArmed = false
+        scope.removeEventListener('pointerdown', unlockFromGesture, true)
+        scope.removeEventListener('keydown', unlockFromGesture, true)
+        void engine.unlock().then(publish)
+      }
+      scope.addEventListener('pointerdown', unlockFromGesture, true)
+      scope.addEventListener('keydown', unlockFromGesture, true)
+      elements.autoUnlock.addEventListener('change', () => {
+        autoUnlockArmed = elements.autoUnlock.checked
+      })
+
+      function selectedBed() {
+        return beds.find((bed) => bed.key === elements.bedSelect.value) ?? beds[0]
+      }
+
+      function describeBed() {
+        const bed = selectedBed()
+        const preset = BED_PRESETS[bed.key]
+        if (preset === null) {
+          return 'Fades the current bed out; the engine reports no active bed once it is silent.'
+        }
+        const result = validateSoundscapeDescriptor(preset)
+        if (result.value === null) {
+          return `Rejected: ${result.issues.map((issue) => `${issue.path} ${issue.message}`).join(' ')}`
+        }
+        const layers = result.value.layers
+          .map((layer) =>
+            layer.type === 'oscillator'
+              ? `${layer.waveform} @ ${layer.frequency} Hz`
+              : `${layer.color} noise`,
+          )
+          .join(' + ')
+        return `${result.value.layers.length} layers (${layers}), gain ${result.value.gain}, fade ${result.value.fadeInSeconds} s.`
+      }
+
+      function describeOneShot() {
+        const definition = ONE_SHOT_DEFINITIONS[elements.oneShotSelect.value]
+        if (definition === undefined) {
+          return ''
+        }
+        return `${definition.description} · ${definition.durationSeconds.toFixed(2)} s at rate 1 · ${definition.categories.join(', ')}`
+      }
+
+      function publish() {
+        const state = engine.getState()
+        scope.__audioEngineState = state
+
+        elements.stateContext.textContent = `${state.contextState}${state.contextCreated ? '' : ' (not created yet)'}`
+        elements.stateRms.textContent = state.analyserRms.toFixed(4)
+        elements.stateBed.textContent = state.currentBed ?? 'none'
+        elements.stateVoices.textContent = `${state.liveVoices} (one-shot ${state.oneShotVoices}, beds ${state.bedVoices})`
+        elements.stateRetiring.textContent =
+          state.retiringBeds.length === 0 ? 'none' : state.retiringBeds.join(', ')
+        elements.stateJson.textContent = JSON.stringify(state, null, 2)
+
+        elements.status.textContent = state.disposed
+          ? 'Engine disposed.'
+          : state.supported
+            ? `${state.contextState} · ${state.unlocked ? 'unlocked' : 'locked'} · ${state.muted ? 'muted' : 'unmuted'} · bed ${state.currentBed ?? 'none'} · ${state.liveVoices} voices`
+            : 'WebAudio is unavailable in this browser: the engine is a silent no-op.'
+        elements.mute.textContent = state.muted ? 'Unmute' : 'Mute'
+        elements.bedHint.textContent = describeBed()
+        elements.oneShotHint.textContent = describeOneShot()
+      }
+
+      /** Samples the analyser for `durationMs` and resolves the peak RMS. */
+      function sampleRmsPeak(durationMs = 1200) {
+        return new Promise((resolve) => {
+          const deadline = performance.now() + Math.max(16, durationMs)
+          let peak = 0
+          const tick = () => {
+            peak = Math.max(peak, engine.getAnalyserRms())
+            if (performance.now() >= deadline) {
+              resolve(peak)
+              return
+            }
+            setTimeout(tick, 16)
+          }
+          tick()
+        })
+      }
+
+      elements.unlock.addEventListener('click', () => {
+        void engine.unlock().then(publish)
+      })
+      elements.mute.addEventListener('click', () => {
+        engine.toggleMute()
+        publish()
+      })
+      elements.bedFade.addEventListener('input', () => {
+        elements.bedFadeValue.textContent = `${Number(elements.bedFade.value).toFixed(2)} s`
+      })
+      elements.crossfade.addEventListener('click', () => {
+        const bed = selectedBed()
+        engine.crossfadeBeds(bed.descriptor, Number(elements.bedFade.value))
+        publish()
+      })
+      elements.oneShotGain.addEventListener('input', () => {
+        elements.oneShotGainValue.textContent = Number(elements.oneShotGain.value).toFixed(2)
+      })
+      elements.oneShotPan.addEventListener('input', () => {
+        elements.oneShotPanValue.textContent = Number(elements.oneShotPan.value).toFixed(2)
+      })
+      elements.trigger.addEventListener('click', () => {
+        engine.playOneShot(elements.oneShotSelect.value, {
+          gain: Number(elements.oneShotGain.value),
+          pan: Number(elements.oneShotPan.value),
+        })
+        publish()
+      })
+      elements.bedSelect.addEventListener('change', publish)
+      elements.oneShotSelect.addEventListener('change', publish)
+
+      engine.subscribe(publish)
+      setInterval(publish, 100)
+      publish()
+
+      // Automation bridge: state, drives and measurements for browser assertions.
+      scope.__audioEngine = engine
+      scope.__audioHarness = {
+        bedKeys: () => beds.map((bed) => bed.key),
+        contextState: () => engine.getState().contextState,
+        crossfadeBed: (key, seconds) => {
+          const bed = beds.find((candidate) => candidate.key === key)
+          return bed === undefined ? null : engine.crossfadeBeds(bed.descriptor, seconds)
+        },
+        dispose: () => engine.dispose(),
+        gestureCount: () => gestureCount,
+        mute: (muted) => engine.mute(muted),
+        oneShotIds: () => [...ONE_SHOT_IDS],
+        playOneShot: (id, options) => engine.playOneShot(id, options),
+        sampleRmsPeak,
+        setVolume: (bus, value) => engine.setVolume(bus, value),
+        state: () => engine.getState(),
+        stopBeds: (seconds) => engine.stopBeds(seconds),
+        unlock: () => engine.unlock().then(() => engine.getState()),
+        validationIssues: () => bedIssues,
+      }
+    </script>
+  </body>
+</html>

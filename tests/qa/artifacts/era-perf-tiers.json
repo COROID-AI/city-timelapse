@@ -1,0 +1,254 @@
+{
+  "generatedAt": "2026-09-21T16:01:19.670Z",
+  "era": "1945",
+  "low": {
+    "objects": 1171,
+    "meshes": 1086,
+    "instances": 1884,
+    "triangles": 56276
+  },
+  "high": {
+    "objects": 1270,
+    "meshes": 1185,
+    "instances": 2665,
+    "triangles": 69224
+  },
+  "perLayer": {
+    "atmosphere": {
+      "low": {
+        "id": "atmosphere",
+        "label": "Atmosphere and sky",
+        "mounted": true,
+        "kind": "atmosphere",
+        "eraId": "1945",
+        "mounts": 1,
+        "qualityTier": "low",
+        "objects": 17,
+        "meshes": 10,
+        "instancedMeshes": 8,
+        "instances": 551,
+        "lights": 0,
+        "triangles": 14932,
+        "stats": {
+          "frames": 0,
+          "particleAlive": 128,
+          "plumeEmitters": 3,
+          "plumeBaseline": 3,
+          "plumeSources": 0,
+          "plumeSourcesPublished": 0,
+          "ambientBirds": 14
+        }
+      },
+      "high": {
+        "id": "atmosphere",
+        "label": "Atmosphere and sky",
+        "mounted": true,
+        "kind": "atmosphere",
+        "eraId": "1945",
+        "mounts": 1,
+        "qualityTier": "high",
+        "objects": 17,
+        "meshes": 10,
+        "instancedMeshes": 8,
+        "instances": 850,
+        "lights": 0,
+        "triangles": 17348,
+        "stats": {
+          "frames": 0,
+          "particleAlive": 427,
+          "plumeEmitters": 3,
+          "plumeBaseline": 3,
+          "plumeSources": 0,
+          "plumeSourcesPublished": 0,
+          "ambientBirds": 14
+        }
+      }
+    },
+    "storefronts": {
+      "low": {
+        "id": "storefronts",
+        "label": "Storefronts and signage",
+        "mounted": true,
+        "kind": "layer",
+        "eraId": "1945",
+        "mounts": 1,
+        "qualityTier": "low",
+        "objects": 570,
+        "meshes": 500,
+        "instancedMeshes": 0,
+        "instances": 0,
+        "lights": 0,
+        "triangles": 10368,
+        "stats": {
+          "units": 68,
+          "meshes": 500,
+          "signs": 68,
+          "awnings": 136,
+          "advertising": 12,
+          "graffiti": 0,
+          "litMeshes": 0,
+          "textures": 84
+        }
+      },
+      "high": {
+        "id": "storefronts",
+        "label": "Storefronts and signage",
+        "mounted": true,
+        "kind": "layer",
+        "eraId": "1945",
+        "mounts": 1,
+        "qualityTier": "high",
+        "objects": 570,
+        "meshes": 500,
+        "instancedMeshes": 0,
+        "instances": 0,
+        "lights": 0,
+        "triangles": 11184,
+        "stats": {
+          "units": 68,
+          "meshes": 500,
+          "signs": 68,
+          "awnings": 136,
+          "advertising": 12,
+          "graffiti": 0,
+          "litMeshes": 0,
+          "textures": 84
+        }
+      }
+    },
+    "props": {
+      "low": {
+        "id": "props",
+        "label": "Street furniture",
+        "mounted": true,
+        "kind": "layer",
+        "eraId": "1945",
+        "mounts": 1,
+        "qualityTier": "low",
+        "objects": 89,
+        "meshes": 86,
+        "instancedMeshes": 86,
+        "instances": 416,
+        "lights": 0,
+        "triangles": 12408,
+        "stats": {
+          "propCount": 76,
+          "instanceCount": 416,
+          "drawCalls": 86,
+          "recipesUsed": 19,
+          "pointLights": 0,
+          "anchorsCovered": 76
+        }
+      },
+      "high": {
+        "id": "props",
+        "label": "Street furniture",
+        "mounted": true,
+        "kind": "layer",
+        "eraId": "1945",
+        "mounts": 1,
+        "qualityTier": "high",
+        "objects": 105,
+        "meshes": 102,
+        "instancedMeshes": 102,
+        "instances": 439,
+        "lights": 0,
+        "triangles": 12816,
+        "stats": {
+          "propCount": 76,
+          "instanceCount": 439,
+          "drawCalls": 102,
+          "recipesUsed": 19,
+          "pointLights": 0,
+          "anchorsCovered": 76
+        }
+      }
+    },
+    "vehicles": {
+      "low": {
+        "id": "vehicles",
+        "label": "Vehicles",
+        "mounted": true,
+        "kind": "layer",
+        "eraId": "1945",
+        "mounts": 1,
+        "qualityTier": "low",
+        "objects": 495,
+        "meshes": 490,
+        "instancedMeshes": 489,
+        "instances": 917,
+        "lights": 0,
+        "triangles": 18568,
+        "stats": {
+          "movingInstances": 14,
+          "parkedInstances": 37,
+          "movingVariants": 9,
+          "parkedVariants": 18,
+          "meshes": 490,
+          "markingMeshes": 1,
+          "sfxEvents": 0
+        }
+      },
+      "high": {
+        "id": "vehicles",
+        "label": "Vehicles",
+        "mounted": true,
+        "kind": "layer",
+        "eraId": "1945",
+        "mounts": 1,
+        "qualityTier": "high",
+        "objects": 578,
+        "meshes": 573,
+        "instancedMeshes": 572,
+        "instances": 1376,
+        "lights": 0,
+        "triangles": 27876,
+        "stats": {
+          "movingInstances": 38,
+          "parkedInstances": 37,
+          "movingVariants": 18,
+          "parkedVariants": 13,
+          "meshes": 573,
+          "markingMeshes": 1,
+          "sfxEvents": 0
+        }
+      }
+    }
+  },
+  "layoutMeshes": {
+    "low": 116,
+    "high": 116
+  },
+  "declaredDensity": {
+    "low": {
+      "buildings": 0.9,
+      "facadeDetail": 0.4,
+      "storefrontDetail": 0.45,
+      "props": 0.35,
+      "vehicles": 0.4,
+      "pedestrians": 0.3,
+      "particles": 0.3,
+      "drawDistance": 180
+    },
+    "medium": {
+      "buildings": 1,
+      "facadeDetail": 0.7,
+      "storefrontDetail": 0.75,
+      "props": 0.65,
+      "vehicles": 0.7,
+      "pedestrians": 0.6,
+      "particles": 0.6,
+      "drawDistance": 280
+    },
+    "high": {
+      "buildings": 1,
+      "facadeDetail": 1,
+      "storefrontDetail": 1,
+      "props": 1,
+      "vehicles": 1,
+      "pedestrians": 1,
+      "particles": 1,
+      "drawDistance": 400
+    }
+  }
+}

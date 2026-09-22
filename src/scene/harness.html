@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>City timelapse render pipeline harness</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        padding: 12px;
+        background: #05070d;
+        color: #e8edf7;
+        font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 13px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #94a2be;
+      }
+      #stage {
+        position: relative;
+        width: 640px;
+        height: 360px;
+        background: #05070d;
+        overflow: hidden;
+        border: 1px solid rgba(120, 150, 200, 0.22);
+      }
+      #canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+      }
+      #readout {
+        margin: 8px 0 0;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.5;
+        color: #94a2be;
+        white-space: pre;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Render pipeline harness</h1>
+    <div id="stage">
+      <canvas id="canvas" data-testid="harness-canvas"></canvas>
+      <div id="react-root"></div>
+    </div>
+    <p id="readout" data-testid="harness-readout" role="status">booting…</p>
+
+    <!--
+      Browser harness for the scene pipeline.
+
+      It mounts the *real* pipeline (imperative `createRenderPipeline`, or the
+      React `SceneCanvas` host when opened as `?host=react`), fills the world
+      group with a small procedural stand-in block so lighting and grade
+      parameters visibly change the frame, and publishes a small scripting API
+      on `window.citySceneHarness` for the Playwright suite.
+
+      `?host=react` therefore exercises the canvas host component end to end,
+      while the default mode drives the same pipeline without React in the way.
+      Every number the browser checks read back comes from the public barrel.
+    -->
+    <script type="module">
+      import {
+        BoxGeometry,
+        Color,
+        DoubleSide,
+        Mesh,
+        MeshStandardMaterial,
+        PlaneGeometry,
+      } from 'three'
+      import {
+        DAY_LIGHTING,
+        GOLDEN_HOUR_LIGHTING,
+        NIGHT_LIGHTING,
+        createRenderPipeline,
+      } from './index'
+
+      const canvas = document.getElementById('canvas')
+      const readout = document.getElementById('readout')
+      const useReactHost = new URLSearchParams(location.search).get('host') === 'react'
+
+      /** Deterministic stand-in block so lighting and grading are observable. */
+      function fillWorld(pipeline) {
+        const ground = new Mesh(
+          new PlaneGeometry(72, 72),
+          new MeshStandardMaterial({ color: 0x2b3040, roughness: 0.95, metalness: 0.04 }),
+        )
+        ground.rotation.x = -Math.PI / 2
+        ground.receiveShadow = true
+        ground.name = 'harness-ground'
+        pipeline.world.add(ground)
+
+        const facadeColors = [0x8a7a66, 0x6f7f92, 0x9a8d7a, 0x5f6b7c, 0x8b6f5a, 0x707c86]
+        for (let index = 0; index < 6; index += 1) {
+          const height = 7 + (index % 3) * 4
+          const block = new Mesh(
+            new BoxGeometry(6, height, 6),
+            new MeshStandardMaterial({
+              color: facadeColors[index % facadeColors.length],
+              roughness: 0.78,
+              metalness: 0.12,
+            }),
+          )
+          const angle = (index / 6) * Math.PI * 2
+          block.position.set(Math.cos(angle) * 14, height / 2, Math.sin(angle) * 14)
+          block.castShadow = true
+          block.receiveShadow = true
+          pipeline.world.add(block)
+        }
+
+        // Emissive signage gives the bloom pass something to work with.
+        const sign = new Mesh(
+          new PlaneGeometry(9, 3.4),
+          new MeshStandardMaterial({
+            color: 0x14141c,
+            emissive: new Color(0xff7bd0),
+            emissiveIntensity: 4,
+            side: DoubleSide,
+          }),
+        )
+        sign.position.set(0, 6, 5)
+        pipeline.world.add(sign)
+      }
+
+      let hookFrames = 0
+
+      /** Publishes the scripting API used by the browser checks. */
+      function publish(pipeline, mode) {
+        fillWorld(pipeline)
+        pipeline.onFrame(() => {
+          hookFrames += 1
+        })
+
+        /**
+         * Renders a frame and averages the luminance of the drawing buffer.
+         *
+         * Reading back straight after a render inside the same task is the only
+         * reliable way to inspect a frame that is not preserved after compositing.
+         */
+        function measureLuminance() {
+          const gl = pipeline.renderer.getContext()
+          pipeline.renderFrame(1 / 60)
+          const width = gl.drawingBufferWidth
+          const height = gl.drawingBufferHeight
+          const pixels = new Uint8Array(width * height * 4)
+          gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
+          let total = 0
+          let min = 255
+          let max = 0
+          const count = width * height
+          for (let index = 0; index < pixels.length; index += 4) {
+            const luminance =
+              0.2126 * pixels[index] + 0.7152 * pixels[index + 1] + 0.0722 * pixels[index + 2]
+            total += luminance
+            if (luminance < min) {
+              min = luminance
+            }
+            if (luminance > max) {
+              max = luminance
+            }
+          }
+          return { average: total / count, min, max, width, height }
+        }
+
+        window.citySceneHarness = {
+          mode,
+          ready: true,
+          pipeline,
+          url: location.href,
+          measureLuminance,
+          step(frames = 1) {
+            for (let index = 0; index < frames; index += 1) {
+              pipeline.renderFrame(1 / 60)
+            }
+            return frames
+          },
+          setLighting(patch) {
+            return pipeline.applyLighting(patch)
+          },
+          setQualityTier(name) {
+            return pipeline.setQualityTier(name).name
+          },
+          setPostProcessing(patch) {
+            return pipeline.applyPostProcessing(patch)
+          },
+          getStats() {
+            const stats = pipeline.instrumentation.sample()
+            return {
+              frames: stats.frames,
+              hookFrames,
+              frameTimeMs: stats.frameTimeMs,
+              averageFrameTimeMs: stats.averageFrameTimeMs,
+              averageFps: stats.averageFps,
+              minFrameTimeMs: stats.minFrameTimeMs,
+              maxFrameTimeMs: stats.maxFrameTimeMs,
+              budgetMs: stats.budgetMs,
+              withinBudget: stats.withinBudget,
+              overBudgetFrames: stats.overBudgetFrames,
+            }
+          },
+          getState() {
+            const quality = pipeline.quality
+            return {
+              quality: quality.name,
+              shadowMapSize: quality.shadowMapSize,
+              pixelRatio: quality.pixelRatio,
+              effects: pipeline.postProcessing.effects.map((entry) => entry.name),
+              passOrder: [...pipeline.postProcessing.passOrder],
+              postProcessingActive: pipeline.postProcessing.active,
+              postProcessingFailure: pipeline.postProcessing.failure,
+              postProcessingSize: { ...pipeline.postProcessing.size },
+              context: pipeline.contextInfo,
+              contextLost: pipeline.contextLost,
+              running: pipeline.running,
+              cameraMode: pipeline.controls.mode,
+              camera: pipeline.getCameraState(),
+              cameraAspect: pipeline.camera.aspect,
+              background: pipeline.scene.background === null ? null : `#${pipeline.scene.background.getHexString()}`,
+              sunColor: `#${pipeline.lighting.sun.color.getHexString()}`,
+              sunIntensity: pipeline.lighting.sun.intensity,
+              ambientIntensity: pipeline.lighting.ambient.intensity,
+              fogDensity: pipeline.scene.fog === null || pipeline.scene.fog === undefined ? 0 : pipeline.scene.fog.density,
+            }
+          },
+          cameraBounds: pipeline.controls.bounds,
+          lightingPresets: { day: DAY_LIGHTING, goldenHour: GOLDEN_HOUR_LIGHTING, night: NIGHT_LIGHTING },
+        }
+
+        document.body.dataset.harnessReady = 'true'
+      }
+
+      function report(text) {
+        readout.textContent = text
+      }
+
+      function describe() {
+        const pipeline = window.citySceneHarness.pipeline
+        const stats = pipeline.instrumentation.sample()
+        const info = pipeline.contextInfo
+        return [
+          `host: ${window.citySceneHarness.mode}`,
+          `context: ${info.contextType} ${info.drawingBufferWidth}x${info.drawingBufferHeight} @${info.pixelRatio}x`,
+          `gpu: ${info.renderer}`,
+          `quality: ${pipeline.quality.name} effects=${window.citySceneHarness.getState().effects.join(',') || 'none'}`,
+          `camera: ${pipeline.controls.mode} azimuth=${pipeline.getCameraState().orbit.azimuth.toFixed(3)} radius=${pipeline.getCameraState().orbit.radius.toFixed(1)}`,
+          `frames: ${stats.frames} avg ${stats.averageFrameTimeMs.toFixed(2)}ms (${stats.averageFps.toFixed(1)} fps)`,
+        ].join('\n')
+      }
+
+      void (async () => {
+        try {
+          if (useReactHost) {
+            const [{ createElement }, { createRoot }, { SceneCanvas }] = await Promise.all([
+              import('react'),
+              import('react-dom/client'),
+              import('./index'),
+            ])
+            canvas.remove()
+            createRoot(document.getElementById('react-root')).render(
+              createElement(SceneCanvas, {
+                qualityTier: 'high',
+                lighting: DAY_LIGHTING,
+                onReady: (pipeline) => {
+                  publish(pipeline, 'react')
+                },
+                onError: (reason) => {
+                  report(`react host failed: ${reason}`)
+                },
+              }),
+            )
+          } else {
+            publish(
+              createRenderPipeline({
+                canvas,
+                qualityTier: 'high',
+                lighting: DAY_LIGHTING,
+                autoStart: true,
+              }),
+              'imperative',
+            )
+          }
+        } catch (error) {
+          report(`harness failed: ${error instanceof Error ? error.message : String(error)}`)
+          document.body.dataset.harnessError = 'true'
+          throw error
+        }
+
+        window.setInterval(() => {
+          report(describe())
+        }, 250)
+      })()
+
+      // Keep the stage square-ish for the resize check: the spec drives the size.
+      void stage
+    </script>
+  </body>
+</html>
