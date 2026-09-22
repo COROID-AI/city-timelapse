@@ -1,0 +1,414 @@
+/*
+ * Fixed-top era timeline: glassy control bar, era-tinted accents, snapping
+ * tick labels, draggable playhead, HUD readout, and the mute/help cluster.
+ *
+ * Layering contract (mirrored inline in timeline.ts so it is unit-testable
+ * without a CSS cascade): the root passes pointer events through so orbit and
+ * walk input reaches the scene outside the bar, while the inner panel opts
+ * back in as the only interactive surface.
+ */
+
+.timeline-ui {
+  /* Glass palette: dark base keeps text high-contrast over any era lighting. */
+  --era-glass: rgba(10, 13, 20, 0.72);
+  --era-glass-strong: rgba(8, 11, 17, 0.86);
+  --era-line: rgba(255, 255, 255, 0.16);
+  --era-line-strong: rgba(255, 255, 255, 0.32);
+  --era-text: #eef2fb;
+  --era-text-dim: rgba(238, 242, 251, 0.68);
+  --era-accent: #e6b25e; /* overwritten per selected year by timeline.ts */
+  --era-shadow: 0 10px 34px rgba(0, 0, 0, 0.45);
+
+  pointer-events: none;
+  display: flex;
+  width: min(1060px, calc(100vw - 32px));
+  font-variant-numeric: tabular-nums;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Fallback when the UI is mounted without the shell's overlay/slot. */
+body > .timeline-ui {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.timeline-ui__panel {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: clamp(12px, 2vw, 26px);
+  width: 100%;
+  padding: 10px clamp(12px, 2vw, 20px);
+  border: 1px solid var(--era-line);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 42%),
+    var(--era-glass);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: var(--era-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: var(--era-text);
+}
+
+/* The shell's slot becomes a pass-through wrapper once the UI is mounted. */
+.timeline-slot.timeline-slot--era {
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------- HUD ---- */
+
+.era-hud {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 148px;
+  padding-right: clamp(8px, 1.4vw, 16px);
+  border-right: 1px solid var(--era-line);
+}
+
+.era-hud__eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--era-text-dim);
+}
+
+.era-hud__readout {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.era-hud__year {
+  font-size: clamp(20px, 2.4vw, 26px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--era-accent);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+}
+
+.era-hud__name {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--era-text);
+  white-space: nowrap;
+}
+
+.era-hud__progress {
+  position: relative;
+  height: 4px;
+  margin-top: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.era-hud__progress-fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--era-accent) 65%, #fff), var(--era-accent));
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+/* `hidden` must win over the block layout above. */
+.era-hud__progress[hidden] {
+  display: none;
+}
+
+/* ------------------------------------------------------------- slider ---- */
+
+.era-slider {
+  position: relative;
+  flex: 1 1 auto;
+  padding: 18px 0 22px; /* grab area; labels overflow below the track */
+  touch-action: none; /* touch drags move the playhead, never the page */
+  cursor: grab;
+  border-radius: 10px;
+  outline: none;
+}
+
+.era-slider.is-dragging {
+  cursor: grabbing;
+}
+
+.era-slider:focus-visible {
+  outline: 2px solid var(--era-accent);
+  outline-offset: 4px;
+}
+
+.era-slider__track {
+  position: relative;
+  height: 6px;
+  margin: 0 26px; /* room for the edge tick labels to center on 0%/100% */
+  border-radius: 999px;
+}
+
+.era-slider__rail {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.era-slider__fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--era-accent) 45%, rgba(255, 255, 255, 0.4)),
+    var(--era-accent)
+  );
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+.era-slider__stops {
+  position: absolute;
+  inset: 0;
+}
+
+.era-slider__stop {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.era-slider__tick {
+  display: block;
+  width: 3px;
+  height: 22px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.55);
+  transform: scaleY(0.73); /* idle height via composited transform */
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.era-slider__label {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--era-text-dim);
+  white-space: nowrap;
+  transition: color 160ms ease;
+}
+
+/* Snapped-to stop: bright tick, accent label — the "nearest year" cue. */
+.era-slider__stop.is-active .era-slider__tick {
+  transform: scaleY(1);
+  background: var(--era-accent);
+}
+
+.era-slider__stop.is-active .era-slider__label {
+  color: var(--era-accent);
+  font-weight: 700;
+}
+
+.era-slider__playhead {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+  background: var(--era-accent);
+  box-shadow:
+    0 0 0 4px rgba(255, 255, 255, 0.14),
+    0 3px 10px rgba(0, 0, 0, 0.55);
+}
+
+.era-slider__bubble {
+  position: absolute;
+  bottom: 16px;
+  left: 0;
+  transform: translateX(-50%);
+  padding: 3px 9px;
+  border: 1px solid var(--era-line-strong);
+  border-radius: 999px;
+  background: var(--era-glass-strong);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--era-text);
+  white-space: nowrap;
+}
+
+.era-slider__bubble[hidden],
+.era-controls__hints[hidden] {
+  display: none;
+}
+
+/* ----------------------------------------------------------- controls ---- */
+
+.era-controls {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: clamp(8px, 1.4vw, 16px);
+  border-left: 1px solid var(--era-line);
+}
+
+.era-controls__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--era-line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--era-text);
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.era-controls__btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: var(--era-line-strong);
+}
+
+.era-controls__btn:focus-visible {
+  outline: 2px solid var(--era-accent);
+  outline-offset: 2px;
+}
+
+.era-controls__btn[aria-pressed='true'],
+.era-controls__btn[aria-expanded='true'] {
+  background: color-mix(in srgb, var(--era-accent) 26%, rgba(255, 255, 255, 0.06));
+  border-color: color-mix(in srgb, var(--era-accent) 65%, transparent);
+  color: var(--era-accent);
+}
+
+.era-controls__icon {
+  width: 18px;
+  height: 18px;
+}
+
+.era-controls__speaker {
+  fill: currentColor;
+}
+
+.era-controls__wave {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
+
+.era-controls__slash {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  opacity: 0;
+}
+
+.era-controls__btn.is-muted .era-controls__wave {
+  opacity: 0.25;
+}
+
+.era-controls__btn.is-muted .era-controls__slash {
+  opacity: 1;
+}
+
+.era-controls__glyph {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.era-controls__hints {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(320px, calc(100vw - 48px));
+  padding: 12px 14px;
+  border: 1px solid var(--era-line);
+  border-radius: 12px;
+  background: var(--era-glass-strong);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: var(--era-shadow);
+}
+
+.era-controls__hints-title {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--era-accent);
+}
+
+.era-controls__hint-list {
+  margin: 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--era-text);
+}
+
+/* --------------------------------------------------------- responsive ---- */
+
+@media (max-width: 760px) {
+  .timeline-ui__panel {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  .era-hud {
+    min-width: 0;
+    border-right: none;
+    padding-right: 0;
+  }
+
+  .era-slider {
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .era-controls {
+    margin-left: auto;
+  }
+}
+
+/* Legibility and comfort: no motion when the user asks for less. */
+@media (prefers-reduced-motion: reduce) {
+  .era-slider__tick,
+  .era-slider__label,
+  .era-hud__progress-fill,
+  .era-controls__btn {
+    transition: none;
+  }
+}
